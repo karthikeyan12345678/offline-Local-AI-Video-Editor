@@ -1,0 +1,47 @@
+# Separate desktop app for the AI Assistant: chat, create PDF/PPT/Word/CSV/Excel, compare, resume ATS check, images, file analytics.
+# Same shell as the video studio, but its own name, icon, data folder and a light runtime (no PyTorch).
+appId: com.ltxportable.aiassistant
+productName: AI Assistant
+copyright: AI Assistant
+extraMetadata:
+  name: ai-assistant-portable
+  productName: AI Assistant
+  description: Chat assistant that creates PDF, PowerPoint, Word, CSV and Excel files, compares files, checks resumes (ATS) and analyses data.
+  product: assistant
+directories:
+  output: ../dist-installer
+  buildResources: build
+files:
+  - main.js
+  - runtime.js
+  - products.js
+  - preload.js
+  - splash-assistant.html
+  - splash-assistant.css
+  - splash.js
+  - design/**
+  - package.json
+extraResources:
+  - from: ../backend/ltxps
+    to: backend/ltxps
+    filter: ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+  - from: ../backend/requirements-assistant.txt
+    to: backend/requirements-assistant.txt
+  - from: ../assistant-ui/dist
+    to: ui
+asar: true
+win:
+  icon: build/icon-assistant.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  artifactName: AIAssistant-Setup-${version}.exe
+portable:
+  artifactName: AIAssistant-${version}-portable.exe

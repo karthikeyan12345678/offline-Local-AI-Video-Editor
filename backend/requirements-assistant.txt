@@ -1,0 +1,14 @@
+# Libraries for the stand-alone AI Assistant app. No PyTorch: it only needs these.
+# Versions are the ones the test-suite ran against.
+fastapi==0.143.2
+starlette==1.8.0
+uvicorn==0.54.0
+pydantic==2.14.1
+python-multipart==0.0.32
+httpx==0.28.1
+pillow==12.3.0
+pypdf==6.20.1
+python-docx==1.2.0
+python-pptx==1.0.2
+openpyxl==3.1.5
+reportlab==5.0.1

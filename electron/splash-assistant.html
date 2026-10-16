@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'">
+<title>AI Assistant</title>
+<link rel="stylesheet" href="design/tokens.css">
+<link rel="stylesheet" href="design/components.css">
+<link rel="stylesheet" href="splash-assistant.css">
+</head>
+<body>
+<main>
+  <h1>✦ AI Assistant</h1>
+  <p id="stage" class="stage" aria-live="polite">Starting…</p>
+  <div class="progress progress--indeterminate" id="bar" role="progressbar" aria-label="Setup progress"><span></span></div>
+  <p id="detail" class="text-sm muted"></p>
+  <p class="text-sm muted" id="first">First start only: the app is installing its libraries (about 150 MB). Next time it opens in seconds.</p>
+  <section id="fail" hidden class="stack">
+    <p class="banner banner--error" role="alert"><span class="icon" aria-hidden="true">!</span><strong>Something went wrong</strong></p>
+    <pre id="err" class="text-sm mono card"></pre>
+    <div class="row">
+      <button class="btn" id="retry" type="button">Try again</button>
+      <button class="btn btn--secondary" id="log" type="button">Open log</button>
+      <button class="btn btn--ghost" id="quit" type="button">Quit</button>
+    </div>
+  </section>
+</main>
+<script src="splash.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+# Everything except PyTorch (the desktop app installs the right PyTorch build for the GPU separately).
+# Versions are the ones the test-suite ran against.
+diffusers==0.41.0
+transformers==5.20.0
+accelerate==1.15.0
+safetensors==0.8.0
+huggingface-hub==1.33.0
+tokenizers==0.23.3
+sentencepiece==0.2.2
+protobuf>=4.25,<8
+numpy==2.5.4
+pillow==12.3.0
+imageio-ffmpeg==0.6.0
+fastapi==0.143.2
+starlette==1.8.0
+uvicorn==0.54.0
+pydantic==2.14.1
+python-multipart==0.0.32
+httpx==0.28.1
+# AI Assistant tools (create PDF/PPT/Word/CSV/Excel, compare, resume check, analytics)
+pypdf==6.20.1
+python-docx==1.2.0
+python-pptx==1.0.2
+openpyxl==3.1.5
+reportlab==5.0.1

@@ -1,0 +1,23 @@
+{
+  "name": "ltx-portable-studio",
+  "productName": "LTX Portable Studio",
+  "version": "1.0.0",
+  "description": "Local AI video generator and editor that runs on a 4 GB graphics card.",
+  "main": "main.js",
+  "author": "LTX Portable Studio",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/runtime.test.js",
+    "dist": "electron-builder --win --publish never",
+    "dist:dir": "electron-builder --win --dir --publish never",
+    "dist:assistant": "electron-builder --config electron-builder.assistant.yml --win --publish never",
+    "dist:assistant:dir": "electron-builder --config electron-builder.assistant.yml --win --dir --publish never",
+    "start:assistant": "electron . --product=assistant"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  }
+}

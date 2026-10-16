@@ -1,0 +1,4007 @@
+{
+ "source": "Open Design design-systems (Apache-2.0)",
+ "themes": [
+  {
+   "id": "agentic",
+   "name": "Agentic",
+   "category": "Themed & Unique",
+   "description": "Conversational AI-first interface with minimal controls, clear outcomes, and delegated task flows for agentic workflows.",
+   "colors": {
+    "bg": "#0B1020",
+    "surface": "#131B2F",
+    "surface-warm": "#182343",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#8EA0B8",
+    "meta": "#60A5FA",
+    "border": "#293653",
+    "border-soft": "#1E2A43",
+    "accent": "#60A5FA",
+    "accent-on": "#06111F",
+    "success": "#22C55E",
+    "warn": "#FBBF24",
+    "danger": "#FB7185"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "airbnb",
+   "name": "Airbnb",
+   "category": "E-Commerce & Retail",
+   "description": "Travel marketplace. Warm coral accent, photography-driven, rounded UI.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#F7F7F7",
+    "fg": "#222222",
+    "fg-2": "#3F3F3F",
+    "muted": "#6A6A6A",
+    "meta": "#929292",
+    "border": "#DDDDDD",
+    "border-soft": "#EBEBEB",
+    "accent": "#FF385C",
+    "accent-on": "#FFFFFF",
+    "success": "#008A05",
+    "warn": "#C47700",
+    "danger": "#C13515"
+   },
+   "fonts": {
+    "display": "Airbnb Cereal VF",
+    "body": "Airbnb Cereal VF",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "airtable",
+   "name": "Airtable",
+   "category": "Design & Creative",
+   "description": "Spreadsheet-database hybrid. Colorful, friendly, structured data aesthetic.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFFFFF",
+    "fg": "#181D26",
+    "fg-2": "#333333",
+    "border": "#E0E2E6",
+    "border-soft": "#EEF0F3",
+    "accent": "#1B61C9",
+    "accent-on": "#FFFFFF",
+    "success": "#006400",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Haas Groot Disp",
+    "body": "Haas",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "ant",
+   "name": "Ant",
+   "category": "Professional & Corporate",
+   "description": "Structured, enterprise-focused design system emphasizing clarity, consistency, and efficiency for data-dense web applications.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F7F8FA",
+    "surface-warm": "#FFF1F0",
+    "fg": "#1F1F1F",
+    "fg-2": "#4B5563",
+    "muted": "#697386",
+    "meta": "#D32029",
+    "border": "#D9DCE3",
+    "border-soft": "#EEF0F4",
+    "accent": "#D32029",
+    "accent-on": "#FFFFFF",
+    "success": "#22A06B",
+    "warn": "#FAAD14",
+    "danger": "#CF1322"
+   },
+   "fonts": {
+    "display": "Ant Sans",
+    "body": "Ant Sans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "apple",
+   "name": "Apple",
+   "category": "Media & Consumer",
+   "description": "Consumer electronics. Premium white space, SF Pro, cinematic imagery.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F5F5F7",
+    "surface-warm": "#FBFBFD",
+    "fg": "#1D1D1F",
+    "fg-2": "#424245",
+    "muted": "#6E6E73",
+    "meta": "#86868B",
+    "border": "#D2D2D7",
+    "border-soft": "#E8E8ED",
+    "accent": "#0071E3",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "SF Pro Display",
+    "body": "SF Pro Text",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "application",
+   "name": "Application",
+   "category": "Professional & Corporate",
+   "description": "App dashboard with purple-themed aesthetic, top-bar navigation, card-based layouts, and developer-first workflows.",
+   "colors": {
+    "bg": "#F6F7F9",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EEF4FF",
+    "fg": "#172033",
+    "fg-2": "#3B4658",
+    "muted": "#6B7689",
+    "meta": "#2563EB",
+    "border": "#D8DEE8",
+    "border-soft": "#EDF1F6",
+    "accent": "#2563EB",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "arc",
+   "name": "Arc Browser",
+   "category": "Productivity & SaaS",
+   "description": "\"The browser that browses for you.\" Translucent surfaces, gradient warmth, sidebar-first layout.",
+   "colors": {
+    "bg": "#FDF3EC",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFF4EA",
+    "fg": "#1A1A1F",
+    "fg-2": "#54545A",
+    "muted": "#8C8C93",
+    "meta": "#8C8C93",
+    "border": "#ECE5DB",
+    "border-soft": "#F6F0E8",
+    "accent": "#FF5F5F",
+    "accent-on": "#FFFFFF",
+    "success": "#48BB78",
+    "warn": "#F6AD55",
+    "danger": "#F56565"
+   },
+   "fonts": {
+    "display": "Argent CF",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "artistic",
+   "name": "Artistic",
+   "category": "Creative & Artistic",
+   "description": "High-contrast, expressive style with creative typography and bold color choices for visually striking interfaces.",
+   "colors": {
+    "bg": "#FBF6EE",
+    "surface": "#FFFDF8",
+    "surface-warm": "#F1E3CF",
+    "fg": "#201914",
+    "fg-2": "#4C4037",
+    "muted": "#7A6D63",
+    "meta": "#9B5B32",
+    "border": "#DED2C3",
+    "border-soft": "#EEE4D7",
+    "accent": "#9B5B32",
+    "accent-on": "#FFFFFF",
+    "success": "#4F8A4F",
+    "warn": "#C9822F",
+    "danger": "#B33A3A"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "atelier-zero",
+   "name": "Atelier Zero",
+   "category": "Editorial · Studio",
+   "description": "A magazine-grade, collage-driven visual system: warm paper canvas, surreal",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F7F7F7",
+    "surface-warm": "#EEEEEE",
+    "fg": "#111111",
+    "fg-2": "#3A3A3A",
+    "muted": "#707070",
+    "meta": "#111111",
+    "border": "#D9D9D9",
+    "border-soft": "#EEEEEE",
+    "accent": "#111111",
+    "accent-on": "#FFFFFF",
+    "success": "#168A46",
+    "warn": "#B7791F",
+    "danger": "#C53030"
+   },
+   "fonts": {
+    "display": "Helvetica Neue",
+    "body": "Helvetica Neue",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "bento",
+   "name": "Bento",
+   "category": "Layout & Structure",
+   "description": "Modular grid layout with card-like blocks, clear hierarchy, soft spacing, and subtle visual contrast for organized, scannable interfaces.",
+   "colors": {
+    "bg": "#F5F8FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EAF1FF",
+    "fg": "#101828",
+    "fg-2": "#344054",
+    "muted": "#667085",
+    "meta": "#2563EB",
+    "border": "#D7E0EF",
+    "border-soft": "#EDF2F8",
+    "accent": "#2563EB",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "binance",
+   "name": "Binance.US",
+   "category": "Fintech & Crypto",
+   "description": "Crypto exchange. Bold yellow accent on monochrome, trading-floor urgency.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#F5F5F5",
+    "fg": "#1E2026",
+    "fg-2": "#32313A",
+    "muted": "#848E9C",
+    "meta": "#777E90",
+    "border": "#E6E8EA",
+    "border-soft": "#F0F1F2",
+    "accent": "#F0B90B",
+    "accent-on": "#1E2026",
+    "success": "#0ECB81",
+    "warn": "#EAB308",
+    "danger": "#F6465D"
+   },
+   "fonts": {
+    "display": "BinancePlex",
+    "body": "BinancePlex",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "bmw",
+   "name": "BMW",
+   "category": "Automotive",
+   "description": "Luxury automotive. Dark premium surfaces, precise German engineering aesthetic.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F5F5F5",
+    "surface-warm": "#F5F5F5",
+    "fg": "#262626",
+    "fg-2": "#262626",
+    "muted": "#757575",
+    "meta": "#BBBBBB",
+    "border": "#E0E0E0",
+    "border-soft": "#E0E0E0",
+    "accent": "#1C69D4",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "BMWTypeNextLatin Light",
+    "body": "BMWTypeNextLatin",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "bmw-m",
+   "name": "BMW M",
+   "category": "Automotive",
+   "description": "Motorsport performance sub-brand. Near-black cockpit surfaces, BMW M tricolor accents, sharp engineering geometry.",
+   "colors": {
+    "bg": "#F7F8FA",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EEF3F8",
+    "fg": "#111827",
+    "fg-2": "#334155",
+    "muted": "#64748B",
+    "meta": "#0066B1",
+    "border": "#D7DEE8",
+    "border-soft": "#EDF1F6",
+    "accent": "#0066B1",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#E4002B"
+   },
+   "fonts": {
+    "display": "BMWTypeNext",
+    "body": "BMWTypeNext",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "bold",
+   "name": "Bold",
+   "category": "Bold & Expressive",
+   "description": "Strong visual presence with heavyweight typography, high-contrast colors, and commanding layouts.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F7F7F7",
+    "surface-warm": "#EEEEEE",
+    "fg": "#111111",
+    "fg-2": "#3A3A3A",
+    "muted": "#707070",
+    "meta": "#111111",
+    "border": "#D9D9D9",
+    "border-soft": "#EEEEEE",
+    "accent": "#111111",
+    "accent-on": "#FFFFFF",
+    "success": "#168A46",
+    "warn": "#B7791F",
+    "danger": "#C53030"
+   },
+   "fonts": {
+    "display": "Arial Black",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "brutalism",
+   "name": "Brutalism",
+   "category": "Bold & Expressive",
+   "description": "Raw, anti-design aesthetic inspired by concrete architecture with unadorned elements, jarring layouts, and functional minimalism.",
+   "colors": {
+    "bg": "#F5F1E8",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFEF5A",
+    "fg": "#000000",
+    "fg-2": "#222222",
+    "muted": "#555555",
+    "meta": "#000000",
+    "border": "#000000",
+    "border-soft": "#000000",
+    "accent": "#FFEF5A",
+    "accent-on": "#000000",
+    "success": "#00B050",
+    "warn": "#FF8C00",
+    "danger": "#FF2B2B"
+   },
+   "fonts": {
+    "display": "Arial Black",
+    "body": "Arial",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "bugatti",
+   "name": "Bugatti",
+   "category": "Automotive",
+   "description": "Hypercar brand. Cinema-black canvas, monochrome austerity, monumental display type.",
+   "colors": {
+    "bg": "#07111F",
+    "surface": "#101D2F",
+    "surface-warm": "#16283F",
+    "fg": "#F7FBFF",
+    "fg-2": "#D6E0EE",
+    "muted": "#8FA1B7",
+    "meta": "#B7C7D9",
+    "border": "#2C405C",
+    "border-soft": "#1C2D44",
+    "accent": "#1B4D8F",
+    "accent-on": "#FFFFFF",
+    "success": "#2FBF71",
+    "warn": "#D9B45F",
+    "danger": "#C1121F"
+   },
+   "fonts": {
+    "display": "Bugatti Display",
+    "body": "Avenir Next",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "cafe",
+   "name": "Cafe",
+   "category": "Creative & Artistic",
+   "description": "Cozy cafe-inspired interface with warm tones, soft typography, and clean layouts for a relaxed browsing experience.",
+   "colors": {
+    "bg": "#FBF6EE",
+    "surface": "#FFFDF8",
+    "surface-warm": "#F1E3CF",
+    "fg": "#201914",
+    "fg-2": "#4C4037",
+    "muted": "#7A6D63",
+    "meta": "#9B5B32",
+    "border": "#DED2C3",
+    "border-soft": "#EEE4D7",
+    "accent": "#9B5B32",
+    "accent-on": "#FFFFFF",
+    "success": "#4F8A4F",
+    "warn": "#C9822F",
+    "danger": "#B33A3A"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "cal",
+   "name": "Cal.com",
+   "category": "Productivity & SaaS",
+   "description": "Open-source scheduling. Clean neutral UI, developer-oriented simplicity.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFFFFF",
+    "fg": "#242424",
+    "fg-2": "#111111",
+    "muted": "#898989",
+    "meta": "#898989",
+    "accent": "#0099FF",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Cal Sans",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "canva",
+   "name": "Canva",
+   "category": "Design & Creative",
+   "description": "Visual creation platform. Vivid purple-blue gradient, generous spacing, friendly geometry.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F4F5F7",
+    "surface-warm": "#F4F5F7",
+    "fg": "#0E1318",
+    "fg-2": "#3C4043",
+    "muted": "#5F6368",
+    "meta": "#9AA0A6",
+    "border": "#E1E3E6",
+    "border-soft": "#E1E3E6",
+    "accent": "#7D2AE8",
+    "accent-on": "#FFFFFF",
+    "success": "#00B894",
+    "warn": "#FFB020",
+    "danger": "#FF5757"
+   },
+   "fonts": {
+    "display": "Canva Sans",
+    "body": "Canva Sans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "cisco",
+   "name": "Cisco",
+   "category": "Backend & Data",
+   "description": "Enterprise infrastructure brand. Dark trust surfaces, Cisco Blue signal, technical clarity.",
+   "colors": {
+    "bg": "#0F1720",
+    "surface": "#1B2530",
+    "surface-warm": "#243447",
+    "fg": "#FFFFFF",
+    "fg-2": "#E8EBF1",
+    "muted": "#9E9EA2",
+    "meta": "#64BBE3",
+    "border": "#58585B",
+    "accent": "#049FD9",
+    "accent-on": "#001923",
+    "success": "#6CC04A",
+    "warn": "#FFCC00",
+    "danger": "#CF2030"
+   },
+   "fonts": {
+    "display": "CiscoSansTT",
+    "body": "CiscoSansTT",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "claude",
+   "name": "Claude (Anthropic)",
+   "category": "AI & LLM",
+   "description": "Anthropic's AI assistant. Warm terracotta accent, clean editorial layout.",
+   "colors": {
+    "bg": "#F5F4ED",
+    "surface": "#FAF9F5",
+    "surface-warm": "#E8E6DC",
+    "fg": "#141413",
+    "fg-2": "#3D3D3A",
+    "muted": "#5E5D59",
+    "meta": "#87867F",
+    "border": "#F0EEE6",
+    "border-soft": "#E8E6DC",
+    "accent": "#C96442",
+    "accent-on": "#FAF9F5",
+    "success": "#17A34A",
+    "warn": "#EAB308",
+    "danger": "#B53333"
+   },
+   "fonts": {
+    "display": "Anthropic Serif",
+    "body": "Anthropic Sans",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "clay",
+   "name": "Clay",
+   "category": "Design & Creative",
+   "description": "Creative agency. Organic shapes, soft gradients, art-directed layout.",
+   "colors": {
+    "bg": "#F7EEE6",
+    "surface": "#FFF8F1",
+    "surface-warm": "#EAD6C7",
+    "fg": "#2B211C",
+    "fg-2": "#5A4B43",
+    "muted": "#8A7A70",
+    "meta": "#B46A46",
+    "border": "#DAC8B9",
+    "border-soft": "#EADED4",
+    "accent": "#B46A46",
+    "accent-on": "#FFFFFF",
+    "success": "#4D8F5A",
+    "warn": "#C88735",
+    "danger": "#B84C4C"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "claymorphism",
+   "name": "Claymorphism",
+   "category": "Morphism & Effects",
+   "description": "Soft, rounded 3D-like shapes mimicking malleable clay with playful, puffy elements and colorful surfaces.",
+   "colors": {
+    "bg": "#F7EEE6",
+    "surface": "#FFF8F1",
+    "surface-warm": "#EAD6C7",
+    "fg": "#2B211C",
+    "fg-2": "#5A4B43",
+    "muted": "#8A7A70",
+    "meta": "#B46A46",
+    "border": "#DAC8B9",
+    "border-soft": "#EADED4",
+    "accent": "#B46A46",
+    "accent-on": "#FFFFFF",
+    "success": "#4D8F5A",
+    "warn": "#C88735",
+    "danger": "#B84C4C"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "clean",
+   "name": "Clean",
+   "category": "Modern & Minimal",
+   "description": "Simplicity-focused design with ample whitespace, legible typography, and a limited color palette to reduce visual clutter.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F7F7F7",
+    "surface-warm": "#EEEEEE",
+    "fg": "#111111",
+    "fg-2": "#3A3A3A",
+    "muted": "#707070",
+    "meta": "#111111",
+    "border": "#D9D9D9",
+    "border-soft": "#EEEEEE",
+    "accent": "#111111",
+    "accent-on": "#FFFFFF",
+    "success": "#168A46",
+    "warn": "#B7791F",
+    "danger": "#C53030"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "clickhouse",
+   "name": "ClickHouse",
+   "category": "Backend & Data",
+   "description": "Fast analytics database. Yellow-accented, technical documentation style.",
+   "colors": {
+    "bg": "#000000",
+    "surface": "#141414",
+    "surface-warm": "#141414",
+    "fg": "#FFFFFF",
+    "fg-2": "#A0A0A0",
+    "muted": "#A0A0A0",
+    "meta": "#585858",
+    "border-soft": "#343434",
+    "accent": "#FAFF69",
+    "accent-on": "#151515",
+    "success": "#166534",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "cohere",
+   "name": "Cohere",
+   "category": "AI & LLM",
+   "description": "Enterprise AI platform. Vibrant gradients, data-rich dashboard aesthetic.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FAFAFA",
+    "surface-warm": "#FAFAFA",
+    "fg": "#000000",
+    "fg-2": "#212121",
+    "muted": "#93939F",
+    "meta": "#93939F",
+    "border": "#D9D9DD",
+    "border-soft": "#F2F2F2",
+    "accent": "#1863DC",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "CohereText",
+    "body": "Unica77 Cohere Web",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "coinbase",
+   "name": "Coinbase",
+   "category": "Fintech & Crypto",
+   "description": "Crypto exchange. Clean blue identity, trust-focused, institutional feel.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#EEF0F3",
+    "surface-warm": "#EEF0F3",
+    "fg": "#0A0B0D",
+    "fg-2": "#0A0B0D",
+    "muted": "#5B616E",
+    "meta": "#5B616E",
+    "accent": "#0052FF",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "CoinbaseDisplay",
+    "body": "CoinbaseText",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "colorful",
+   "name": "Colorful",
+   "category": "Bold & Expressive",
+   "description": "Vibrant, high-contrast palettes and gradients for engaging, memorable, and modern user experiences.",
+   "colors": {
+    "bg": "#FFF8D7",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFEF9F",
+    "fg": "#1D1836",
+    "fg-2": "#4C426C",
+    "muted": "#796F91",
+    "meta": "#FF6B00",
+    "border": "#EADFBA",
+    "border-soft": "#F5ECCD",
+    "accent": "#FF6B00",
+    "accent-on": "#FFFFFF",
+    "success": "#2E9D57",
+    "warn": "#FFB020",
+    "danger": "#E5484D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "composio",
+   "name": "Composio",
+   "category": "Backend & Data",
+   "description": "Tool integration platform. Modern dark with colorful integration icons.",
+   "colors": {
+    "bg": "#090B14",
+    "surface": "#121626",
+    "surface-warm": "#1B2140",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#94A3B8",
+    "meta": "#8B5CF6",
+    "border": "#27324A",
+    "border-soft": "#1D2638",
+    "accent": "#6D5DFC",
+    "accent-on": "#FFFFFF",
+    "success": "#22C55E",
+    "warn": "#FBBF24",
+    "danger": "#FB7185"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "contemporary",
+   "name": "Contemporary",
+   "category": "Modern & Minimal",
+   "description": "Current-era minimalist design with bento grids, dark mode support, and high-performance accessible layouts.",
+   "colors": {
+    "bg": "#F5F8FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EAF1FF",
+    "fg": "#101828",
+    "fg-2": "#344054",
+    "muted": "#667085",
+    "meta": "#2563EB",
+    "border": "#D7E0EF",
+    "border-soft": "#EDF2F8",
+    "accent": "#2563EB",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "corporate",
+   "name": "Corporate",
+   "category": "Professional & Corporate",
+   "description": "Professional, brand-aligned design with structured grids, minimalist layouts, and consistent enterprise patterns.",
+   "colors": {
+    "bg": "#F5F8FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EAF1FF",
+    "fg": "#101828",
+    "fg-2": "#344054",
+    "muted": "#667085",
+    "meta": "#2563EB",
+    "border": "#D7E0EF",
+    "border-soft": "#EDF2F8",
+    "accent": "#2563EB",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "cosmic",
+   "name": "Cosmic",
+   "category": "Creative & Artistic",
+   "description": "Futuristic sci-fi aesthetic with dark themes, vibrant neon accents, and immersive spatial elements.",
+   "colors": {
+    "bg": "#070711",
+    "surface": "#111126",
+    "surface-warm": "#1E1540",
+    "fg": "#F8F7FF",
+    "fg-2": "#D6CCFF",
+    "muted": "#9D8AD4",
+    "meta": "#C084FC",
+    "border": "#34265E",
+    "border-soft": "#241C42",
+    "accent": "#C084FC",
+    "accent-on": "#13051F",
+    "success": "#39FF88",
+    "warn": "#FFF34D",
+    "danger": "#FF4D8D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "creative",
+   "name": "Creative",
+   "category": "Creative & Artistic",
+   "description": "Playful, character-driven design with expressive typography and bold graphics for landing pages and creative projects.",
+   "colors": {
+    "bg": "#FFF8D7",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFEF9F",
+    "fg": "#1D1836",
+    "fg-2": "#4C426C",
+    "muted": "#796F91",
+    "meta": "#FF6B00",
+    "border": "#EADFBA",
+    "border-soft": "#F5ECCD",
+    "accent": "#FF6B00",
+    "accent-on": "#FFFFFF",
+    "success": "#2E9D57",
+    "warn": "#FFB020",
+    "danger": "#E5484D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "dashboard",
+   "name": "Dashboard",
+   "category": "Professional & Corporate",
+   "description": "Dark-themed cloud-platform aesthetic with modular grids, glass-like panels, and strong data hierarchy for productivity dashboards.",
+   "colors": {
+    "bg": "#F4F7FB",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EEF6FF",
+    "fg": "#111827",
+    "fg-2": "#334155",
+    "muted": "#64748B",
+    "meta": "#0EA5E9",
+    "border": "#D8E2EE",
+    "border-soft": "#EDF3F8",
+    "accent": "#0EA5E9",
+    "accent-on": "#04131D",
+    "success": "#10B981",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "default",
+   "name": "Neutral Modern",
+   "category": "Starter",
+   "description": "A clean, product-oriented default. Use when the brief doesn't call for a",
+   "colors": {
+    "bg": "#FAFAFA",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFFFFF",
+    "fg": "#111111",
+    "fg-2": "#111111",
+    "muted": "#6B6B6B",
+    "meta": "#6B6B6B",
+    "border": "#E5E5E5",
+    "border-soft": "#E5E5E5",
+    "accent": "#2F6FEB",
+    "accent-on": "#FFFFFF",
+    "success": "#17A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "discord",
+   "name": "Discord",
+   "category": "Productivity & SaaS",
+   "description": "Voice / chat platform. Deep blurple, dark-first surfaces, playful accent moments.",
+   "colors": {
+    "bg": "#313338",
+    "surface": "#2B2D31",
+    "surface-warm": "#1E1F22",
+    "fg": "#DBDEE1",
+    "fg-2": "#F2F3F5",
+    "muted": "#949BA4",
+    "meta": "#80848E",
+    "border-soft": "#3F4147",
+    "accent": "#5865F2",
+    "accent-on": "#FFFFFF",
+    "success": "#23A55A",
+    "warn": "#F0B232",
+    "danger": "#F23F43"
+   },
+   "fonts": {
+    "display": "gg sans",
+    "body": "gg sans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "dithered",
+   "name": "Dithered",
+   "category": "Retro & Nostalgic",
+   "description": "Dot-pattern rendering technique that simulates shades with a limited palette for nostalgic, retro, high-contrast visuals.",
+   "colors": {
+    "bg": "#FFF4CF",
+    "surface": "#FFFAF0",
+    "surface-warm": "#FFDCA8",
+    "fg": "#2A1810",
+    "fg-2": "#593625",
+    "muted": "#8A6652",
+    "meta": "#D24B1F",
+    "border": "#D9AA7A",
+    "border-soft": "#EFD0AB",
+    "accent": "#D24B1F",
+    "accent-on": "#FFFFFF",
+    "success": "#3D8F4F",
+    "warn": "#F2A93B",
+    "danger": "#B83A2F"
+   },
+   "fonts": {
+    "display": "Courier New",
+    "body": "Inter",
+    "display_kind": "mono",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "doodle",
+   "name": "Doodle",
+   "category": "Creative & Artistic",
+   "description": "Hand-drawn, sketch-like style with doodles, handwritten fonts, and imperfect lines for a playful, informal feel.",
+   "colors": {
+    "bg": "#FFF8D7",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFEF9F",
+    "fg": "#1D1836",
+    "fg-2": "#4C426C",
+    "muted": "#796F91",
+    "meta": "#FF6B00",
+    "border": "#EADFBA",
+    "border-soft": "#F5ECCD",
+    "accent": "#FF6B00",
+    "accent-on": "#FFFFFF",
+    "success": "#2E9D57",
+    "warn": "#FFB020",
+    "danger": "#E5484D"
+   },
+   "fonts": {
+    "display": "Comic Sans MS",
+    "body": "Comic Sans MS",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "dramatic",
+   "name": "Dramatic",
+   "category": "Bold & Expressive",
+   "description": "High-contrast, theatrical design with bold layouts, immersive visuals, and unconventional compositions that command attention.",
+   "colors": {
+    "bg": "#090B12",
+    "surface": "#121722",
+    "surface-warm": "#1B2233",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#94A3B8",
+    "meta": "#60A5FA",
+    "border": "#2A3447",
+    "border-soft": "#1D2636",
+    "accent": "#60A5FA",
+    "accent-on": "#06101D",
+    "success": "#22C55E",
+    "warn": "#FBBF24",
+    "danger": "#FB7185"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "duolingo",
+   "name": "Duolingo",
+   "category": "Productivity & SaaS",
+   "description": "Language-learning platform. Bright owl green, chunky shadows, gamified joy.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F7F7F7",
+    "surface-warm": "#F7F7F7",
+    "fg": "#3C3C3C",
+    "fg-2": "#3C3C3C",
+    "muted": "#777777",
+    "meta": "#AFAFAF",
+    "border": "#E5E5E5",
+    "border-soft": "#E5E5E5",
+    "accent": "#58CC02",
+    "accent-on": "#FFFFFF",
+    "success": "#58CC02",
+    "warn": "#FFC800",
+    "danger": "#FF4B4B"
+   },
+   "fonts": {
+    "display": "Feather Bold",
+    "body": "Mona Sans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "editorial",
+   "name": "Editorial",
+   "category": "Creative & Artistic",
+   "description": "Magazine-inspired editorial layout with refined serif typography, structured grids, and elegant reading experiences.",
+   "colors": {
+    "bg": "#FBF7F0",
+    "surface": "#FFFDF8",
+    "surface-warm": "#F1E6D6",
+    "fg": "#1F1A16",
+    "fg-2": "#4B4038",
+    "muted": "#7D7168",
+    "meta": "#9A5A2F",
+    "border": "#DED3C5",
+    "border-soft": "#EEE5DA",
+    "accent": "#9A5A2F",
+    "accent-on": "#FFFFFF",
+    "success": "#4F8A4F",
+    "warn": "#C9822F",
+    "danger": "#B33A3A"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Source Serif Pro",
+    "display_kind": "serif",
+    "body_kind": "serif"
+   }
+  },
+  {
+   "id": "elegant",
+   "name": "Elegant",
+   "category": "Professional & Corporate",
+   "description": "Graceful, refined aesthetic with delicate typography, minimal palettes, and polished layouts that exude sophistication.",
+   "colors": {
+    "bg": "#FBF6EE",
+    "surface": "#FFFDF8",
+    "surface-warm": "#F1E3CF",
+    "fg": "#201914",
+    "fg-2": "#4C4037",
+    "muted": "#7A6D63",
+    "meta": "#9B5B32",
+    "border": "#DED2C3",
+    "border-soft": "#EEE4D7",
+    "accent": "#9B5B32",
+    "accent-on": "#FFFFFF",
+    "success": "#4F8A4F",
+    "warn": "#C9822F",
+    "danger": "#B33A3A"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "elevenlabs",
+   "name": "ElevenLabs",
+   "category": "AI & LLM",
+   "description": "AI voice platform. Dark cinematic UI, audio-waveform aesthetics.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F5F5F5",
+    "surface-warm": "#F5F2EF",
+    "fg": "#000000",
+    "fg-2": "#4E4E4E",
+    "muted": "#777169",
+    "meta": "#777169",
+    "border": "#E5E5E5",
+    "accent": "#000000",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Waldenburg",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "energetic",
+   "name": "Energetic",
+   "category": "Bold & Expressive",
+   "description": "Dynamic, vibrant style with thick borders, geometric shapes, high-contrast colors, and expressive typography conveying motion and vitality.",
+   "colors": {
+    "bg": "#FFF8D7",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFEF9F",
+    "fg": "#1D1836",
+    "fg-2": "#4C426C",
+    "muted": "#796F91",
+    "meta": "#FF6B00",
+    "border": "#EADFBA",
+    "border-soft": "#F5ECCD",
+    "accent": "#FF6B00",
+    "accent-on": "#FFFFFF",
+    "success": "#2E9D57",
+    "warn": "#FFB020",
+    "danger": "#E5484D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "enterprise",
+   "name": "Enterprise",
+   "category": "Professional & Corporate",
+   "description": "Clean, high-contrast enterprise design for data-driven workflows with intuitive drag-and-drop patterns and structured layouts.",
+   "colors": {
+    "bg": "#F8FAFC",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EEF2F7",
+    "fg": "#0F172A",
+    "fg-2": "#334155",
+    "muted": "#64748B",
+    "meta": "#1D4ED8",
+    "border": "#D8DEE8",
+    "border-soft": "#EDF1F6",
+    "accent": "#1D4ED8",
+    "accent-on": "#FFFFFF",
+    "success": "#15803D",
+    "warn": "#B45309",
+    "danger": "#B91C1C"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "expo",
+   "name": "Expo",
+   "category": "Developer Tools",
+   "description": "React Native platform. Dark theme, tight letter-spacing, code-centric.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F6F7F9",
+    "surface-warm": "#EEF2FF",
+    "fg": "#0B0D12",
+    "fg-2": "#353945",
+    "muted": "#6B7280",
+    "meta": "#4630EB",
+    "border": "#DFE3EA",
+    "border-soft": "#EDF0F5",
+    "accent": "#000020",
+    "accent-on": "#FFFFFF",
+    "success": "#00A36C",
+    "warn": "#F59E0B",
+    "danger": "#E5484D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "expressive",
+   "name": "Expressive",
+   "category": "Bold & Expressive",
+   "description": "Vibrant, personality-driven design with bold colors, playful graphics, and dynamic layouts that balance creativity with structure.",
+   "colors": {
+    "bg": "#FBF8FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EFE8FF",
+    "fg": "#1F1730",
+    "fg-2": "#4D425F",
+    "muted": "#776B88",
+    "meta": "#7C3AED",
+    "border": "#DED4EE",
+    "border-soft": "#EFE8F7",
+    "accent": "#7C3AED",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "fantasy",
+   "name": "Fantasy",
+   "category": "Creative & Artistic",
+   "description": "Game-inspired fantasy aesthetic with bold, premium visuals, rich color palettes, and immersive thematic elements.",
+   "colors": {
+    "bg": "#070711",
+    "surface": "#111126",
+    "surface-warm": "#1E1540",
+    "fg": "#F8F7FF",
+    "fg-2": "#D6CCFF",
+    "muted": "#9D8AD4",
+    "meta": "#C084FC",
+    "border": "#34265E",
+    "border-soft": "#241C42",
+    "accent": "#C084FC",
+    "accent-on": "#13051F",
+    "success": "#39FF88",
+    "warn": "#FFF34D",
+    "danger": "#FF4D8D"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "ferrari",
+   "name": "Ferrari",
+   "category": "Automotive",
+   "description": "Luxury automotive. Chiaroscuro editorial, Ferrari Red accents, cinematic black.",
+   "colors": {
+    "bg": "#0B0B0B",
+    "surface": "#171717",
+    "surface-warm": "#23130F",
+    "fg": "#FFFAF0",
+    "fg-2": "#E8DCC8",
+    "muted": "#A89F91",
+    "meta": "#FFD200",
+    "border": "#342A24",
+    "border-soft": "#241F1B",
+    "accent": "#DC0000",
+    "accent-on": "#FFFFFF",
+    "success": "#0F9D58",
+    "warn": "#FFD200",
+    "danger": "#FF3B30"
+   },
+   "fonts": {
+    "display": "Ferrari Sans",
+    "body": "Ferrari Sans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "figma",
+   "name": "Figma",
+   "category": "Design & Creative",
+   "description": "Collaborative design tool. Vibrant multi-color, playful yet professional.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFFFFF",
+    "fg": "#000000",
+    "fg-2": "#000000",
+    "accent": "#000000",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "figmaSans",
+    "body": "figmaSans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "flat",
+   "name": "Flat",
+   "category": "Modern & Minimal",
+   "description": "Two-dimensional minimalist style with vibrant colors, clean typography, and no 3D effects for fast, user-friendly interfaces.",
+   "colors": {
+    "bg": "#F5F8FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EAF1FF",
+    "fg": "#101828",
+    "fg-2": "#344054",
+    "muted": "#667085",
+    "meta": "#2563EB",
+    "border": "#D7E0EF",
+    "border-soft": "#EDF2F8",
+    "accent": "#2563EB",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "framer",
+   "name": "Framer",
+   "category": "Design & Creative",
+   "description": "Website builder. Bold black and blue, motion-first, design-forward.",
+   "colors": {
+    "bg": "#000000",
+    "surface": "#090909",
+    "surface-warm": "#090909",
+    "fg": "#FFFFFF",
+    "fg-2": "#A6A6A6",
+    "accent": "#0099FF",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "GT Walsheim Framer Medium",
+    "body": "Inter Variable",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "friendly",
+   "name": "Friendly",
+   "category": "Creative & Artistic",
+   "description": "Approachable, intuitive design with rounded elements, ample whitespace, and soft pastel color palettes.",
+   "colors": {
+    "bg": "#FFF8D7",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFEF9F",
+    "fg": "#1D1836",
+    "fg-2": "#4C426C",
+    "muted": "#796F91",
+    "meta": "#FF6B00",
+    "border": "#EADFBA",
+    "border-soft": "#F5ECCD",
+    "accent": "#FF6B00",
+    "accent-on": "#FFFFFF",
+    "success": "#2E9D57",
+    "warn": "#FFB020",
+    "danger": "#E5484D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "futuristic",
+   "name": "Futuristic",
+   "category": "Themed & Unique",
+   "description": "Forward-looking design with tech-inspired typography, modern layouts, and a sleek, innovation-driven aesthetic.",
+   "colors": {
+    "bg": "#090B12",
+    "surface": "#121722",
+    "surface-warm": "#1B2233",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#94A3B8",
+    "meta": "#60A5FA",
+    "border": "#2A3447",
+    "border-soft": "#1D2636",
+    "accent": "#60A5FA",
+    "accent-on": "#06101D",
+    "success": "#22C55E",
+    "warn": "#FBBF24",
+    "danger": "#FB7185"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "github",
+   "name": "GitHub",
+   "category": "Developer Tools",
+   "description": "Code-forward platform. Functional density, blue-on-white precision, Primer foundations.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F6F8FA",
+    "surface-warm": "#F6F8FA",
+    "fg": "#1F2328",
+    "fg-2": "#1F2328",
+    "muted": "#656D76",
+    "meta": "#656D76",
+    "border": "#D0D7DE",
+    "border-soft": "#D8DEE4",
+    "accent": "#0969DA",
+    "accent-on": "#FFFFFF",
+    "success": "#1A7F37",
+    "warn": "#9A6700",
+    "danger": "#CF222E"
+   },
+   "fonts": {
+    "display": "-apple-system",
+    "body": "-apple-system",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "glassmorphism",
+   "name": "Glassmorphism",
+   "category": "Morphism & Effects",
+   "description": "Frosted glass effect with translucent layers, subtle blur, and luminous borders for depth and modern elegance.",
+   "colors": {
+    "bg": "#EEF6FF",
+    "fg": "#102033",
+    "fg-2": "#34465F",
+    "muted": "#60708A",
+    "meta": "#4F8CFF",
+    "accent": "#4F8CFF",
+    "accent-on": "#FFFFFF",
+    "success": "#22C55E",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "gradient",
+   "name": "Gradient",
+   "category": "Morphism & Effects",
+   "description": "Smooth color transitions and gradient-rich surfaces for modern, playful interfaces with visual depth.",
+   "colors": {
+    "bg": "#F7F3FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EFE7FF",
+    "fg": "#191225",
+    "fg-2": "#443856",
+    "muted": "#746985",
+    "meta": "#7C3AED",
+    "border": "#DDD2F2",
+    "border-soft": "#EEE6FB",
+    "accent": "#7C3AED",
+    "accent-on": "#FFFFFF",
+    "success": "#10B981",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "hashicorp",
+   "name": "HashiCorp",
+   "category": "Backend & Data",
+   "description": "Infrastructure automation. Enterprise-clean, black and white.",
+   "colors": {
+    "bg": "#15181E",
+    "surface": "#0D0E12",
+    "surface-warm": "#0D0E12",
+    "fg": "#EFEFF1",
+    "fg-2": "#D5D7DB",
+    "muted": "#B2B6BD",
+    "meta": "#656A76",
+    "accent": "#1060FF",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#BB5A00",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "HashiCorp Sans",
+    "body": "system-ui",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "hud",
+   "name": "HUD Design System",
+   "category": "Themed & Unique",
+   "description": "Fighter jet / helicopter head-up display. Phosphor green on near-black, all-caps data overlays, angular geometry. Zero ambiguity at speed and altitude.",
+   "colors": {
+    "bg": "#090B12",
+    "surface": "#121722",
+    "surface-warm": "#1B2233",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#94A3B8",
+    "meta": "#60A5FA",
+    "border": "#2A3447",
+    "border-soft": "#1D2636",
+    "accent": "#60A5FA",
+    "accent-on": "#06101D",
+    "success": "#22C55E",
+    "warn": "#FBBF24",
+    "danger": "#FB7185"
+   },
+   "fonts": {
+    "display": "IBM Plex Mono",
+    "body": "IBM Plex Mono",
+    "display_kind": "mono",
+    "body_kind": "mono"
+   }
+  },
+  {
+   "id": "ibm",
+   "name": "IBM",
+   "category": "Media & Consumer",
+   "description": "Enterprise technology. Carbon design system, structured blue palette.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F4F4F4",
+    "surface-warm": "#EDF5FF",
+    "fg": "#161616",
+    "fg-2": "#525252",
+    "muted": "#6F6F6F",
+    "meta": "#8D8D8D",
+    "border": "#C6C6C6",
+    "border-soft": "#E0E0E0",
+    "accent": "#0F62FE",
+    "accent-on": "#FFFFFF",
+    "success": "#24A148",
+    "warn": "#F1C21B",
+    "danger": "#DA1E28"
+   },
+   "fonts": {
+    "display": "IBM Plex Sans",
+    "body": "IBM Plex Sans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "intercom",
+   "name": "Intercom",
+   "category": "Productivity & SaaS",
+   "description": "Customer messaging. Friendly blue palette, conversational UI patterns.",
+   "colors": {
+    "bg": "#FAF9F6",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FAF9F6",
+    "fg": "#111111",
+    "fg-2": "#111111",
+    "muted": "#7B7B78",
+    "meta": "#9C9FA5",
+    "border": "#DEDBD6",
+    "border-soft": "#EBE9E4",
+    "accent": "#FF5600",
+    "accent-on": "#FFFFFF",
+    "success": "#00DA00",
+    "warn": "#EAB308",
+    "danger": "#C41C1C"
+   },
+   "fonts": {
+    "display": "Saans",
+    "body": "Saans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "kami",
+   "name": "kami (紙 / 纸)",
+   "category": "Editorial & Print",
+   "description": "Editorial paper system: warm parchment canvas, ink-blue accent, serif-led hierarchy. Built for resumes, one-pagers, white papers, portfolios, slide decks — anything that should feel like high-quality print rather than UI. Multilingual by design (EN · zh-CN · ja).",
+   "colors": {
+    "bg": "#F5F4ED",
+    "surface": "#FAF9F5",
+    "surface-warm": "#E8E6DC",
+    "fg": "#141413",
+    "fg-2": "#3D3D3A",
+    "muted": "#504E49",
+    "meta": "#6B6A64",
+    "border": "#E8E6DC",
+    "border-soft": "#E5E3D8",
+    "accent": "#1B365D",
+    "accent-on": "#FAF9F5",
+    "success": "#4A6B3A",
+    "warn": "#8A6B1F",
+    "danger": "#8A3A30"
+   },
+   "fonts": {
+    "display": "Charter",
+    "body": "Charter",
+    "display_kind": "serif",
+    "body_kind": "serif"
+   }
+  },
+  {
+   "id": "kraken",
+   "name": "Kraken",
+   "category": "Fintech & Crypto",
+   "description": "Crypto trading. Purple-accented dark UI, data-dense dashboards.",
+   "colors": {
+    "bg": "#0B1020",
+    "surface": "#121A33",
+    "surface-warm": "#1B2450",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#8B95AA",
+    "meta": "#7D5CFF",
+    "border": "#26314F",
+    "border-soft": "#1B2740",
+    "accent": "#7132F5",
+    "accent-on": "#FFFFFF",
+    "success": "#00C853",
+    "warn": "#FFB020",
+    "danger": "#FF4D6D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "lamborghini",
+   "name": "Lamborghini",
+   "category": "Automotive",
+   "description": "Supercar brand. True black surfaces, gold accents, dramatic uppercase typography.",
+   "colors": {
+    "bg": "#050505",
+    "surface": "#141414",
+    "surface-warm": "#211B0B",
+    "fg": "#F8F4E6",
+    "fg-2": "#D8CEB0",
+    "muted": "#9B927D",
+    "meta": "#D4AF37",
+    "border": "#3A321D",
+    "border-soft": "#282315",
+    "accent": "#D4AF37",
+    "accent-on": "#050505",
+    "success": "#39A852",
+    "warn": "#F7C948",
+    "danger": "#E63946"
+   },
+   "fonts": {
+    "display": "Lamborghini",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "levels",
+   "name": "Levels",
+   "category": "Layout & Structure",
+   "description": "Conversion-focused design that removes friction and guides users toward action through clarity, trust, and speed.",
+   "colors": {
+    "bg": "#FBF7EF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EEF7ED",
+    "fg": "#1F2A24",
+    "fg-2": "#435147",
+    "muted": "#788276",
+    "meta": "#2F8F46",
+    "border": "#DBE3D7",
+    "border-soft": "#EDF1EA",
+    "accent": "#2F8F46",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#D97706",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "linear-app",
+   "name": "Linear",
+   "category": "Productivity & SaaS",
+   "description": "Project management. Ultra-minimal, precise, purple accent.",
+   "colors": {
+    "bg": "#08090A",
+    "surface": "#191A1B",
+    "surface-warm": "#191A1B",
+    "fg": "#F7F8F8",
+    "fg-2": "#D0D6E0",
+    "muted": "#8A8F98",
+    "meta": "#62666D",
+    "accent": "#5E6AD2",
+    "accent-on": "#FFFFFF",
+    "success": "#27A644",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Inter Variable",
+    "body": "Inter Variable",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "lingo",
+   "name": "Lingo",
+   "category": "Creative & Artistic",
+   "description": "Playful, minimal design with bright colors, rounded shapes, tactile 3D borders, and friendly illustrations for approachable interfaces.",
+   "colors": {
+    "bg": "#FBF9FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#F1ECFF",
+    "fg": "#1D1B2A",
+    "fg-2": "#4F4863",
+    "muted": "#786F8F",
+    "meta": "#6D4AFF",
+    "border": "#DED7F0",
+    "border-soft": "#EEE9F8",
+    "accent": "#6D4AFF",
+    "accent-on": "#FFFFFF",
+    "success": "#22A06B",
+    "warn": "#E6A700",
+    "danger": "#E5484D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "loom",
+   "name": "Loom Design System",
+   "category": "Themed & Unique",
+   "description": "Loom async video. Purple primary, friendly surfaces, video-first layout. Clean and professional without being corporate.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F7F7F8",
+    "surface-warm": "#F7F7F8",
+    "fg": "#1F1F23",
+    "fg-2": "#1F1F23",
+    "muted": "#6B6D76",
+    "meta": "#9B9CA3",
+    "border": "#E4E4E7",
+    "border-soft": "#E4E4E7",
+    "accent": "#625DF5",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#D64770"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "lovable",
+   "name": "Lovable",
+   "category": "Developer Tools",
+   "description": "AI full-stack builder. Playful gradients, friendly dev aesthetic.",
+   "colors": {
+    "bg": "#F7F4ED",
+    "surface": "#F7F4ED",
+    "surface-warm": "#F7F4ED",
+    "fg": "#1C1C1C",
+    "muted": "#5F5F5D",
+    "border": "#ECEAE4",
+    "border-soft": "#ECEAE4",
+    "accent": "#FF4D8D",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Camera Plain Variable",
+    "body": "Camera Plain Variable",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "luxury",
+   "name": "Luxury",
+   "category": "Professional & Corporate",
+   "description": "High-end dark aesthetic with bold headings, monochromatic palette, and premium feel for luxury brand experiences.",
+   "colors": {
+    "bg": "#080706",
+    "surface": "#151310",
+    "surface-warm": "#241E14",
+    "fg": "#FFF8EA",
+    "fg-2": "#D8CDB7",
+    "muted": "#9F927C",
+    "meta": "#C6A15B",
+    "border": "#3A3020",
+    "border-soft": "#282217",
+    "accent": "#C6A15B",
+    "accent-on": "#080706",
+    "success": "#5FA36A",
+    "warn": "#D8A94F",
+    "danger": "#D85A52"
+   },
+   "fonts": {
+    "display": "Didot",
+    "body": "Avenir Next",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "mastercard",
+   "name": "Mastercard",
+   "category": "Fintech & Crypto",
+   "description": "Global payments network. Warm cream canvas, orbital pill shapes, editorial warmth.",
+   "colors": {
+    "bg": "#F3F0EE",
+    "surface": "#FCFBFA",
+    "surface-warm": "#F7E8DE",
+    "fg": "#141413",
+    "fg-2": "#262627",
+    "muted": "#696969",
+    "meta": "#9A3A0A",
+    "border": "#D1CDC7",
+    "border-soft": "#E7E1DC",
+    "accent": "#CF4500",
+    "accent-on": "#FFFFFF",
+    "success": "#2E7D32",
+    "warn": "#F79E1B",
+    "danger": "#EB001B"
+   },
+   "fonts": {
+    "display": "MarkForMC",
+    "body": "MarkForMC",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "material",
+   "name": "Material",
+   "category": "Professional & Corporate",
+   "description": "Google's Material Design with layered surfaces, dynamic theming, built-in motion, and responsive cross-platform patterns.",
+   "colors": {
+    "bg": "#F8FAFD",
+    "surface": "#FFFFFF",
+    "surface-warm": "#E8F0FE",
+    "fg": "#202124",
+    "fg-2": "#3C4043",
+    "muted": "#5F6368",
+    "meta": "#1A73E8",
+    "border": "#DADCE0",
+    "border-soft": "#EDF0F2",
+    "accent": "#1A73E8",
+    "accent-on": "#FFFFFF",
+    "success": "#188038",
+    "warn": "#F9AB00",
+    "danger": "#D93025"
+   },
+   "fonts": {
+    "display": "Google Sans",
+    "body": "Roboto",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "meta",
+   "name": "Meta (Store)",
+   "category": "E-Commerce & Retail",
+   "description": "Tech retail store. Photography-first, binary light/dark surfaces, Meta Blue CTAs.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F7F8FA",
+    "surface-warm": "#F2F0E6",
+    "fg": "#1C2B33",
+    "fg-2": "#5D6C7B",
+    "muted": "#65676B",
+    "meta": "#8595A4",
+    "border": "#CED0D4",
+    "border-soft": "#DEE3E9",
+    "accent": "#0064E0",
+    "accent-on": "#FFFFFF",
+    "success": "#31A24C",
+    "warn": "#F7B928",
+    "danger": "#E41E3F"
+   },
+   "fonts": {
+    "display": "Optimistic VF",
+    "body": "Optimistic VF",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "minimal",
+   "name": "Minimal",
+   "category": "Modern & Minimal",
+   "description": "Stripped-back design emphasizing whitespace, clean typography, and restrained color for maximum clarity and focus.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FAFAFA",
+    "surface-warm": "#F5F5F5",
+    "fg": "#111111",
+    "fg-2": "#3A3A3A",
+    "muted": "#777777",
+    "meta": "#111111",
+    "border": "#E2E2E2",
+    "border-soft": "#EEEEEE",
+    "accent": "#111111",
+    "accent-on": "#FFFFFF",
+    "success": "#168A46",
+    "warn": "#B7791F",
+    "danger": "#C53030"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "minimax",
+   "name": "MiniMax",
+   "category": "AI & LLM",
+   "description": "AI model provider. Bold dark interface with neon accents.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FAFAFA",
+    "surface-warm": "#F0F0F0",
+    "fg": "#222222",
+    "fg-2": "#18181B",
+    "muted": "#45515E",
+    "meta": "#8E8E93",
+    "border": "#E5E7EB",
+    "border-soft": "#F2F3F5",
+    "accent": "#1456F0",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Outfit",
+    "body": "DM Sans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "mintlify",
+   "name": "Mintlify",
+   "category": "Productivity & SaaS",
+   "description": "Documentation platform. Clean, green-accented, reading-optimized.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FAFAFA",
+    "fg": "#0D0D0D",
+    "fg-2": "#333333",
+    "muted": "#666666",
+    "meta": "#888888",
+    "accent": "#18E299",
+    "accent-on": "#0D0D0D",
+    "success": "#16A34A",
+    "warn": "#C37D0D",
+    "danger": "#D45656"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "miro",
+   "name": "Miro",
+   "category": "Design & Creative",
+   "description": "Visual collaboration. Bright yellow accent, infinite canvas aesthetic.",
+   "colors": {
+    "bg": "#FFF7C2",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFF3A3",
+    "fg": "#050038",
+    "fg-2": "#322B6B",
+    "muted": "#605A8A",
+    "meta": "#F7C600",
+    "border": "#DED9FF",
+    "border-soft": "#EEEAFF",
+    "accent": "#FFD02F",
+    "accent-on": "#050038",
+    "success": "#1A7F37",
+    "warn": "#FF9F1C",
+    "danger": "#D92D20"
+   },
+   "fonts": {
+    "display": "Formular",
+    "body": "Formular",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "mission-control",
+   "name": "Mission Control Design System",
+   "category": "Developer Tools",
+   "description": "Space/aerospace mission monitoring. Dark command center, amber telemetry, monospace precision. Functional clarity above all else.",
+   "colors": {
+    "bg": "#090B12",
+    "surface": "#121722",
+    "surface-warm": "#1B2233",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#94A3B8",
+    "meta": "#60A5FA",
+    "border": "#2A3447",
+    "border-soft": "#1D2636",
+    "accent": "#60A5FA",
+    "accent-on": "#06101D",
+    "success": "#26DE81",
+    "warn": "#FBBF24",
+    "danger": "#FF4757"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "mistral-ai",
+   "name": "Mistral AI",
+   "category": "AI & LLM",
+   "description": "Open-weight LLM provider. French-engineered minimalism, purple-toned.",
+   "colors": {
+    "bg": "#FFFAEB",
+    "surface": "#FFF0C2",
+    "surface-warm": "#FFF0C2",
+    "fg": "#1F1F1F",
+    "fg-2": "#1F1F1F",
+    "muted": "#3D3D3D",
+    "meta": "#3D3D3D",
+    "border": "#F0E8C8",
+    "border-soft": "#F0E8C8",
+    "accent": "#FA520F",
+    "accent-on": "#FFFFFF",
+    "success": "#17A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Arial",
+    "body": "Arial",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "modern",
+   "name": "Modern",
+   "category": "Modern & Minimal",
+   "description": "Contemporary editorial style with serif typography, minimal palettes, and clean layouts for polished digital products.",
+   "colors": {
+    "bg": "#F7F8FC",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EEF1FF",
+    "fg": "#111827",
+    "fg-2": "#374151",
+    "muted": "#6B7280",
+    "meta": "#4F46E5",
+    "border": "#DFE3ED",
+    "border-soft": "#EEF1F7",
+    "accent": "#4F46E5",
+    "accent-on": "#FFFFFF",
+    "success": "#10B981",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "mongodb",
+   "name": "MongoDB",
+   "category": "Backend & Data",
+   "description": "Document database. Green leaf branding, developer documentation focus.",
+   "colors": {
+    "bg": "#001E2B",
+    "surface": "#1C2D38",
+    "surface-warm": "#1C2D38",
+    "fg": "#FFFFFF",
+    "fg-2": "#E8EDEB",
+    "muted": "#B8C4C2",
+    "meta": "#5C6C75",
+    "border": "#3D4F58",
+    "border-soft": "#3D4F58",
+    "accent": "#00ED64",
+    "accent-on": "#001E2B",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "MongoDB Value Serif for editorial hero headlines",
+    "body": "Euclid Circular A",
+    "display_kind": "mono",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "mono",
+   "name": "Mono",
+   "category": "Modern & Minimal",
+   "description": "Monospace-driven, matrix-inspired design with high-contrast elements, compact density, and a hacker-chic aesthetic.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F7F7F7",
+    "surface-warm": "#EEEEEE",
+    "fg": "#111111",
+    "fg-2": "#3A3A3A",
+    "muted": "#707070",
+    "meta": "#111111",
+    "border": "#D9D9D9",
+    "border-soft": "#EEEEEE",
+    "accent": "#111111",
+    "accent-on": "#FFFFFF",
+    "success": "#168A46",
+    "warn": "#B7791F",
+    "danger": "#C53030"
+   },
+   "fonts": {
+    "display": "IBM Plex Mono",
+    "body": "IBM Plex Mono",
+    "display_kind": "mono",
+    "body_kind": "mono"
+   }
+  },
+  {
+   "id": "neobrutalism",
+   "name": "Neobrutalism",
+   "category": "Bold & Expressive",
+   "description": "Modern take on brutalism with bold borders, vivid accent colors, and raw, high-contrast layouts on warm surfaces.",
+   "colors": {
+    "bg": "#FFF4CF",
+    "surface": "#FFFAF0",
+    "surface-warm": "#FFDCA8",
+    "fg": "#2A1810",
+    "fg-2": "#593625",
+    "muted": "#8A6652",
+    "meta": "#D24B1F",
+    "border": "#D9AA7A",
+    "border-soft": "#EFD0AB",
+    "accent": "#D24B1F",
+    "accent-on": "#FFFFFF",
+    "success": "#3D8F4F",
+    "warn": "#F2A93B",
+    "danger": "#B83A2F"
+   },
+   "fonts": {
+    "display": "Arial Black",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "neon",
+   "name": "Neon",
+   "category": "Morphism & Effects",
+   "description": "Electric neon glow effects with high-contrast color pairings for bold, attention-grabbing interfaces.",
+   "colors": {
+    "bg": "#070711",
+    "surface": "#111126",
+    "surface-warm": "#1E1540",
+    "fg": "#F8F7FF",
+    "fg-2": "#D6CCFF",
+    "muted": "#9D8AD4",
+    "meta": "#C084FC",
+    "border": "#34265E",
+    "border-soft": "#241C42",
+    "accent": "#C084FC",
+    "accent-on": "#13051F",
+    "success": "#39FF88",
+    "warn": "#FFF34D",
+    "danger": "#FF4D8D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "neumorphism",
+   "name": "Neumorphism",
+   "category": "Morphism & Effects",
+   "description": "Soft, extruded UI elements with inner and outer shadows on monochromatic surfaces for a tactile, embedded look.",
+   "colors": {
+    "bg": "#F7EEE6",
+    "surface": "#FFF8F1",
+    "surface-warm": "#EAD6C7",
+    "fg": "#2B211C",
+    "fg-2": "#5A4B43",
+    "muted": "#8A7A70",
+    "meta": "#B46A46",
+    "border": "#DAC8B9",
+    "border-soft": "#EADED4",
+    "accent": "#B46A46",
+    "accent-on": "#FFFFFF",
+    "success": "#4D8F5A",
+    "warn": "#C88735",
+    "danger": "#B84C4C"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "nike",
+   "name": "Nike",
+   "category": "E-Commerce & Retail",
+   "description": "Athletic retail. Monochrome UI, massive uppercase type, full-bleed photography.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F5F5F5",
+    "surface-warm": "#FAFAFA",
+    "fg": "#111111",
+    "fg-2": "#111111",
+    "muted": "#707072",
+    "meta": "#9E9EA0",
+    "border": "#CACACB",
+    "border-soft": "#E5E5E5",
+    "accent": "#111111",
+    "accent-on": "#FFFFFF",
+    "success": "#007D48",
+    "warn": "#FCA600",
+    "danger": "#D30005"
+   },
+   "fonts": {
+    "display": "Nike Futura ND",
+    "body": "Helvetica Now Text Medium",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "ollama",
+   "name": "Ollama",
+   "category": "AI & LLM",
+   "description": "Run LLMs locally. Terminal-first, monochrome simplicity.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FAFAFA",
+    "surface-warm": "#FAFAFA",
+    "fg": "#000000",
+    "fg-2": "#262626",
+    "muted": "#737373",
+    "meta": "#A3A3A3",
+    "border": "#E5E5E5",
+    "border-soft": "#E5E5E5",
+    "accent": "#000000",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "SF Pro Rounded",
+    "body": "ui-sans-serif",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "openai",
+   "name": "OpenAI",
+   "category": "AI & LLM",
+   "description": "Calm, near-monochrome system anchored in deep teal-black with generous white space and editorial typography.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F5F5F5",
+    "surface-warm": "#FAFAFA",
+    "fg": "#0D0D0D",
+    "fg-2": "#1A1A1A",
+    "muted": "#6E6E6E",
+    "meta": "#9B9B9B",
+    "border": "#E5E5E5",
+    "border-soft": "#EDEDED",
+    "accent": "#10A37F",
+    "accent-on": "#FFFFFF",
+    "success": "#10A37F",
+    "warn": "#F5A623",
+    "danger": "#EF4146"
+   },
+   "fonts": {
+    "display": "Signifier",
+    "body": "Söhne",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "opencode-ai",
+   "name": "OpenCode",
+   "category": "AI & LLM",
+   "description": "AI coding platform. Developer-centric dark theme.",
+   "colors": {
+    "bg": "#201D1D",
+    "surface": "#302C2C",
+    "surface-warm": "#302C2C",
+    "fg": "#FDFCFC",
+    "fg-2": "#C8C6C4",
+    "muted": "#9A9898",
+    "meta": "#6E6E73",
+    "border": "#464343",
+    "border-soft": "#302C2C",
+    "accent": "#007AFF",
+    "accent-on": "#FFFFFF",
+    "success": "#30D158",
+    "warn": "#FF9F0A",
+    "danger": "#FF3B30"
+   },
+   "fonts": {
+    "display": "Berkeley Mono",
+    "body": "Berkeley Mono",
+    "display_kind": "mono",
+    "body_kind": "mono"
+   }
+  },
+  {
+   "id": "pacman",
+   "name": "Pacman",
+   "category": "Themed & Unique",
+   "description": "Retro arcade-inspired design with pixel fonts, dotted borders, playful high-contrast colors, and 8-bit game aesthetics.",
+   "colors": {
+    "bg": "#050505",
+    "surface": "#101014",
+    "surface-warm": "#1F1B08",
+    "fg": "#FFF7D6",
+    "fg-2": "#F6E79C",
+    "muted": "#B9A85D",
+    "meta": "#FFCC00",
+    "border": "#2338FF",
+    "border-soft": "#17218A",
+    "accent": "#FFCC00",
+    "accent-on": "#050505",
+    "success": "#00FF66",
+    "warn": "#FF9900",
+    "danger": "#FF3B3B"
+   },
+   "fonts": {
+    "display": "Press Start 2P",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "paper",
+   "name": "Paper",
+   "category": "Retro & Nostalgic",
+   "description": "Paper-textured, print-inspired design with minimal colors, clean serif/sans typography, and tactile surface qualities.",
+   "colors": {
+    "bg": "#FAF3DF",
+    "surface": "#FFFAF0",
+    "surface-warm": "#EFE0BD",
+    "fg": "#211B12",
+    "fg-2": "#504737",
+    "muted": "#7C7160",
+    "meta": "#8F5D24",
+    "border": "#DDD0B4",
+    "border-soft": "#EEE3CD",
+    "accent": "#8F5D24",
+    "accent-on": "#FFFFFF",
+    "success": "#5B8D42",
+    "warn": "#C27B22",
+    "danger": "#A64036"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "perplexity",
+   "name": "Perplexity AI",
+   "category": "AI & LLM",
+   "description": "Conversational AI search engine. Deep-dark canvas, sharp typography, single violet accent, dense information hierarchy.",
+   "colors": {
+    "bg": "#0F0F10",
+    "surface": "#19191A",
+    "surface-warm": "#19191A",
+    "fg": "#F0F0F0",
+    "fg-2": "#F0F0F0",
+    "muted": "#9B9B9B",
+    "meta": "#5C5C5E",
+    "border": "#2E2E30",
+    "border-soft": "#232325",
+    "accent": "#A855F7",
+    "accent-on": "#FFFFFF",
+    "success": "#22C55E",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "perspective",
+   "name": "Perspective",
+   "category": "Layout & Structure",
+   "description": "Spatial depth design with isometric views, vanishing points, and layered elements that guide attention through 3D-like realism.",
+   "colors": {
+    "bg": "#F5F8FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EAF1FF",
+    "fg": "#101828",
+    "fg-2": "#344054",
+    "muted": "#667085",
+    "meta": "#2563EB",
+    "border": "#D7E0EF",
+    "border-soft": "#EDF2F8",
+    "accent": "#2563EB",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "pinterest",
+   "name": "Pinterest",
+   "category": "Media & Consumer",
+   "description": "Visual discovery. Red accent, masonry grid, image-first.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F6F6F3",
+    "surface-warm": "#E5E5E0",
+    "fg": "#211922",
+    "fg-2": "#000000",
+    "muted": "#62625B",
+    "meta": "#91918C",
+    "border": "#C8C8C1",
+    "border-soft": "#E0E0D9",
+    "accent": "#E60023",
+    "accent-on": "#000000",
+    "success": "#103C25",
+    "warn": "#C47700",
+    "danger": "#9E0A0A"
+   },
+   "fonts": {
+    "display": "Pin Sans",
+    "body": "Pin Sans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "playstation",
+   "name": "PlayStation",
+   "category": "Media & Consumer",
+   "description": "Gaming console retail. Three-surface channel layout, quiet-authority display type, cyan hover-scale.",
+   "colors": {
+    "bg": "#000000",
+    "surface": "#FFFFFF",
+    "surface-warm": "#F5F7FA",
+    "fg": "#FFFFFF",
+    "fg-2": "#FFFFFF",
+    "muted": "#CCCCCC",
+    "meta": "#CCCCCC",
+    "border": "#CCCCCC",
+    "border-soft": "#F3F3F3",
+    "accent": "#0070CC",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#C81B3A"
+   },
+   "fonts": {
+    "display": "SST",
+    "body": "SST",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "posthog",
+   "name": "PostHog",
+   "category": "Backend & Data",
+   "description": "Product analytics. Playful hedgehog branding, developer-friendly dark UI.",
+   "colors": {
+    "bg": "#FDFDF8",
+    "surface": "#EEEFE9",
+    "surface-warm": "#E5E7E0",
+    "fg": "#4D4F46",
+    "fg-2": "#23251D",
+    "muted": "#65675E",
+    "meta": "#9EA096",
+    "border": "#BFC1B7",
+    "accent": "#F54E00",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F7A501",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "IBM Plex Sans Variable",
+    "body": "IBM Plex Sans Variable",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "premium",
+   "name": "Premium",
+   "category": "Professional & Corporate",
+   "description": "Apple-inspired premium aesthetic with precise spacing, modern typography, and a refined, polished visual language.",
+   "colors": {
+    "bg": "#FAF8F4",
+    "surface": "#FFFFFF",
+    "surface-warm": "#F0E7D8",
+    "fg": "#1C1B19",
+    "fg-2": "#4B4740",
+    "muted": "#746D63",
+    "meta": "#A06A3B",
+    "border": "#DED6C9",
+    "border-soft": "#EEE7DC",
+    "accent": "#A06A3B",
+    "accent-on": "#FFFFFF",
+    "success": "#3F8F5F",
+    "warn": "#C4872C",
+    "danger": "#B84A4A"
+   },
+   "fonts": {
+    "display": "Canela",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "professional",
+   "name": "Professional",
+   "category": "Professional & Corporate",
+   "description": "Polished, business-ready design with modern typography, structured layouts, and a trustworthy visual identity.",
+   "colors": {
+    "bg": "#F5F8FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EAF1FF",
+    "fg": "#101828",
+    "fg-2": "#344054",
+    "muted": "#667085",
+    "meta": "#2563EB",
+    "border": "#D7E0EF",
+    "border-soft": "#EDF2F8",
+    "accent": "#2563EB",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "publication",
+   "name": "Publication",
+   "category": "Creative & Artistic",
+   "description": "Print-inspired visual language for books, magazines, and reports with editorial grids and expressive typography.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F6F6F6",
+    "surface-warm": "#FFF2F0",
+    "fg": "#0B0B0B",
+    "fg-2": "#333333",
+    "muted": "#666666",
+    "meta": "#C1121F",
+    "border": "#D6D6D6",
+    "border-soft": "#ECECEC",
+    "accent": "#C1121F",
+    "accent-on": "#FFFFFF",
+    "success": "#0F8A3B",
+    "warn": "#D99A00",
+    "danger": "#B00020"
+   },
+   "fonts": {
+    "display": "Franklin Gothic",
+    "body": "Georgia",
+    "display_kind": "sans",
+    "body_kind": "serif"
+   }
+  },
+  {
+   "id": "raycast",
+   "name": "Raycast",
+   "category": "Developer Tools",
+   "description": "Productivity launcher. Sleek dark chrome, vibrant gradient accents.",
+   "colors": {
+    "bg": "#07080A",
+    "surface": "#101111",
+    "surface-warm": "#101111",
+    "fg": "#F9F9F9",
+    "fg-2": "#CECECE",
+    "muted": "#9C9C9D",
+    "meta": "#6A6B6C",
+    "accent": "#FF6363",
+    "accent-on": "#FFFFFF"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "refined",
+   "name": "Refined",
+   "category": "Modern & Minimal",
+   "description": "Carefully curated, modern minimal style with elegant serif typography and understated, sophisticated palettes.",
+   "colors": {
+    "bg": "#FBF6EE",
+    "surface": "#FFFDF8",
+    "surface-warm": "#F1E3CF",
+    "fg": "#201914",
+    "fg-2": "#4C4037",
+    "muted": "#7A6D63",
+    "meta": "#9B5B32",
+    "border": "#DED2C3",
+    "border-soft": "#EEE4D7",
+    "accent": "#9B5B32",
+    "accent-on": "#FFFFFF",
+    "success": "#4F8A4F",
+    "warn": "#C9822F",
+    "danger": "#B33A3A"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "renault",
+   "name": "Renault",
+   "category": "Automotive",
+   "description": "French automotive. Vibrant aurora gradients, NouvelR typography, bold energy.",
+   "colors": {
+    "bg": "#F7F4EF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFF4BF",
+    "fg": "#111111",
+    "fg-2": "#3F3F3F",
+    "muted": "#6F6B63",
+    "meta": "#FFCC33",
+    "border": "#DFD8CA",
+    "border-soft": "#ECE6DB",
+    "accent": "#FFCC33",
+    "accent-on": "#111111",
+    "success": "#198754",
+    "warn": "#F59E0B",
+    "danger": "#D92D20"
+   },
+   "fonts": {
+    "display": "Renault Group",
+    "body": "Renault Group",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "replicate",
+   "name": "Replicate",
+   "category": "AI & LLM",
+   "description": "Run ML models via API. Clean white canvas, code-forward.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F8F8F8",
+    "surface-warm": "#F8F8F8",
+    "fg": "#202020",
+    "fg-2": "#4E4E4E",
+    "muted": "#646464",
+    "meta": "#8D8D8D",
+    "border": "#202020",
+    "border-soft": "#E5E5E5",
+    "accent": "#EA2804",
+    "accent-on": "#FFFFFF",
+    "success": "#2B9A66",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "rb-freigeist-neue",
+    "body": "basier-square",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "resend",
+   "name": "Resend",
+   "category": "Productivity & SaaS",
+   "description": "Email API. Minimal dark theme, monospace accents.",
+   "colors": {
+    "bg": "#000000",
+    "surface": "#000000",
+    "surface-warm": "#000000",
+    "fg": "#F0F0F0",
+    "fg-2": "#A1A4A5",
+    "muted": "#5C5C5C",
+    "meta": "#464A4D",
+    "accent": "#FF801F",
+    "accent-on": "#000000",
+    "success": "#11FF99",
+    "warn": "#FFC53D",
+    "danger": "#FF2047"
+   },
+   "fonts": {
+    "display": "ABC Favorit",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "retro",
+   "name": "Retro",
+   "category": "Retro & Nostalgic",
+   "description": "Throwback design with vintage-inspired typography, high-contrast retro palettes, and nostalgic visual elements.",
+   "colors": {
+    "bg": "#FFF4CF",
+    "surface": "#FFFAF0",
+    "surface-warm": "#FFDCA8",
+    "fg": "#2A1810",
+    "fg-2": "#593625",
+    "muted": "#8A6652",
+    "meta": "#D24B1F",
+    "border": "#D9AA7A",
+    "border-soft": "#EFD0AB",
+    "accent": "#D24B1F",
+    "accent-on": "#FFFFFF",
+    "success": "#3D8F4F",
+    "warn": "#F2A93B",
+    "danger": "#B83A2F"
+   },
+   "fonts": {
+    "display": "Courier New",
+    "body": "Inter",
+    "display_kind": "mono",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "revolut",
+   "name": "Revolut",
+   "category": "Fintech & Crypto",
+   "description": "Digital banking. Sleek dark interface, gradient cards, fintech precision.",
+   "colors": {
+    "bg": "#F7F8FB",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EEF4FF",
+    "fg": "#111827",
+    "fg-2": "#334155",
+    "muted": "#64748B",
+    "meta": "#0666EB",
+    "border": "#DBE3EF",
+    "border-soft": "#EDF2F7",
+    "accent": "#0666EB",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "runwayml",
+   "name": "Runway",
+   "category": "AI & LLM",
+   "description": "AI video generation. Cinematic dark UI, media-rich layout.",
+   "colors": {
+    "bg": "#000000",
+    "surface": "#1A1A1A",
+    "surface-warm": "#030303",
+    "fg": "#FFFFFF",
+    "fg-2": "#E9ECF2",
+    "muted": "#767D88",
+    "meta": "#7D848E",
+    "border": "#27272A",
+    "border-soft": "#1A1A1A",
+    "accent": "#FFFFFF",
+    "accent-on": "#000000",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "abcNormal",
+    "body": "abcNormal",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "sanity",
+   "name": "Sanity",
+   "category": "Backend & Data",
+   "description": "Headless CMS. Red accent, content-first editorial layout.",
+   "colors": {
+    "bg": "#F8F8F7",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFF1EF",
+    "fg": "#171717",
+    "fg-2": "#3F3F46",
+    "muted": "#71717A",
+    "meta": "#F03E2F",
+    "border": "#E4E4E7",
+    "border-soft": "#F1F1F2",
+    "accent": "#F03E2F",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "sentry",
+   "name": "Sentry",
+   "category": "Backend & Data",
+   "description": "Error monitoring. Dark dashboard, data-dense, pink-purple accent.",
+   "colors": {
+    "bg": "#1F1633",
+    "surface": "#150F23",
+    "surface-warm": "#150F23",
+    "fg": "#FFFFFF",
+    "fg-2": "#E5E7EB",
+    "muted": "#9D96B3",
+    "meta": "#9D96B3",
+    "border": "#362D59",
+    "border-soft": "#362D59",
+    "accent": "#6A5FC1",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Dammit Sans",
+    "body": "Rubik",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "shadcn",
+   "name": "Shadcn",
+   "category": "Modern & Minimal",
+   "description": "Shadcn/ui-inspired design with minimal, clean components, monochrome palette, and utility-first patterns.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFFFFF",
+    "fg": "#111827",
+    "fg-2": "#111827",
+    "muted": "#64748B",
+    "meta": "#64748B",
+    "border": "#E5E7EB",
+    "border-soft": "#E5E7EB",
+    "accent": "#000000",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#D97706",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Geist",
+    "body": "Geist",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "shopify",
+   "name": "Shopify",
+   "category": "E-Commerce & Retail",
+   "description": "E-commerce platform. Dark-first cinematic, neon green accent, ultra-light type.",
+   "colors": {
+    "bg": "#000000",
+    "surface": "#02090A",
+    "surface-warm": "#061A1C",
+    "fg": "#FFFFFF",
+    "fg-2": "#FFFFFF",
+    "muted": "#A1A1AA",
+    "meta": "#71717A",
+    "border": "#1E2C31",
+    "border-soft": "#3F3F46",
+    "accent": "#36F4A4",
+    "accent-on": "#000000",
+    "success": "#36F4A4",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "NeueHaasGrotesk",
+    "body": "Inter Variable",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "simple",
+   "name": "Simple",
+   "category": "Modern & Minimal",
+   "description": "Straightforward, no-frills design with clean typography, neutral colors, and intuitive layouts that stay out of the way.",
+   "colors": {
+    "bg": "#F5F8FF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EAF1FF",
+    "fg": "#101828",
+    "fg-2": "#344054",
+    "muted": "#667085",
+    "meta": "#2563EB",
+    "border": "#D7E0EF",
+    "border-soft": "#EDF2F8",
+    "accent": "#2563EB",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "skeumorphism",
+   "name": "Skeumorphism",
+   "category": "Morphism & Effects",
+   "description": "Real-world mimicry with textured surfaces, 3D effects, and familiar physical metaphors for intuitive digital interfaces.",
+   "colors": {
+    "bg": "#F7EEE6",
+    "surface": "#FFF8F1",
+    "surface-warm": "#EAD6C7",
+    "fg": "#2B211C",
+    "fg-2": "#5A4B43",
+    "muted": "#8A7A70",
+    "meta": "#B46A46",
+    "border": "#DAC8B9",
+    "border-soft": "#EADED4",
+    "accent": "#B46A46",
+    "accent-on": "#FFFFFF",
+    "success": "#4D8F5A",
+    "warn": "#C88735",
+    "danger": "#B84C4C"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "slack",
+   "name": "Slack",
+   "category": "Productivity & SaaS",
+   "description": "Workplace communication platform. Aubergine-primary, multi-accent logo palette, light surfaces with dark sidebar, warm and approachable.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F8F8F8",
+    "surface-warm": "#F8F8F8",
+    "fg": "#1D1C1D",
+    "fg-2": "#1D1C1D",
+    "muted": "#616061",
+    "meta": "#616061",
+    "border": "#DDDDDD",
+    "border-soft": "#F1F1F1",
+    "accent": "#4A154B",
+    "accent-on": "#FFFFFF",
+    "success": "#2EB67D",
+    "warn": "#ECB22E",
+    "danger": "#E01E5A"
+   },
+   "fonts": {
+    "display": "Larsseit",
+    "body": "system-ui",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "sleek",
+   "name": "Sleek",
+   "category": "Modern & Minimal",
+   "description": "Modern minimalist aesthetic with clean lines, intentional color palette, subtle interactions, and consistent spacing.",
+   "colors": {
+    "bg": "#090B12",
+    "surface": "#121722",
+    "surface-warm": "#1B2233",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#94A3B8",
+    "meta": "#60A5FA",
+    "border": "#2A3447",
+    "border-soft": "#1D2636",
+    "accent": "#60A5FA",
+    "accent-on": "#06101D",
+    "success": "#22C55E",
+    "warn": "#FBBF24",
+    "danger": "#FB7185"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "spacex",
+   "name": "SpaceX",
+   "category": "Media & Consumer",
+   "description": "Space technology. Stark black and white, full-bleed imagery, futuristic.",
+   "colors": {
+    "bg": "#000000",
+    "surface": "#000000",
+    "surface-warm": "#000000",
+    "fg": "#F0F0FA",
+    "fg-2": "#F0F0FA",
+    "accent": "#F0F0FA",
+    "accent-on": "#000000",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "D-DIN-Bold",
+    "body": "D-DIN",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "spacious",
+   "name": "Spacious",
+   "category": "Layout & Structure",
+   "description": "Generous whitespace, consistent padding, and grid-based layouts for clean, readable, and breathing interfaces.",
+   "colors": {
+    "bg": "#FAF3DF",
+    "surface": "#FFFAF0",
+    "surface-warm": "#EFE0BD",
+    "fg": "#211B12",
+    "fg-2": "#504737",
+    "muted": "#7C7160",
+    "meta": "#8F5D24",
+    "border": "#DDD0B4",
+    "border-soft": "#EEE3CD",
+    "accent": "#8F5D24",
+    "accent-on": "#FFFFFF",
+    "success": "#5B8D42",
+    "warn": "#C27B22",
+    "danger": "#A64036"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "spotify",
+   "name": "Spotify",
+   "category": "Media & Consumer",
+   "description": "Music streaming. Vibrant green on dark, bold type, album-art-driven.",
+   "colors": {
+    "bg": "#121212",
+    "surface": "#181818",
+    "surface-warm": "#1F1F1F",
+    "fg": "#FFFFFF",
+    "fg-2": "#FDFDFD",
+    "muted": "#B3B3B3",
+    "meta": "#CBCBCB",
+    "border": "#4D4D4D",
+    "accent": "#1ED760",
+    "accent-on": "#000000",
+    "success": "#1ED760",
+    "warn": "#FFA42B",
+    "danger": "#F3727F"
+   },
+   "fonts": {
+    "display": "SpotifyMixUITitle",
+    "body": "SpotifyMixUI",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "storytelling",
+   "name": "Storytelling",
+   "category": "Creative & Artistic",
+   "description": "Narrative-driven design using visuals, copy, and interaction to guide users through engaging, emotionally resonant journeys.",
+   "colors": {
+    "bg": "#FBF6EE",
+    "surface": "#FFFDF8",
+    "surface-warm": "#F1E3CF",
+    "fg": "#201914",
+    "fg-2": "#4C4037",
+    "muted": "#7A6D63",
+    "meta": "#9B5B32",
+    "border": "#DED2C3",
+    "border-soft": "#EEE4D7",
+    "accent": "#9B5B32",
+    "accent-on": "#FFFFFF",
+    "success": "#4F8A4F",
+    "warn": "#C9822F",
+    "danger": "#B33A3A"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "stripe",
+   "name": "Stripe",
+   "category": "Fintech & Crypto",
+   "description": "Payment infrastructure. Signature purple gradients, weight-300 elegance.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#F6F9FC",
+    "fg": "#061B31",
+    "fg-2": "#273951",
+    "muted": "#64748D",
+    "meta": "#64748D",
+    "border": "#E5EDF5",
+    "border-soft": "#E5EDF5",
+    "accent": "#533AFD",
+    "accent-on": "#FFFFFF",
+    "success": "#15BE53",
+    "warn": "#9B6829",
+    "danger": "#EA2261"
+   },
+   "fonts": {
+    "display": "sohne-var",
+    "body": "sohne-var",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "supabase",
+   "name": "Supabase",
+   "category": "Backend & Data",
+   "description": "Open-source Firebase alternative. Dark emerald theme, code-first.",
+   "colors": {
+    "bg": "#171717",
+    "surface": "#1C1C1C",
+    "surface-warm": "#1C1C1C",
+    "fg": "#FAFAFA",
+    "fg-2": "#B4B4B4",
+    "muted": "#898989",
+    "meta": "#4D4D4D",
+    "border": "#2E2E2E",
+    "border-soft": "#242424",
+    "accent": "#3ECF8E",
+    "accent-on": "#0F0F0F",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Circular",
+    "body": "Circular",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "superhuman",
+   "name": "Superhuman",
+   "category": "Developer Tools",
+   "description": "Fast email client. Premium dark UI, keyboard-first, purple glow.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#E9E5DD",
+    "fg": "#292827",
+    "fg-2": "#292827",
+    "muted": "#6F6C69",
+    "meta": "#6F6C69",
+    "border": "#DCD7D3",
+    "border-soft": "#DCD7D3",
+    "accent": "#CBB7FB",
+    "accent-on": "#292827",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Super Sans VF",
+    "body": "Super Sans VF",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "tesla",
+   "name": "Tesla",
+   "category": "Automotive",
+   "description": "Electric automotive. Radical subtraction, full-viewport photography, near-zero UI.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F4F4F4",
+    "surface-warm": "#F4F4F4",
+    "fg": "#171A20",
+    "fg-2": "#393C41",
+    "muted": "#5C5E62",
+    "meta": "#8E8E8E",
+    "border": "#D0D1D2",
+    "border-soft": "#EEEEEE",
+    "accent": "#3E6AE1",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Universal Sans Display",
+    "body": "Universal Sans Text",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "tetris",
+   "name": "Tetris",
+   "category": "Themed & Unique",
+   "description": "Classic block-game inspired design with playful colors, bold display fonts, and compact, high-energy layouts.",
+   "colors": {
+    "bg": "#050816",
+    "surface": "#10162A",
+    "surface-warm": "#17203A",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#94A3B8",
+    "meta": "#00F0F0",
+    "border": "#26324F",
+    "border-soft": "#1C2740",
+    "accent": "#00F0F0",
+    "accent-on": "#061018",
+    "success": "#00F000",
+    "warn": "#F0F000",
+    "danger": "#F00000"
+   },
+   "fonts": {
+    "display": "Press Start 2P",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "theverge",
+   "name": "The Verge",
+   "category": "Media & Consumer",
+   "description": "Tech editorial media. Acid-mint and ultraviolet accents, Manuka display, rave-flyer story tiles.",
+   "colors": {
+    "bg": "#050505",
+    "surface": "#111111",
+    "surface-warm": "#211022",
+    "fg": "#FFFFFF",
+    "fg-2": "#E5E7EB",
+    "muted": "#9CA3AF",
+    "meta": "#FF00A8",
+    "border": "#2B2B2B",
+    "border-soft": "#1D1D1D",
+    "accent": "#FF00A8",
+    "accent-on": "#FFFFFF",
+    "success": "#22C55E",
+    "warn": "#FACC15",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "PolySans",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "together-ai",
+   "name": "Together AI",
+   "category": "AI & LLM",
+   "description": "Open-source AI infrastructure. Technical, blueprint-style design.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFFFFF",
+    "fg": "#000000",
+    "muted": "#666666",
+    "meta": "#666666",
+    "border": "#EBEBEB",
+    "border-soft": "#EBEBEB",
+    "accent": "#010120",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "The Future",
+    "body": "The Future",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "tom-modern",
+   "name": "Tom Modern Design",
+   "category": "Starter",
+   "description": "Editorial-technical design system. Neutral canvas, single vermillion accent, sharp corners, Geist typography, hard shadows, structured composition.",
+   "colors": {
+    "bg": "#FAFAFA",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFFFFF",
+    "fg": "#27272A",
+    "fg-2": "#52525B",
+    "muted": "#71717A",
+    "meta": "#71717A",
+    "border": "#969696",
+    "border-soft": "#D4D4D8",
+    "accent": "#FF5A00",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Geist Sans",
+    "body": "Geist Sans",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "totality-festival",
+   "name": "Totality Festival",
+   "category": "Themed & Unique",
+   "description": "Bundled OpenDesign package for Totality Festival, derived from curated DESIGN.md, tokens.css, and components.html fixtures.",
+   "colors": {
+    "bg": "#070711",
+    "surface": "#111126",
+    "surface-warm": "#1E1540",
+    "fg": "#F8F7FF",
+    "fg-2": "#D6CCFF",
+    "muted": "#9D8AD4",
+    "meta": "#C084FC",
+    "border": "#34265E",
+    "border-soft": "#241C42",
+    "accent": "#C084FC",
+    "accent-on": "#13051F",
+    "success": "#39FF88",
+    "warn": "#FFF34D",
+    "danger": "#FF4D8D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "trading-terminal",
+   "name": "Trading Terminal Design System",
+   "category": "Themed & Unique",
+   "description": "Bloomberg-style financial trading terminal. Dark-only, data-dense, cyan/coral buy/sell signals. Everything readable at a glance from two meters away.",
+   "colors": {
+    "bg": "#070B12",
+    "surface": "#101826",
+    "surface-warm": "#162238",
+    "fg": "#F8FAFC",
+    "fg-2": "#CBD5E1",
+    "muted": "#8492A6",
+    "meta": "#38BDF8",
+    "border": "#263246",
+    "border-soft": "#1C2638",
+    "accent": "#38BDF8",
+    "accent-on": "#03111A",
+    "success": "#22C55E",
+    "warn": "#F59E0B",
+    "danger": "#EF4444"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "uber",
+   "name": "Uber",
+   "category": "Media & Consumer",
+   "description": "Mobility platform. Bold black and white, tight type, urban energy.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#F8F8F8",
+    "fg": "#000000",
+    "fg-2": "#000000",
+    "muted": "#4B4B4B",
+    "meta": "#AFAFAF",
+    "border": "#000000",
+    "accent": "#000000",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "UberMove",
+    "body": "UberMoveText",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "urdu",
+   "name": "Urdu Modern (Indus Script System)",
+   "category": "Editorial / Personal / Publication",
+   "description": "Urdu-first digital experiences with native RTL support,Nastaliq typography, and bilingual harmony.",
+   "colors": {
+    "bg": "#F3FAF4",
+    "surface": "#FFFFFF",
+    "surface-warm": "#E5F5E7",
+    "fg": "#15261A",
+    "fg-2": "#38513E",
+    "muted": "#6B7D70",
+    "meta": "#1F8F46",
+    "border": "#D4E3D7",
+    "border-soft": "#EDF3EE",
+    "accent": "#1F8F46",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#D97706",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "vercel",
+   "name": "Vercel",
+   "category": "Developer Tools",
+   "description": "Frontend deployment. Black and white precision, Geist font.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFFFFF",
+    "fg": "#171717",
+    "fg-2": "#4D4D4D",
+    "muted": "#666666",
+    "meta": "#808080",
+    "accent": "#0070F3",
+    "accent-on": "#FFFFFF",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Geist",
+    "body": "Geist",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "vibrant",
+   "name": "Vibrant",
+   "category": "Bold & Expressive",
+   "description": "Lively, colorful design with bold playful typography, warm accents, and dynamic visual energy.",
+   "colors": {
+    "bg": "#FFF8D7",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFEF9F",
+    "fg": "#1D1836",
+    "fg-2": "#4C426C",
+    "muted": "#796F91",
+    "meta": "#FF6B00",
+    "border": "#EADFBA",
+    "border-soft": "#F5ECCD",
+    "accent": "#FF6B00",
+    "accent-on": "#FFFFFF",
+    "success": "#2E9D57",
+    "warn": "#FFB020",
+    "danger": "#E5484D"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "vintage",
+   "name": "Vintage",
+   "category": "Retro & Nostalgic",
+   "description": "1950s-1990s nostalgia with skeuomorphic touches, grainy textures, retro color palettes, and pixel-style typography.",
+   "colors": {
+    "bg": "#FAF3DF",
+    "surface": "#FFFAF0",
+    "surface-warm": "#EFE0BD",
+    "fg": "#211B12",
+    "fg-2": "#504737",
+    "muted": "#7C7160",
+    "meta": "#8F5D24",
+    "border": "#DDD0B4",
+    "border-soft": "#EEE3CD",
+    "accent": "#8F5D24",
+    "accent-on": "#FFFFFF",
+    "success": "#5B8D42",
+    "warn": "#C27B22",
+    "danger": "#A64036"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "vodafone",
+   "name": "Vodafone",
+   "category": "Media & Consumer",
+   "description": "Global telecom brand. Monumental uppercase display, Vodafone Red chapter bands.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F4F4F4",
+    "surface-warm": "#FFF1F1",
+    "fg": "#1F1F1F",
+    "fg-2": "#4A4D4E",
+    "muted": "#6F7375",
+    "meta": "#A61218",
+    "border": "#D8D8D8",
+    "border-soft": "#EEEEEE",
+    "accent": "#E60000",
+    "accent-on": "#FFFFFF",
+    "success": "#008A00",
+    "warn": "#F5B400",
+    "danger": "#BD0000"
+   },
+   "fonts": {
+    "display": "Vodafone",
+    "body": "Vodafone",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "voltagent",
+   "name": "VoltAgent",
+   "category": "AI & LLM",
+   "description": "AI agent framework. Void-black canvas, emerald accent, terminal-native.",
+   "colors": {
+    "bg": "#07110C",
+    "surface": "#101C16",
+    "surface-warm": "#14281E",
+    "fg": "#F4FFF8",
+    "fg-2": "#C8DFD0",
+    "muted": "#8BA493",
+    "meta": "#7CFF6B",
+    "border": "#254132",
+    "border-soft": "#1A3024",
+    "accent": "#7CFF6B",
+    "accent-on": "#07110C",
+    "success": "#52E875",
+    "warn": "#FACC15",
+    "danger": "#FB7185"
+   },
+   "fonts": {
+    "display": "Inter",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "warm-editorial",
+   "name": "Warm Editorial",
+   "category": "Starter",
+   "description": "A serif-led magazine aesthetic. Terracotta accent on warm off-white paper —",
+   "colors": {
+    "bg": "#FBF6EE",
+    "surface": "#FFFDF8",
+    "surface-warm": "#F1E3CF",
+    "fg": "#201914",
+    "fg-2": "#4C4037",
+    "muted": "#7A6D63",
+    "meta": "#9B5B32",
+    "border": "#DED2C3",
+    "border-soft": "#EEE4D7",
+    "accent": "#9B5B32",
+    "accent-on": "#FFFFFF",
+    "success": "#4F8A4F",
+    "warn": "#C9822F",
+    "danger": "#B33A3A"
+   },
+   "fonts": {
+    "display": "Georgia",
+    "body": "Inter",
+    "display_kind": "serif",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "warp",
+   "name": "Warp",
+   "category": "Developer Tools",
+   "description": "Modern terminal. Dark IDE-like interface, block-based command UI.",
+   "colors": {
+    "bg": "#161412",
+    "surface": "#1F1D1B",
+    "surface-warm": "#1F1D1B",
+    "fg": "#FAF9F6",
+    "fg-2": "#AFAEAC",
+    "muted": "#868584",
+    "meta": "#666469",
+    "accent": "#353534",
+    "accent-on": "#AFAEAC",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Matter Regular",
+    "body": "Matter Regular",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "webex",
+   "name": "Webex",
+   "category": "Productivity & SaaS",
+   "description": "Collaboration platform. Momentum typography, blue action system, multi-user accent spectrum.",
+   "colors": {
+    "bg": "#F6F8FB",
+    "surface": "#FFFFFF",
+    "surface-warm": "#EEF8F6",
+    "fg": "#0F172A",
+    "fg-2": "#334155",
+    "muted": "#64748B",
+    "meta": "#12A594",
+    "border": "#DBE4EE",
+    "border-soft": "#EDF2F7",
+    "accent": "#00A3A6",
+    "accent-on": "#FFFFFF",
+    "success": "#22C55E",
+    "warn": "#F59E0B",
+    "danger": "#E11D48"
+   },
+   "fonts": {
+    "display": "CiscoSansTT",
+    "body": "CiscoSansTT",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "webflow",
+   "name": "Webflow",
+   "category": "Design & Creative",
+   "description": "Visual web builder. Blue-accented, polished marketing site aesthetic.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFFFFF",
+    "fg": "#080808",
+    "fg-2": "#363636",
+    "muted": "#5A5A5A",
+    "meta": "#ABABAB",
+    "border": "#D8D8D8",
+    "border-soft": "#EBEBEB",
+    "accent": "#146EF5",
+    "accent-on": "#FFFFFF",
+    "success": "#00D722",
+    "warn": "#FFAE13",
+    "danger": "#EE1D36"
+   },
+   "fonts": {
+    "display": "WF Visual Sans Variable",
+    "body": "WF Visual Sans Variable",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "wechat",
+   "name": "WeChat Design System",
+   "category": "Social & Messaging",
+   "description": "Brand visual language for WeChat Mini Programs, official accounts, and open ecosystem extensions.",
+   "colors": {
+    "bg": "#EDEDED",
+    "surface": "#F7F7F7",
+    "surface-warm": "#F7F7F7",
+    "fg": "#1A1A1A",
+    "fg-2": "#1A1A1A",
+    "muted": "#888888",
+    "meta": "#888888",
+    "border": "#E0E0E0",
+    "border-soft": "#E0E0E0",
+    "accent": "#07C160",
+    "accent-on": "#FFFFFF",
+    "success": "#07C160",
+    "warn": "#FAB702",
+    "danger": "#FA5151"
+   },
+   "fonts": {
+    "display": "-apple-system",
+    "body": "-apple-system",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "wired",
+   "name": "WIRED",
+   "category": "Media & Consumer",
+   "description": "Tech magazine. Paper-white broadsheet density, custom serif display, mono kickers, ink-blue links.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#F2F2F2",
+    "surface-warm": "#FFF0F0",
+    "fg": "#000000",
+    "fg-2": "#333333",
+    "muted": "#666666",
+    "meta": "#E10600",
+    "border": "#D0D0D0",
+    "border-soft": "#E8E8E8",
+    "accent": "#E10600",
+    "accent-on": "#FFFFFF",
+    "success": "#0F8A3B",
+    "warn": "#F5A400",
+    "danger": "#C40000"
+   },
+   "fonts": {
+    "display": "Druk Wide",
+    "body": "Exchange",
+    "display_kind": "sans",
+    "body_kind": "serif"
+   }
+  },
+  {
+   "id": "wise",
+   "name": "Wise",
+   "category": "Fintech & Crypto",
+   "description": "Money transfer. Bright green accent, friendly and clear.",
+   "colors": {
+    "bg": "#FFFFFF",
+    "surface": "#E8EBE6",
+    "surface-warm": "#E8EBE6",
+    "fg": "#0E0F0C",
+    "fg-2": "#0E0F0C",
+    "muted": "#868685",
+    "meta": "#868685",
+    "accent": "#9FE870",
+    "accent-on": "#163300",
+    "success": "#054D28",
+    "warn": "#FFD11A",
+    "danger": "#D03238"
+   },
+   "fonts": {
+    "display": "Wise Sans",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "x-ai",
+   "name": "xAI",
+   "category": "AI & LLM",
+   "description": "Elon Musk's AI lab. Stark monochrome, futuristic minimalism.",
+   "colors": {
+    "bg": "#1F2228",
+    "fg": "#FFFFFF",
+    "accent": "#FFFFFF",
+    "accent-on": "#1F2228",
+    "success": "#16A34A",
+    "warn": "#EAB308",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "GeistMono",
+    "body": "universalSans",
+    "display_kind": "mono",
+    "body_kind": "sans"
+   }
+  },
+  {
+   "id": "zapier",
+   "name": "Zapier",
+   "category": "Productivity & SaaS",
+   "description": "Automation platform. Warm orange, friendly illustration-driven.",
+   "colors": {
+    "bg": "#FFF7ED",
+    "surface": "#FFFFFF",
+    "surface-warm": "#FFEDD5",
+    "fg": "#2D2A26",
+    "fg-2": "#574F45",
+    "muted": "#7C6F64",
+    "meta": "#FF4F00",
+    "border": "#EADFD3",
+    "border-soft": "#F4EADF",
+    "accent": "#FF4F00",
+    "accent-on": "#FFFFFF",
+    "success": "#15803D",
+    "warn": "#D97706",
+    "danger": "#DC2626"
+   },
+   "fonts": {
+    "display": "Degular",
+    "body": "Inter",
+    "display_kind": "sans",
+    "body_kind": "sans"
+   }
+  }
+ ]
+}

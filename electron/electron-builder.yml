@@ -1,0 +1,46 @@
+appId: com.ltxportable.studio
+productName: LTX Portable Studio
+copyright: LTX Portable Studio
+directories:
+  output: ../dist-installer
+  buildResources: build
+files:
+  - main.js
+  - runtime.js
+  - preload.js
+  - products.js
+  - splash.html
+  - splash.js
+  - splash.css
+  - design/**
+  - package.json
+extraResources:
+  # The Python backend and the built UI travel inside the app; PyTorch and the other libraries are installed on first start.
+  - from: ../backend/ltxps
+    to: backend/ltxps
+    filter: ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+  - from: ../backend/requirements.txt
+    to: backend/requirements.txt
+  - from: ../frontend/dist
+    to: ui
+  - from: ../assistant-ui/dist
+    to: assistant-ui
+  - from: ../shared/design
+    to: design
+    filter: ["tokens.css", "components.css", "DESIGN.md"]
+asar: true
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  artifactName: LTXPortableStudio-Setup-${version}.exe
+portable:
+  artifactName: LTXPortableStudio-${version}-portable.exe

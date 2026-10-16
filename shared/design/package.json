@@ -1,0 +1,12 @@
+{
+  "name": "chatgpt-design-system",
+  "version": "1.0.0",
+  "description": "Design tokens and framework-free component CSS shared between projects.",
+  "files": ["tokens.json", "tokens.css", "components.css", "DESIGN.md", "SKILL.md", "build-tokens.mjs"],
+  "exports": {
+    "./tokens.css": "./tokens.css",
+    "./components.css": "./components.css",
+    "./tokens.json": "./tokens.json"
+  },
+  "scripts": { "build": "node build-tokens.mjs" }
+}
