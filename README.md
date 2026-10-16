@@ -92,7 +92,8 @@ On the Welcome screen press **Install everything (one click)**. The app looks at
 7. Made a mistake? Press the round **×** on a picture to remove it, or **Upload another**.
 
 <!-- 👉 IMAGE 1: drag the Make video screen (make-video.png) here, replacing this line -->
-**📸 IMAGE 1 — Make video screen (make-video.png)** *(delete this line after adding the picture)*
+**📸 IMAGE 1 — Make video screen (make-video.png)** <img width="1428" height="840" alt="image" src="https://github.com/user-attachments/assets/700ccf9b-dc4c-401d-ab16-37857ef73821" />
+
 
 > ⏱ **How long does it take?** On a 6 GB laptop card, a 4-second video can take several minutes. That is normal. Videos are saved in the **Library** automatically.
 
@@ -108,7 +109,8 @@ On the Welcome screen press **Install everything (one click)**. The app looks at
 6. **A window asks where to save the file** — choose the folder you like. 📁
 
 <!-- 👉 IMAGE 2: drag the Editor screen (editor.png) here, replacing this line -->
-**📸 IMAGE 2 — Editor screen (editor.png)** *(delete this line after adding the picture)*
+**📸 IMAGE 2 — Editor screen (editor.png)** <img width="1512" height="790" alt="image" src="https://github.com/user-attachments/assets/04e47235-9ff5-4cdb-a906-e1fde49eb677" />
+
 
 ---
 
@@ -120,7 +122,8 @@ On the Welcome screen press **Install everything (one click)**. The app looks at
 4. Press **Generate**. Your result appears on the right.
 
 <!-- 👉 IMAGE 3: drag the Motion control screen (motion-control.png) here, replacing this line -->
-**📸 IMAGE 3 — Motion control screen (motion-control.png)** *(delete this line after adding the picture)*
+**📸 IMAGE 3 — Motion control screen (motion-control.png)** <img width="1456" height="834" alt="image" src="https://github.com/user-attachments/assets/c746ea30-ea6a-4f34-b8c2-9bccc91fb9ac" />
+
 
 ---
 
@@ -129,7 +132,8 @@ On the Welcome screen press **Install everything (one click)**. The app looks at
 Click **AI Assistant** in the left menu. A second window opens.
 
 <!-- 👉 IMAGE 4: drag the AI Assistant screen (ai-assistant.png) here, replacing this line -->
-**📸 IMAGE 4 — AI Assistant screen (ai-assistant.png)** *(delete this line after adding the picture)*
+**📸 IMAGE 4 — AI Assistant screen (ai-assistant.png)** <img width="1372" height="872" alt="image" src="https://github.com/user-attachments/assets/add05374-8f71-46df-b75f-5892f612a396" />
+
 
 **First, tell it which AI brain to use** (once): open **Settings** inside the assistant and choose one. The easiest free choices are **Ollama** (runs on your PC) or a free online key (Gemini, Groq, OpenRouter).
 
