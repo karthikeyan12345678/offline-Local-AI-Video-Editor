@@ -95,3 +95,10 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 - **History tab**: every edit is a step; click one to jump back or forward.
 - **Sound and voice while generating**: on Make video, "Sound on" adds a voice-over (the voices installed in Windows), a background sound that matches your prompt (sea, rain, wind, fire, city, night, space or calm music) and optional soft music. Also in chat: "make a video of … with a voice saying …" and "add rain sound to this clip".
   The background sounds are synthesised on this PC (not AI-generated recordings); the voice is the Windows voice, so quality depends on the voices you have installed (Settings → Time & language → Speech).
+
+## 1.2.9
+- **Make video**: **Start picture** and **End picture** slots (the video begins on one and finishes on the other). Every picture or video has a round **×** to remove it, **Upload another**, **From library**, and you can drop a file on it. **Minimise view** shrinks the page to a small progress bar and the prompt. The Voice & sound options are folded away until you press "Voice & sound". If the installed video library cannot end on a picture, the video still uses the start picture and says so.
+- **Motion control** redesigned: inputs on the left (character picture and motion video, each with ×, upload and drop), the result on the right, short Direction and Quality switches.
+- **AI Assistant** has a new look (warm dark paper, serif headings, line icons, a rounded message box with round attach and send buttons). **Pictures show a progress bar** with the time passed.
+- **Tailor my resume**: attach a resume (PDF, Word, text or CSV) and a job description (a second file or pasted in the message) and say "tailor my resume to this JD with high ATS score". You get a new PDF (or Word file if you ask) that only uses facts from your resume, plus the ATS score before and after and the job terms that could not be added honestly.
+- **Saving always asks where**: every export and "Save as…" opens the Save As window in the desktop app, and a finished export opens it automatically.

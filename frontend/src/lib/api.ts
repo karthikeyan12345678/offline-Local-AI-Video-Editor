@@ -53,7 +53,7 @@ export const mediaUrl = (id: string, what: "file" | "thumb" | "download" = "file
 export interface SoundOptions { narration: string; voice: string; rate: number; ambience: string; music: boolean; level: number }
 export interface GenerateBody {
   mode: "t2v" | "i2v"; prompt: string; negative_prompt: string; width: number; height: number; frames: number;
-  steps?: number; guidance?: number; seed: number; model_id?: string; image_asset_id?: string; unlock_limits: boolean; sound?: SoundOptions;
+  steps?: number; guidance?: number; seed: number; model_id?: string; image_asset_id?: string; end_image_asset_id?: string; unlock_limits: boolean; sound?: SoundOptions;
 }
 
 export const fontSampleUrl = (font: string, text: string, bold = false, height = 44) =>

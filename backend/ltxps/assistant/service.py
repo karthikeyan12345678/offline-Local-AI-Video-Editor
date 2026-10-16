@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import shutil
 import sys
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator
@@ -62,6 +65,8 @@ def detect_intent(text: str, n_files: int) -> Intent:
         return Intent("image", t)
     if n_files >= 2 and re.search(r"\b(compare|difference|differences|diff|what changed|which is better)\b", low):
         return Intent("compare", t)
+    if n_files >= 1 and re.search(r"\b(tailor|tailoring|customi[sz]e|optimi[sz]e|rewrite|rework|revamp|improve|update|fix|adapt|align|match)\b.{0,80}\b(resume|cv|pdf|doc|docx|file|jd|job description|ats)\b|\b(resume|cv)\b.{0,60}\b(jd|job description|ats|tailor)", low) and re.search(r"\b(tailor\w*|jd|job description|ats|job posting|role)\b", low):
+        return Intent("tailor", t)
     if n_files >= 1 and re.search(r"\b(ats|resume score|resume check|check (my )?resume|applicant tracking)\b", low):
         return Intent("ats", t)
     if n_files >= 1 and re.search(r"\b(analy[sz]e|analytics|statistics|stats|profile this|summari[sz]e the data|insights?)\b", low):
@@ -208,6 +213,8 @@ def run_turn(state: AssistantState, cid: str, text: str, file_ids: list[str], op
         elif intent.kind == "ats":
             reply, cards = _do_ats(state, intent, files, options)
             yield sse("delta", {"text": reply})
+        elif intent.kind == "tailor":
+            reply, cards = yield from _do_tailor(state, intent, files, options)
         elif intent.kind == "compare":
             reply, cards = _do_compare(state, files)
             yield sse("delta", {"text": reply})
@@ -215,7 +222,7 @@ def run_turn(state: AssistantState, cid: str, text: str, file_ids: list[str], op
             reply, cards = _do_analyze(state, files)
             yield sse("delta", {"text": reply})
         elif intent.kind == "image":
-            reply, cards = _do_image(state, intent.text or text, options)
+            reply, cards = yield from _do_image(state, intent.text or text, options)
             yield sse("delta", {"text": reply})
         elif intent.kind == "design":
             reply, cards = _do_design(intent.text or text, options)
@@ -311,6 +318,101 @@ def _do_ats(state: AssistantState, intent: Intent, files: list[dict], options: d
     return reply, [{"type": "ats", "result": r}]
 
 
+JD_NAME = re.compile(r"(?i)\b(jd|job|description|posting|vacancy|role|opening)\b")
+RESUME_SECTIONS = re.compile(r"(?im)^\s*(work experience|experience|professional experience|employment|education|skills|projects|certifications|summary|profile)\s*:?\s*$")
+JD_WORDS = re.compile(r"(?i)\b(responsibilities|requirements|qualifications|we are looking|you will|what you.ll do|about the role|job description|preferred)\b")
+TAILOR_PROMPT = (
+    "You are an expert resume writer who knows how applicant tracking systems (ATS) read resumes. Rewrite the RESUME so it fits the JOB DESCRIPTION and scores as high as possible, "
+    "while staying completely truthful.\n"
+    "Rules:\n"
+    "- Use ONLY facts that are in the resume. Never invent employers, titles, dates, degrees, tools, numbers or achievements. Keep every date, company, title and school exactly as given.\n"
+    "- Use the job description's own wording for skills and duties that the resume really supports (for example write 'Kubernetes' if the resume shows it, in the same form the job uses).\n"
+    "- Start from this structure, in Markdown: '# Full Name', one line of contact details separated by ' | ', then '## Summary' (2 to 3 lines aimed at this job), '## Skills' (a plain comma-separated list of the relevant skills, job keywords first), "
+    "'## Experience' (for each role '### Job title, Company' then a line with dates and location, then 3 to 6 bullets that start with a strong verb, put the most relevant first, keep real numbers if the resume has them), "
+    "'## Education', and '## Certifications' or '## Projects' only if the resume has them.\n"
+    "- Single column, plain text only: no tables, no images, no emojis, no icons, no columns. Standard section names only.\n"
+    "- Keep it to what fits on one or two pages. Output only the Markdown, no commentary.")
+
+
+def _tailor_inputs(state: AssistantState, files: list[dict], text: str, options: dict[str, Any]) -> tuple[dict, str, str]:
+    """Works out which attachment is the resume and where the job description is (a second file, the message, or the options)."""
+    exs = []
+    for f in files:
+        try:
+            exs.append((f, extract(f["path"])))
+        except ExtractError as e:
+            raise ValueError(str(e)) from e
+    resume = jd_file = None
+    if len(exs) >= 2:
+        for f, ex in exs:
+            if JD_NAME.search(Path(f["name"]).stem) and jd_file is None:
+                jd_file = (f, ex)
+        if jd_file is None:
+            scored = sorted(exs, key=lambda fe: len(RESUME_SECTIONS.findall(fe[1].text)) - len(JD_WORDS.findall(fe[1].text)))
+            jd_file = scored[0]
+        resume = next((fe for fe in exs if fe is not jd_file), exs[0])
+    else:
+        resume = exs[0]
+    jd = options.get("job_description") or ""
+    if not jd and jd_file:
+        jd = jd_file[1].text
+    if not jd:
+        jd = re.sub(r"(?i)^/\w+\s*", "", text).strip()
+        if len(jd.split()) < 25:
+            jd = ""
+    if not jd.strip() or len(jd.split()) < 12:
+        raise ValueError("I need the job description to tailor to. Attach it as a second file, or paste it in the message together with your request.")
+    rtext = resume[1].text
+    if resume[1].kind in {"csv", "xlsx", "tsv"} and resume[1].tables:
+        t = resume[1].tables[0]
+        rtext = "\n".join(" | ".join(map(str, r)) for r in [t["columns"], *t["rows"][:200]])
+    return resume[0], rtext, jd
+
+
+def _do_tailor(state: AssistantState, intent: Intent, files: list[dict], options: dict[str, Any]) -> Iterator[str]:
+    _need_files(files, 1, "tailor a resume")
+    low = intent.text.lower()
+    fmt = "docx" if re.search(r"\b(word|docx?)\b", low) and not re.search(r"\bpdf\b", low) else "pdf"
+    rf, rtext, jd = _tailor_inputs(state, files, intent.text, options)
+    before = None
+    try:
+        before = ats.check_resume(extract(rf["path"]), jd)
+    except Exception:  # noqa: BLE001 - e.g. a table file; the tailored file is still scored below
+        pass
+    cfg = state.llm_config()
+    yield sse("status", {"text": "Reading the job description and your resume…"})
+    want = ats.jd_keywords(jd)
+    kw_line = ", ".join(w["keyword"] for w in want[:30])
+    prompt = f"{TAILOR_PROMPT}\n\nKEY TERMS IN THE JOB (use the ones the resume supports): {kw_line}\n\nJOB DESCRIPTION:\n{jd[:7000]}\n\nRESUME:\n{rtext[:9000]}"
+    yield sse("status", {"text": "Rewriting your resume for this job…"})
+    md = strip_fence(llm.complete(cfg, [{"role": "user", "content": prompt}], SYSTEM_BASE))
+    if not md.strip():
+        raise llm.LLMError("The model returned no content. Try again or choose another model.")
+    best = None
+    for attempt in range(2):
+        yield sse("status", {"text": "Building the file and checking its ATS score…" if attempt == 0 else "Improving the keyword match…"})
+        f, meta = make_document(state, fmt, md, "resume cv", options.get("theme"), "")
+        after = ats.check_resume(extract(state.store.get_file(f["id"])["path"]), jd)
+        if best is None or after["score"] > best[1]["score"]:
+            best = (f, after, meta, md)
+        miss = [m["keyword"] for m in after["categories"]["keywords"].get("missing", [])][:12]
+        if after["score"] >= 90 or attempt == 1 or not miss:
+            break
+        prompt2 = (f"{TAILOR_PROMPT}\n\nHere is a draft. Improve it: these job terms are still missing, add each one ONLY where the original resume really supports it (as a skill or inside a bullet): {', '.join(miss)}. "
+                   f"Do not add anything the original resume does not support.\n\nDRAFT:\n{md}\n\nORIGINAL RESUME:\n{rtext[:9000]}")
+        md2 = strip_fence(llm.complete(cfg, [{"role": "user", "content": prompt2}], SYSTEM_BASE))
+        if md2.strip():
+            md = md2
+    f, after, meta, md = best
+    after["before_score"] = before["score"] if before else None
+    left = [m["keyword"] for m in after["categories"]["keywords"].get("missing", [])][:10]
+    reply = f"Your tailored resume is ready: **{f['name']}**. ATS estimate: " + (f"**{before['score']:.0f} → {after['score']:.0f}/100**." if before else f"**{after['score']:.0f}/100**.")
+    if left:
+        reply += " Job terms left out because your resume does not show them: " + ", ".join(left) + ". Add them only if they are true for you."
+    yield sse("delta", {"text": reply})
+    return reply, [file_card(f, "Rewritten from your resume and the job description. Check every line is true before you send it.", meta["warnings"], meta["theme"]), {"type": "ats", "result": after}]
+
+
 def _do_compare(state: AssistantState, files: list[dict]) -> tuple[str, list[dict]]:
     _need_files(files, 2, "compare them")
     r = compare.compare_files(files[0]["path"], files[1]["path"])
@@ -327,14 +429,41 @@ def _do_analyze(state: AssistantState, files: list[dict]) -> tuple[str, list[dic
     return r["headline"], [{"type": "analytics", "result": r}]
 
 
-def _do_image(state: AssistantState, prompt: str, options: dict[str, Any]) -> tuple[str, list[dict]]:
+def estimate_fraction(elapsed: float, provider: str) -> float:
+    """A smooth estimate (never 100% until the picture really exists), tuned per engine: it slows down as it approaches 92%."""
+    tau = {"local": 8.0, "horde": 45.0, "pollinations": 18.0}.get(provider, 20.0)
+    return 0.92 * (1 - math.exp(-elapsed / tau))
+
+
+def _do_image(state: AssistantState, prompt: str, options: dict[str, Any]) -> Iterator[str]:
+    """Makes the picture on a worker thread and streams progress events (an estimate plus the engine's real status text) until it is done."""
     cfg = state.image_config()
-    out = images.generate_image(cfg, prompt, state.pictures, options.get("shape", "square"), options.get("seed"), hf_endpoint=options.get("hf_endpoint", ""))
+    box: dict[str, Any] = {}
+    note = {"text": "Starting the picture engine…"}
+
+    def work() -> None:
+        try:
+            box["out"] = images.generate_image(cfg, prompt, state.pictures, options.get("shape", "square"), options.get("seed"), hf_endpoint=options.get("hf_endpoint", ""),
+                                               on_status=lambda t: note.update(text=t))
+        except BaseException as exc:  # noqa: BLE001 - re-raised below on the request thread
+            box["err"] = exc
+
+    t0 = time.monotonic()
+    th = threading.Thread(target=work, daemon=True)
+    th.start()
+    while th.is_alive():
+        th.join(0.4)
+        el = time.monotonic() - t0
+        yield sse("progress", {"fraction": round(estimate_fraction(el, cfg.provider), 3), "elapsed": round(el, 1), "text": note["text"], "estimated": True})
+    if "err" in box:
+        raise box["err"]
+    out = box["out"]
+    yield sse("progress", {"fraction": 1.0, "elapsed": round(time.monotonic() - t0, 1), "text": "Done", "estimated": False})
     f = state.store.add_file("generated", out["name"], Path(out["path"]), "png")
-    note = " The free fallback service adds a small logo; install the on-this-PC picture model (Install everything) for logo-free pictures with no limits." if out.get("watermark") else ""
+    msg = " The free fallback service adds a small logo; install the on-this-PC picture model (Install everything) for logo-free pictures with no limits." if out.get("watermark") else ""
     if out.get("fallback_reason"):
-        note = f" Made by the free online engine because the one on this PC failed: {out['fallback_reason']}" + note
-    return f"Here is your image ({out['width']}×{out['height']}).{note}", [{"type": "image", "file": f, "prompt": prompt, "width": out["width"], "height": out["height"], "provider": out["provider"]}]
+        msg = f" Made by the free online engine because the one on this PC failed: {out['fallback_reason']}" + msg
+    return f"Here is your image ({out['width']}×{out['height']}).{msg}", [{"type": "image", "file": f, "prompt": prompt, "width": out["width"], "height": out["height"], "provider": out["provider"]}]
 
 
 def _do_design(text: str, options: dict[str, Any]) -> tuple[str, list[dict]]:

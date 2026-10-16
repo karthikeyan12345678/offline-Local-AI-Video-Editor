@@ -238,10 +238,11 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         seed: int = -1
         model_id: str | None = None
         image_asset_id: str | None = None
+        end_image_asset_id: str | None = None
         unlock_limits: bool = False
         sound: SoundBody | None = None
 
-    def build_request(body: GenerateBody, image_path: Path | None) -> GenRequest:
+    def build_request(body: GenerateBody, image_path: Path | None, end_image_path: Path | None = None) -> GenRequest:
         st = state.settings.get()
         model_id = body.model_id or st.default_model
         spec = MODELS.get(model_id)
@@ -257,14 +258,15 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         seed = body.seed if body.seed >= 0 else random.randint(0, 2**31 - 1)
         return GenRequest(
             mode=body.mode, prompt=body.prompt.strip(), negative_prompt=body.negative_prompt.strip(), width=w, height=h, frames=f,
-            fps=body.fps or st.output_fps, steps=steps, guidance=guidance, seed=seed, model_id=model_id, image_path=image_path,
+            fps=body.fps or st.output_fps, steps=steps, guidance=guidance, seed=seed, model_id=model_id, image_path=image_path, end_image_path=end_image_path,
         )
 
     def submit_generation(req: GenRequest, title: str, extra_meta: dict[str, Any], sound: SoundBody | None = None) -> dict[str, Any]:
         def run(ctx: JobContext) -> dict[str, Any]:
             out = state.paths.outputs / f"{time.strftime('%Y%m%d-%H%M%S')}_{new_id()[:6]}_{safe_name(req.prompt)[:30]}.mp4"
             ctx.update(0.01, "Starting")
-            info = state.engine.generate(req, out, ctx)
+            info = dict(state.engine.generate(req, out, ctx))
+            engine_warnings = list(info.pop("warnings", []))
             sound_info = None
             if sound is not None:
                 ctx.update(0.95, "Adding sound and voice")
@@ -278,7 +280,7 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
                     **({"sound": {k: v for k, v in sound_info.items() if k != "warnings"}} if sound_info else {}),
                 },
             )
-            return {"asset_id": asset.id, "warnings": (sound_info or {}).get("warnings", [])}
+            return {"asset_id": asset.id, "warnings": engine_warnings + (sound_info or {}).get("warnings", [])}
 
         job = state.jobs.submit("generate", title, run, lane="gpu")
         return job.to_json()
@@ -289,14 +291,22 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
 
     @router.post("/generate")
     def generate(body: GenerateBody) -> dict[str, Any]:
-        image_path = None
+        image_path = end_path = None
         if body.mode == "i2v":
             asset = state.db.get_asset(body.image_asset_id or "")
             if asset is None or asset.kind != "image":
                 raise HTTPException(422, "Choose an image from your library as the starting frame.")
             image_path = Path(asset.path)
-        req = build_request(body, image_path)
-        return submit_generation(req, title_of(body.prompt), {"image_asset_id": body.image_asset_id} if image_path else {}, body.sound)
+            if body.end_image_asset_id:
+                end = state.db.get_asset(body.end_image_asset_id)
+                if end is None or end.kind != "image":
+                    raise HTTPException(422, "The ending picture must be an image from your library.")
+                end_path = Path(end.path)
+        req = build_request(body, image_path, end_path)
+        meta = {"image_asset_id": body.image_asset_id} if image_path else {}
+        if end_path:
+            meta["end_image_asset_id"] = body.end_image_asset_id
+        return submit_generation(req, title_of(body.prompt), meta, body.sound)
 
     class ExtendBody(GenerateBody):
         source_asset_id: str
@@ -315,7 +325,13 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         except (ops.ToolError, FfmpegError) as exc:
             raise HTTPException(422, str(exc)) from exc
         body.mode = "i2v"
-        req = build_request(body, frame)
+        end_path = None
+        if body.end_image_asset_id:
+            end = state.db.get_asset(body.end_image_asset_id)
+            if end is None or end.kind != "image":
+                raise HTTPException(422, "The ending picture must be an image from your library.")
+            end_path = Path(end.path)
+        req = build_request(body, frame, end_path)
         return submit_generation(req, "Continues: " + title_of(body.prompt), {"continues": src.id}, body.sound)
 
     # ------------------------------------------------------------------ jobs

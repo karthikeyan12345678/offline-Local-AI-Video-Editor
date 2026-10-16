@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { api, mediaUrl } from "../lib/api";
 import { fmtDuration } from "../lib/format";
+import { saveAs } from "../lib/save";
 import { useApp } from "../lib/store";
 import { Button, Dialog, Empty, Field, Tabs, I } from "../ds";
 import { Thumb } from "./shared";
@@ -135,7 +136,7 @@ function AssetDialog({ asset, tools, onClose, onEdit, watchJob }: { asset: Asset
       <div className="row between gap wrap">
         <div className="row gap">
           {asset.kind !== "image" || true ? <Button icon={I.film} onClick={onEdit}>Add to editor</Button> : null}
-          <a className="btn btn--secondary" href={mediaUrl(asset.id, "download")} download>Save a copy</a>
+          <Button variant="secondary" onClick={() => void saveAs(mediaUrl(asset.id, "download"), asset.name)}>Save as…</Button>
         </div>
         <Button variant="ghost" icon={I.trash} onClick={async () => { if (confirm("Delete this item from the library? The file is removed from disk.")) { try { await api.deleteAsset(asset.id); await refreshAssets(); onClose(); } catch (e) { toast((e as Error).message, true); } } }}>Delete</Button>
       </div>

@@ -6,6 +6,7 @@ directories:
   buildResources: build
 files:
   - main.js
+  - downloads.js
   - runtime.js
   - progress.js
   - logo-256.png

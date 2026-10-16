@@ -1,16 +1,21 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, mediaUrl } from "../lib/api";
 import { useApp } from "../lib/store";
 import { Button, Dialog, Field } from "../ds";
 import { JobCard } from "../views/shared";
 import type { ExportOptions, Project } from "../lib/types";
 import { presetFor } from "./model";
+import { saveAs } from "../lib/save";
 
 export default function ExportDialog({ project, seconds = 0, onClose }: { project: Project; seconds?: number; onClose: () => void }) {
   const { jobs, watchJob, toast } = useApp();
   const [opts, setOpts] = useState<ExportOptions>({ format: "mp4", quality: "medium", include_audio: true, preview: false, fps: project.canvas.fps, width: project.canvas.width, height: project.canvas.height });
   const [jobId, setJobId] = useState<string | null>(null);
   const [outId, setOutId] = useState<string | null>(null);
+  const asked = useRef<string | null>(null);
+  const fileName = `${(project.name || "video").replace(/[\\/:*?"<>|]+/g, " ").trim() || "video"}.${opts.format === "gif" ? "gif" : opts.format === "webm" ? "webm" : "mp4"}`;
+  // In the desktop app the Save As window opens as soon as the export is ready, so the person always chooses the place.
+  useEffect(() => { if (outId && asked.current !== outId && /Electron\//.test(navigator.userAgent)) { asked.current = outId; void saveAs(mediaUrl(outId, "download"), fileName); } }, [outId, fileName]);
   const [busy, setBusy] = useState(false);
   const job = jobs.find((j) => j.id === jobId);
   const active = !!job && (job.status === "queued" || job.status === "running");
@@ -55,7 +60,7 @@ export default function ExportDialog({ project, seconds = 0, onClose }: { projec
       {outId && (
         <div className="stack gap">
           <video className="player" src={mediaUrl(outId)} controls playsInline />
-          <div className="row gap"><a className="btn" href={mediaUrl(outId, "download")} download>Save to my computer</a><span className="text-sm">Also in your Library.</span></div>
+          <div className="row gap"><Button onClick={() => void saveAs(mediaUrl(outId, "download"), fileName)}>Save to my computer…</Button><span className="text-sm">Also in your Library.</span></div>
         </div>
       )}
       {(job?.result?.warnings as string[] | undefined)?.map((w) => <p key={w} className="text-sm">Note: {w}</p>)}

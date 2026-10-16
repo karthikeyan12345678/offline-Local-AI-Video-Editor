@@ -13,6 +13,7 @@ directories:
   buildResources: build
 files:
   - main.js
+  - downloads.js
   - runtime.js
   - progress.js
   - products.js

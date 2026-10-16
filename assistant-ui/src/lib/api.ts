@@ -53,6 +53,7 @@ export const fileUrl = (id: string, inline = false) => `/api/assistant/files/${i
 export type StreamEvent =
   | { event: "start"; data: { message_id: string; intent: string; title: string } }
   | { event: "status"; data: { text: string } }
+  | { event: "progress"; data: { fraction: number; elapsed: number; text: string; estimated: boolean } }
   | { event: "delta"; data: { text: string } }
   | { event: "card"; data: Card }
   | { event: "done"; data: { message_id: string } }

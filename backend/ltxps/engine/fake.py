@@ -41,7 +41,7 @@ class FakeEngine:
                 yield np.clip(img, 0, 255).astype(np.uint8)
 
         write_video(frames(), w, h, req.fps, out_path)
-        return {"strategy": "fake"}
+        return {"strategy": "fake", "end_image": bool(req.end_image_path)}
 
     def unload(self) -> None:
         pass

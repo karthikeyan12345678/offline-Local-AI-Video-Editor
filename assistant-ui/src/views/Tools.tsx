@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api } from "../lib/api";
 import type { AnalyticsResult, AtsResult, FileRef } from "../lib/types";
 import { AnalyticsView, AtsView, CompareView, ImageView } from "../cards";
-import { Banner, Button, FilePicker, useAsync } from "../ui";
+import { Banner, Button, FilePicker, TimedProgress, useAsync } from "../ui";
 import type { CompareResult } from "../lib/types";
 
 const RESUME_TYPES = ".pdf,.docx,.txt,.md";
@@ -74,7 +74,8 @@ export function ImageGen() {
         <textarea id="ip" className="textarea" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && prompt.trim().length > 2) go(); }} placeholder="A lighthouse at sunset, oil painting" />
         <div className="chips">{IDEAS.map((i) => <button key={i} className="chip" onClick={() => setPrompt(i)}>{i}</button>)}</div></div>
       <div className="field"><span className="label">Shape</span><div className="chips" role="group" aria-label="Shape">{SHAPES.map((s) => <button key={s.id} className="chip" aria-pressed={shape === s.id} onClick={() => setShape(s.id)}>{s.label}</button>)}</div></div>
-      <div className="row"><Button busy={run.busy} disabled={prompt.trim().length < 3} onClick={go}>{run.busy ? "Generating…" : "Generate"}</Button>{run.busy && <span className="hint">This can take up to a minute.</span>}</div>
+      <div className="row"><Button busy={run.busy} disabled={prompt.trim().length < 3} onClick={go}>{run.busy ? "Generating…" : "Generate"}</Button></div>
+      <TimedProgress active={run.busy} tau={25} text="Making your picture…" label="Making your picture" />
       {run.error && <Banner kind="error">{run.error}</Banner>}
       <div className="gallery">{gallery.map((g) => <ImageView key={g.file.id} {...g} />)}</div>
     </div>

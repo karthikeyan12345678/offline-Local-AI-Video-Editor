@@ -25,6 +25,7 @@ class GenRequest:
     seed: int
     model_id: str
     image_path: Path | None = None
+    end_image_path: Path | None = None
 
 
 class VideoEngine(Protocol):

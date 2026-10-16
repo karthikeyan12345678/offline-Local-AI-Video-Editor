@@ -10,7 +10,7 @@ export interface AtsCategory { label: string; score: number; max: number; matche
 export interface Keyword { keyword: string; weight: number; is_skill: boolean; in_resume?: number }
 export interface AtsResult {
   score: number; level: string; categories: Record<string, AtsCategory>; issues: Issue[]; words: number; file: string;
-  has_job_description: boolean; disclaimer: string;
+  has_job_description: boolean; disclaimer: string; before_score?: number | null;
 }
 
 export interface Segment { t: "equal" | "ins" | "del"; x: string }

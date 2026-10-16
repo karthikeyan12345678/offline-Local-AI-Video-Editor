@@ -157,6 +157,8 @@ def test_image_generation_and_download(client):
     _, ev = chat(client, "/image a red square")
     c = [d for e, d in ev if e == "card"][0]
     assert c["type"] == "image" and c["width"] == 64
+    prog = [d for e, d in ev if e == "progress"]
+    assert prog and prog[-1]["fraction"] == 1.0 and all(0 <= p["fraction"] <= 1 for p in prog)
     r = client.get(f"/api/assistant/files/{c['file']['id']}/download", params={"inline": True})
     assert r.headers["content-type"] == "image/png" and r.content[:8] == b"\x89PNG\r\n\x1a\n"
     r = client.post("/api/assistant/tools/image", json={"prompt": "ab"})
@@ -218,3 +220,44 @@ def test_studio_serves_assistant_window_and_api(data_dir, monkeypatch, tmp_path)
         assert "AI Assistant" in c.get("/assistant-app/").text
         assert c.get("/api/assistant/info").status_code == 200
         assert c.get("/api/health").status_code == 200  # video studio API still there
+
+
+JD = ("We are hiring a Senior Program Manager. Responsibilities: lead cross functional teams, own the roadmap, manage stakeholders and risk, run agile delivery, "
+      "work with AWS, Kubernetes and Python tooling, report KPIs to leadership. Requirements: 5 years of program management, stakeholder management, agile, scrum, AWS, Kubernetes.")
+TAILORED = ("# Asha K\nChennai, India | asha@example.com | +91 98765 43210\n\n## Summary\nProgram manager who leads cross functional teams with agile delivery on AWS and Kubernetes.\n\n"
+            "## Skills\nProgram management, stakeholder management, agile, scrum, AWS, Kubernetes, Python, roadmap, KPIs\n\n## Experience\n### Program Manager, Acme\nJan 2021 - Present\n"
+            "- Led a team of 10 and cut cycle time by 30%\n- Built AWS and Kubernetes platform for 40k users\n\n## Education\nB.E. 2017\n")
+
+
+def test_tailor_resume_to_a_job_description_file(client):
+    client.fake.reply = TAILORED
+    r = upload(client, "resume.txt", RESUME)
+    j = upload(client, "job-description.txt", JD.encode())
+    cid, ev = chat(client, "tailor my resume as per this JD with high ATS score", [r["id"], j["id"]])
+    assert not [d for e, d in ev if e == "error"], ev
+    cards = [d for e, d in ev if e == "card"]
+    f = next(c for c in cards if c["type"] == "file")["file"]
+    assert f["name"].endswith(".pdf")
+    a = next(c for c in cards if c["type"] == "ats")["result"]
+    assert a["has_job_description"] and a["before_score"] is not None and a["score"] >= a["before_score"]
+
+
+def test_tailor_with_the_job_description_pasted_in_the_message(client):
+    client.fake.reply = TAILORED
+    r = upload(client, "resume.txt", RESUME)
+    _, ev = chat(client, "tailor this resume to the JD below as a word file. " + JD, [r["id"]])
+    cards = [d for e, d in ev if e == "card"]
+    assert next(c for c in cards if c["type"] == "file")["file"]["name"].endswith(".docx")
+
+
+def test_tailor_asks_for_the_job_description_when_missing(client):
+    r = upload(client, "resume.txt", RESUME)
+    _, ev = chat(client, "tailor my resume for ATS", [r["id"]])
+    assert any(e == "error" and "job description" in d["message"].lower() for e, d in ev)
+
+
+def test_progress_estimate_rises_but_never_finishes_early():
+    from ltxps.assistant.service import estimate_fraction
+
+    vals = [estimate_fraction(t, "horde") for t in (0, 5, 20, 60, 600)]
+    assert vals == sorted(vals) and vals[0] == 0 and vals[-1] < 0.93

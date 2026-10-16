@@ -41,6 +41,15 @@ MAX_PROMPT_TOKENS = 128
 MODE_ORDER = ("none", "model", "group", "sequential")
 
 
+def condition_pipeline_available() -> bool:
+    try:
+        from diffusers import LTXConditionPipeline  # noqa: F401
+        from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition  # noqa: F401
+    except Exception:  # noqa: BLE001 - older diffusers
+        return False
+    return True
+
+
 class NanOutput(Exception):
     """The model produced NaN/blank frames (typical of fp16 on some GPUs)."""
 
@@ -241,7 +250,11 @@ class LtxvEngine:
         ctx.check()
 
         ctx.update(0.14, "Loading the video model")
-        pipe = self._pipeline(spec, plan, req.mode)
+        use_end = req.mode == "i2v" and req.end_image_path is not None and condition_pipeline_available()
+        warnings: list[str] = []
+        if req.end_image_path is not None and not use_end and req.mode == "i2v":
+            warnings.append("This version of the video library cannot end on a picture, so only the starting picture was used.")
+        pipe = self._pipeline(spec, plan, "i2v_end" if use_end else req.mode)
         ctx.check()
 
         steps = len(DISTILLED_TIMESTEPS) if spec.distilled else req.steps
@@ -278,11 +291,32 @@ class LtxvEngine:
         if req.mode == "i2v":
             if req.image_path is None:
                 raise UserFacingError("Choose a starting image for image-to-video.")
-            call["image"] = fit_image(req.image_path, req.width, req.height)
+            start = fit_image(req.image_path, req.width, req.height)
+            if use_end:
+                from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
+
+                call["conditions"] = [
+                    LTXVideoCondition(image=start, frame_index=0),
+                    LTXVideoCondition(image=fit_image(req.end_image_path, req.width, req.height), frame_index=req.frames - 1),
+                ]
+            else:
+                call["image"] = start
 
         ctx.update(0.2, "Creating frames")
-        with torch.inference_mode():
-            result = pipe(**call)
+        try:
+            with torch.inference_mode():
+                result = pipe(**call)
+        except (TypeError, ValueError, KeyError, AttributeError, IndexError) as exc:
+            if not use_end:
+                raise
+            # The end picture could not be used with this library version: continue with the starting picture only.
+            log.warning("End-picture generation failed (%s); using only the start picture", exc)
+            warnings.append("The ending picture could not be used, so only the starting picture was used.")
+            call.pop("conditions", None)
+            call["image"] = start
+            pipe = self._pipeline(spec, plan, req.mode)
+            with torch.inference_mode():
+                result = pipe(**call)
         frames = np.asarray(result.frames[0])
         ctx.update(0.94, "Saving the video")
 
@@ -290,7 +324,7 @@ class LtxvEngine:
             raise NanOutput()
         u8 = (np.clip(frames, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
         write_video((f for f in u8), req.width, req.height, req.fps, out_path)
-        return {}
+        return {"warnings": warnings} if warnings else {}
 
     # ---------------------------------------------------------------- prompts
     def encode_prompts(self, texts: list[str], plan: MemoryPlan, ctx: JobContext) -> list[tuple[Any, Any]]:
@@ -394,7 +428,12 @@ class LtxvEngine:
         from diffusers import LTXImageToVideoPipeline, LTXPipeline
 
         comps = self.load_components(spec, plan)
-        cls = LTXImageToVideoPipeline if mode == "i2v" else LTXPipeline
+        if mode == "i2v_end":
+            from diffusers import LTXConditionPipeline
+
+            cls = LTXConditionPipeline
+        else:
+            cls = LTXImageToVideoPipeline if mode == "i2v" else LTXPipeline
         pipe = cls(text_encoder=None, tokenizer=None, **comps)
 
         if plan.fp8:

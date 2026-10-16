@@ -1,5 +1,6 @@
 "use strict";
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog, session } = require("electron");
+const downloads = require("./downloads");
 const fs = require("fs");
 const path = require("path");
 const rt = require("./runtime");
@@ -199,5 +200,5 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
   ipcMain.handle("turn-on-gpu", () => turnOnGpu());
   ipcMain.on("open-log", () => shell.openPath(logFile));
   ipcMain.on("quit", () => app.quit());
-  app.whenReady().then(() => { buildMenu(); return launch(); });
+  app.whenReady().then(() => { downloads.attach(session.defaultSession, () => app.getPath("downloads")); buildMenu(); return launch(); });
 }

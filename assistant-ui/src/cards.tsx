@@ -56,6 +56,7 @@ export function AtsView({ r }: { r: AtsResult }) {
         <Gauge score={r.score} level={r.level} />
         <div style={{ flex: 1, minWidth: 220 }}>
           <h3>{r.file}</h3>
+          {r.before_score != null && <p className="ats-delta"><span className="num">{Math.round(r.before_score)}</span> → <strong className="num">{Math.round(r.score)}</strong> / 100 <span className="hint">after tailoring{r.score > r.before_score ? ` (+${Math.round(r.score - r.before_score)})` : ""}</span></p>}
           <p className="hint">{r.words.toLocaleString()} words · {r.has_job_description ? "scored against the job description" : "general score (no job description given)"}</p>
           <div className="bars">
             {Object.entries(r.categories).map(([k, c]) => (

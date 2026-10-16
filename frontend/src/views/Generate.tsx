@@ -3,7 +3,8 @@ import { api, mediaUrl, type SoundOptions } from "../lib/api";
 import { fmtDuration } from "../lib/format";
 import { useApp } from "../lib/store";
 import { Button, Field, Slider, Tabs, I } from "../ds";
-import { AssetPicker } from "./shared";
+import MediaSlot from "./MediaSlot";
+import { saveAs } from "../lib/save";
 
 type Mode = "t2v" | "i2v" | "extend";
 
@@ -23,6 +24,9 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
   const [guidance, setGuidance] = useState<number | null>(null);
   const [unlock, setUnlock] = useState(false);
   const [imageId, setImageId] = useState<string | null>(null);
+  const [endId, setEndId] = useState<string | null>(null);
+  const [soundOpen, setSoundOpen] = useState(false);
+  const [mini, setMini] = useState(() => { try { return localStorage.getItem("vk_gen_mini") === "1"; } catch { return false; } });
   const [sourceId, setSourceId] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [resultId, setResultId] = useState<string | null>(null);
@@ -62,6 +66,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
 
   useEffect(() => { if (!active) return; const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, [active]);
 
+  const toggleMini = () => { const v = !mini; setMini(v); try { localStorage.setItem("vk_gen_mini", v ? "1" : "0"); } catch { /* ignore */ } };
   const missing = mode === "i2v" && !imageId ? "Pick a starting picture below." : mode === "extend" && !sourceId ? "Pick the clip to continue below." : !prompt.trim() ? "Describe what should happen." : null;
 
   const submit = async () => {
@@ -74,8 +79,8 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
     };
     try {
       const j = mode === "extend"
-        ? await api.extend({ ...body, mode: "i2v", source_asset_id: sourceId! })
-        : await api.generate({ ...body, mode: mode === "i2v" ? "i2v" : "t2v", image_asset_id: mode === "i2v" ? imageId ?? undefined : undefined });
+        ? await api.extend({ ...body, mode: "i2v", source_asset_id: sourceId!, end_image_asset_id: endId ?? undefined })
+        : await api.generate({ ...body, mode: mode === "i2v" ? "i2v" : "t2v", image_asset_id: mode === "i2v" ? imageId ?? undefined : undefined, end_image_asset_id: mode === "i2v" ? endId ?? undefined : undefined });
       setJobId(j.id);
       watchJob(j, (done) => { if (done.status === "done" && done.result?.asset_id) setResultId(done.result.asset_id); const w = done.result?.warnings as string[] | undefined; if (w?.length) toast(w[0], true); });
     } catch (e) { toast((e as Error).message, true); } finally { setSubmitting(false); }
@@ -89,10 +94,11 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
   const ASPECTS: { id: typeof aspect; label: string; sub: string }[] = [{ id: "16:9", label: "16:9", sub: "YouTube" }, { id: "9:16", label: "9:16", sub: "Shorts · Reels" }, { id: "1:1", label: "1:1", sub: "Square" }, { id: "4:5", label: "4:5", sub: "Feed" }];
 
   return (
-    <main className="page gen">
+    <main className={`page gen${mini ? " gen--mini" : ""}`}>
       <div className="gen-head row between gap wrap">
         <div className="stack"><h1>Make a video</h1><p className="text-sm">{system.gpu.available ? `${system.gpu.name} · ${system.gpu.vram_gb} GB` : "Running on this PC"} · {prof.label} settings</p></div>
-        <Tabs label="What to start from" value={mode} onChange={(m) => { setMode(m); setResultId(null); }} options={[{ id: "t2v", label: "Text" }, { id: "i2v", label: "Picture" }, { id: "extend", label: "Continue" }]} />
+        <div className="row gap center-v wrap"><Tabs label="What to start from" value={mode} onChange={(m) => { setMode(m); setResultId(null); }} options={[{ id: "t2v", label: "Text" }, { id: "i2v", label: "Picture" }, { id: "extend", label: "Continue" }]} />
+          <button type="button" className="gchip gchip--icon" aria-pressed={mini} onClick={toggleMini} title={mini ? "Show the full view" : "Make this page smaller"}><span>{mini ? "Full view" : "Minimise view"}</span></button></div>
       </div>
 
       {system.torch && !system.gpu.available && (
@@ -100,7 +106,13 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
       )}
 
       <section className="gen-stage" aria-label="Result" aria-live="polite">
-        {active && job ? (
+        {active && job && mini ? (
+          <div className="run-mini card" role="status">
+            <div className="row between gap center-v"><span className="w-medium truncate">Creating your video · {Math.round(job.progress * 100)}%</span><span className="row gap center-v"><span className="mono text-sm">{fmtDuration(elapsed)}</span><Button variant="secondary" small onClick={() => api.cancelJob(job.id).catch((e) => toast(e.message, true))}>Cancel</Button></span></div>
+            <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(job.progress * 100)} aria-label="Video progress"><i className={job.progress === 0 ? "indet" : ""} style={{ width: `${Math.max(job.progress * 100, job.progress === 0 ? 30 : 2)}%` }} /></div>
+            <span className="text-xs run-sub">{job.phase || "Working…"}</span>
+          </div>
+        ) : active && job ? (
           <div className="run card stack gap-lg">
             <div className="row between gap"><div className="stack"><span className="w-medium">Creating your video</span><span className="text-sm run-sub">{width}×{height} · {(nFrames / fps).toFixed(1)} s · {aspect}</span></div>
               <Button variant="secondary" small onClick={() => api.cancelJob(job.id).catch((e) => toast(e.message, true))}>Cancel</Button></div>
@@ -111,32 +123,43 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
           </div>
         ) : result ? (
           <div className="stack gap">
-            <video className="player" src={mediaUrl(result.id)} controls autoPlay loop playsInline />
+            <video className={`player${mini ? " player--mini" : ""}`} src={mediaUrl(result.id)} controls autoPlay loop playsInline />
             <div className="row between gap wrap">
               <span className="text-sm">{result.width}×{result.height} · {fmtDuration(result.duration)} · seed {String(result.meta.seed ?? "?")}</span>
               <div className="row gap wrap">
                 <Button variant="secondary" small onClick={() => { setMode("extend"); setSourceId(result.id); setResultId(null); }}>Continue this clip</Button>
-                <a className="btn btn--secondary btn--sm" href={mediaUrl(result.id, "download")} download>Save a copy</a>
+                <Button variant="secondary" small onClick={() => void saveAs(mediaUrl(result.id, "download"), `${result.name.replace(/\.[^.]+$/, "")}.mp4`)}>Save as…</Button>
                 <Button variant="ghost" small onClick={goLibrary}>Open library</Button>
               </div>
             </div>
           </div>
         ) : (
-          <div className="empty gen-empty"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d={I.film} /></svg><h3>What will you create?</h3><p className="text-sm">Describe a scene below. Finished videos are saved in your Library.</p></div>
+          <div className={`empty gen-empty${mini ? " gen-empty--mini" : ""}`}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d={I.film} /></svg><h3>What will you create?</h3><p className="text-sm">Describe a scene below. Finished videos are saved in your Library.</p></div>
         )}
         {job?.status === "error" && <p className="error-text" role="alert">{job.error}</p>}
       </section>
 
       <section className="composer" aria-label="Video settings">
-        {mode === "i2v" && <Field label="Starting picture"><AssetPicker kind="image" value={imageId} onChange={setImageId} label="Starting picture" /></Field>}
-        {mode === "extend" && <Field label="Clip to continue" hint="Its last frame becomes the first frame of the new clip."><AssetPicker kind="video" value={sourceId} onChange={setSourceId} label="Clip to continue" /></Field>}
+        {mode === "i2v" && (
+          <div className="slots">
+            <MediaSlot kind="image" value={imageId} onChange={setImageId} label="Start picture" hint="The first frame of the video" compact />
+            <MediaSlot kind="image" value={endId} onChange={setEndId} label="End picture (optional)" hint="The video finishes on this picture" compact />
+          </div>
+        )}
+        {mode === "extend" && (
+          <div className="slots">
+            <MediaSlot kind="video" value={sourceId} onChange={setSourceId} label="Clip to continue" hint="Its last frame starts the new clip" compact />
+            <MediaSlot kind="image" value={endId} onChange={setEndId} label="End picture (optional)" hint="The new clip finishes on this picture" compact />
+          </div>
+        )}
         <label className="sr-only" htmlFor="prompt">{mode === "t2v" ? "What should the video show?" : "What should happen?"}</label>
-        <textarea id="prompt" className="composer-text" rows={3} value={prompt} maxLength={4000} onChange={(e) => setPrompt(e.target.value)} placeholder="A lighthouse on a cliff at dawn, waves rolling in, the camera slowly pushes forward." />
+        <textarea id="prompt" className="composer-text" rows={mini ? 2 : 3} value={prompt} maxLength={4000} onChange={(e) => setPrompt(e.target.value)} placeholder="A lighthouse on a cliff at dawn, waves rolling in, the camera slowly pushes forward." />
         <div className="composer-bar">
           <div className="gchips" role="radiogroup" aria-label="Video shape">
             {ASPECTS.map((a) => <button key={a.id} type="button" role="radio" aria-checked={aspect === a.id} className={`gchip${aspect === a.id ? " gchip--on" : ""}`} onClick={() => setAspect(a.id)} title={a.sub}><span>{a.label}</span><small>{a.sub}</small></button>)}
           </div>
           <button type="button" className={`gchip${soundOn ? " gchip--on" : ""}`} aria-pressed={soundOn} onClick={() => setSoundOn(!soundOn)} title="Add a voice and background sound to the new video"><span>{soundOn ? "Sound on" : "Sound off"}</span><small>Voice · ambience</small></button>
+          {soundOn && <button type="button" className="gchip" aria-expanded={soundOpen} onClick={() => setSoundOpen(!soundOpen)}><span>Voice &amp; sound</span><small>{soundOpen ? "Hide ▴" : "Edit ▾"}</small></button>}
           <button type="button" className="gchip" aria-expanded={showAdvanced} onClick={() => setShowAdvanced(!showAdvanced)}><span>{width}×{height} · {(nFrames / fps).toFixed(1)} s</span><small>Options ▾</small></button>
           <span className="grow" />
           <Button icon={I.sparkle} busy={submitting} disabled={!!missing || active || !modelsReady} onClick={submit}>{active ? "Generating…" : "Generate"}</Button>
@@ -148,7 +171,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
             {blocked && downloading && <div className="bar bar--thin" aria-hidden="true"><i style={{ width: `${dlPct}%` }} /></div>}
           </div>
         )}
-        {soundOn && (
+        {soundOn && soundOpen && !mini && (
           <div className="pop stack gap" aria-label="Sound and voice">
             <div className="row gap wrap center-v"><b className="text-sm">Sound &amp; voice</b><span className="text-xs run-sub">Made on this PC and mixed into the video when it finishes.</span></div>
             <Field label="Voice-over (optional)" htmlFor="narr" hint="Words a voice speaks over the video. Keep it short enough for the length of the clip.">

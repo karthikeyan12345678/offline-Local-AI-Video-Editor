@@ -105,6 +105,19 @@ def test_image_to_video_needs_an_image_from_the_library(client, media):
     assert wait(client, r.json())["status"] == "done"
 
 
+def test_start_and_end_pictures(client, media):
+    img = upload(client, media["image"])
+    vid = upload(client, media["av"])
+    base = {"prompt": "walk", "mode": "i2v", "image_asset_id": img["id"], "width": 384, "height": 256, "frames": 9}
+    r = client.post("/api/generate", json={**base, "end_image_asset_id": vid["id"]})
+    assert r.status_code == 422
+    r = client.post("/api/generate", json={**base, "end_image_asset_id": img["id"]})
+    job = wait(client, r.json())
+    assert job["status"] == "done"
+    made = next(x for x in client.get("/api/assets").json() if x["id"] == job["result"]["asset_id"])
+    assert made["meta"]["end_image_asset_id"] == img["id"] and made["meta"]["end_image"] is True
+
+
 def test_continue_a_clip_from_its_last_frame(client, media):
     clip = upload(client, media["av"])
     r = client.post("/api/generate/extend", json={"prompt": "the camera keeps moving", "source_asset_id": clip["id"], "width": 384, "height": 256, "frames": 9})
