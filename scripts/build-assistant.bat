@@ -12,7 +12,7 @@ if errorlevel 1 (
 
 echo [1/4] Building the assistant interface...
 pushd assistant-ui
-call npm ci
+call npm install
 if errorlevel 1 goto :fail
 call npm run build
 if errorlevel 1 goto :fail

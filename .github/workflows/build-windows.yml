@@ -1,8 +1,5 @@
-name: Build Windows apps
+﻿name: Build Windows apps
 
-# Produces two separate apps from this repository:
-#   LTX Portable Studio  (video generator and editor, includes the assistant as a second window)
-#   AI Assistant         (stand-alone: chat, PDF/PPT/Word/CSV/Excel, compare, resume ATS, images, analytics)
 on:
   push: { branches: [main] }
   pull_request:
@@ -25,21 +22,21 @@ jobs:
           pip install -r requirements-dev.txt
           sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
           python -m pytest tests -q --timeout=300
-      - name: Assistant tests on the light runtime (no PyTorch, exactly what the Assistant app installs)
+      - name: Assistant tests on the light runtime (no PyTorch)
         working-directory: backend
         run: |
           python -m venv /tmp/lean
           /tmp/lean/bin/pip install -r requirements-assistant.txt pytest==9.1.1 pytest-timeout==2.4.0
           /tmp/lean/bin/python -m pytest tests/test_assistant_docs.py tests/test_assistant_tools.py tests/test_assistant_api.py -q -k "not studio_serves" --timeout=300
-      - name: Video studio interface type-check and build
+      - name: Video studio interface build
         working-directory: frontend
         run: |
           npm ci
           npm run build
-      - name: Assistant interface type-check and build
+      - name: Assistant interface build
         working-directory: assistant-ui
         run: |
-          npm ci
+          npm install
           npm run build
       - name: Desktop shell tests
         working-directory: electron
@@ -59,7 +56,7 @@ jobs:
       - name: Build interfaces
         run: |
           cd frontend; npm ci; npm run build; cd ..
-          cd assistant-ui; npm ci; npm run build; cd ..
+          cd assistant-ui; npm install; npm run build; cd ..
         shell: bash
       - name: Install shell dependencies
         working-directory: electron
