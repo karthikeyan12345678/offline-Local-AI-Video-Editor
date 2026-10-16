@@ -179,3 +179,29 @@
 .stage-overlay-img { position: absolute; max-width: none; pointer-events: none; object-fit: contain; }
 .bubble-done { color: var(--ok, #1a7f37); font-weight: 600; display: flex; gap: 6px; align-items: center; margin-top: 6px; }
 .bubble-same { opacity: .85; margin-top: 6px; font-size: .85em; }
+
+/* ---- "Kling Studio" look: tokens from the Kling design system (primary #72E528, 4px grid, radii 4/6/8/12/20, MiSans/PingFang). Switch in Settings → Look. ---- */
+:root[data-look="kling"] {
+  color-scheme: dark;
+  --color-bg: #0B0B0C; --color-text: #F2F3F5; --color-accent: #72E528;
+  --color-gray-1: #17181A; --color-gray-2: #26282C; --color-gray-3: #3B3E44; --color-gray-4: #7A7F88;
+  --font-family: "MiSans Latin VF", "MiSans", "PingFang SC", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 20px;
+  --weight-semibold: 600;
+}
+:root[data-look="kling"] body { background: var(--color-bg); color: var(--color-text); }
+:root[data-look="kling"] .btn:not(.btn--secondary):not(.btn--ghost) { background: var(--color-accent); color: #000; border-color: var(--color-accent); font-weight: 600; }
+:root[data-look="kling"] .btn:not(.btn--secondary):not(.btn--ghost):hover { background: #8CF04A; border-color: #8CF04A; }
+:root[data-look="kling"] .btn--secondary { background: var(--color-gray-1); color: var(--color-text); border-color: var(--color-gray-2); }
+:root[data-look="kling"] .btn--secondary:hover { background: var(--color-gray-2); }
+:root[data-look="kling"] .btn:focus-visible, :root[data-look="kling"] .nav-item:focus-visible, :root[data-look="kling"] .pick:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+:root[data-look="kling"] .card, :root[data-look="kling"] .tile { background: var(--color-gray-1); border-color: var(--color-gray-2); border-radius: 12px; }
+:root[data-look="kling"] .nav { background: #000; border-right-color: var(--color-gray-2); }
+:root[data-look="kling"] .nav-item[aria-current="page"] { background: var(--color-gray-1); color: var(--color-accent); box-shadow: inset 3px 0 0 var(--color-accent); }
+:root[data-look="kling"] .pick--on { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+:root[data-look="kling"] .player, :root[data-look="kling"] .thumb { background: #000; }
+:root[data-look="kling"] input.input, :root[data-look="kling"] textarea.input, :root[data-look="kling"] select { background: #000; color: var(--color-text); border-color: var(--color-gray-3); border-radius: 8px; }
+:root[data-look="kling"] .chat, :root[data-look="kling"] .toast { background: var(--color-gray-1); color: var(--color-text); }
+:root[data-look="kling"] .linklike { color: var(--color-accent); }
+.look-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; margin-right: 6px; background: #72E528; border: 1px solid #0006; }
+.motion .picker { max-height: 260px; }

@@ -560,8 +560,8 @@ class Applier:
                 pos += span
         c = clips[idx]
         asset = (self.ctx.get("assets") or {}).get(c["asset_id"])
-        if asset is None or asset.kind != "video":
-            raise ValueError("this works on video clips")
+        if asset is None or asset.kind not in ("video", "image"):
+            raise ValueError("this works on video or picture clips")
         out: dict[str, Any] = {"clips": [c["id"]], "prompt": prompt, "part": region if region in ("head", "face") else "", "mode": "track" if str(a.get("mode")) == "track" or region != "drawing" else "patch", "shapes": []}
         if d:
             out["shapes"] = [{**sh, "points": self._canvas_to_source(c, sh.get("points", []))} for sh in d["shapes"]]

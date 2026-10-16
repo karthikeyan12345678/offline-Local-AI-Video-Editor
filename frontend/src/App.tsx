@@ -5,16 +5,18 @@ import Generate from "./views/Generate";
 import Library from "./views/Library";
 import Editor from "./views/Editor";
 import Settings from "./views/Settings";
+import MotionControl from "./views/MotionControl";
 import Setup from "./views/Setup";
 import { JobCard } from "./views/shared";
 import { useUpdateCheck } from "./views/Updates";
 import type { Asset } from "./lib/types";
 import { token } from "./lib/api";
 
-type View = "generate" | "library" | "editor" | "settings";
+type View = "generate" | "library" | "editor" | "motion" | "settings";
 const NAV: { id: View; label: string; icon: string }[] = [
   { id: "generate", label: "Make video", icon: I.sparkle }, { id: "library", label: "Library", icon: I.folder },
-  { id: "editor", label: "Editor", icon: I.film }, { id: "settings", label: "Settings", icon: I.gear },
+  { id: "editor", label: "Editor", icon: I.film }, { id: "motion", label: "Motion control", icon: I.wand },
+  { id: "settings", label: "Settings", icon: I.gear },
 ];
 
 function Shell() {
@@ -52,6 +54,7 @@ function Shell() {
         <div hidden={view !== "generate"}>{visited.has("generate") && <Generate goLibrary={() => go("library")} goSettings={() => go("settings")} />}</div>
         <div hidden={view !== "library"}>{visited.has("library") && <Library onEdit={(a) => { setQueue((q) => [...q, a]); go("editor"); }} />}</div>
         <div hidden={view !== "editor"} className="fill">{visited.has("editor") && <Editor queue={queue} onQueueDone={() => setQueue([])} visible={view === "editor"} />}</div>
+        <div hidden={view !== "motion"}>{visited.has("motion") && <MotionControl goLibrary={() => go("library")} />}</div>
         <div hidden={view !== "settings"}>{visited.has("settings") && <Settings />}</div>
       </div>
       <div className="toasts" aria-live="polite">{toasts.map((t) => <div key={t.id} className={`toast${t.error ? " toast--error" : ""}`} role={t.error ? "alert" : "status"}>{t.text}</div>)}</div>

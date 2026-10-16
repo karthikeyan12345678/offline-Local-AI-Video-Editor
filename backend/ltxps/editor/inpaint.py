@@ -257,3 +257,56 @@ def edit_video(src: str | Path, start: float, duration: float, out: Path, *, pro
         return {"frames": n, "repainted": len(edited), "mode": mode, "fps": fps, "duration": duration, "width": ew, "height": eh}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _face_in_picture(path: Path) -> dict[str, float] | None:
+    from .ai import YUNET
+
+    try:
+        import cv2
+    except ImportError:
+        return None
+    if not YUNET.exists():
+        return None
+    im = cv2.imread(str(path))
+    if im is None:
+        return None
+    h, w = im.shape[:2]
+    det = cv2.FaceDetectorYN.create(str(YUNET), "", (w, h), 0.5, 0.3, 50)
+    _, faces = det.detect(im)
+    if faces is None or not len(faces):
+        return None
+    f = max(faces, key=lambda r: r[2] * r[3])
+    return {"x": float(f[0]) / w, "y": float(f[1]) / h, "w": float(f[2]) / w, "h": float(f[3]) / h}
+
+
+def edit_image(src: str | Path, out: Path, *, prompt: str, shapes: list[dict[str, Any]] | None = None, part: str = "", pipe: Any = None,
+               model_dir: str | Path | None = None, on_progress: Progress | None = None) -> dict[str, Any]:
+    """The same repaint for a still picture (a photo on the timeline). Writes a PNG."""
+    from PIL import Image
+
+    prompt = prompt.strip()
+    if len(prompt) < 3:
+        raise InpaintError("Say what should be there instead, for example “empty grass field” or “a white cap”.")
+    if not shapes and part not in ("head", "face"):
+        raise InpaintError("Mark the place first: draw a box or circle on the picture where the change should happen, then ask again.")
+    say = on_progress or (lambda p, m: None)
+    img = Image.open(src).convert("RGB")
+    if max(img.size) > 1600:
+        k = 1600 / max(img.size)
+        img = img.resize((round(img.width * k), round(img.height * k)), Image.LANCZOS)
+    if shapes:
+        mask = mask_from_shapes(shapes, img.size)
+    else:
+        box = _face_in_picture(Path(src))
+        if not box:
+            raise InpaintError("I could not find a face in this picture. Draw a box where the change should happen instead.")
+        mask = mask_from_face(box, img.size, part)
+    say(0.1, "Loading the AI model")
+    pipe = pipe or load_pipe(model_dir or "")
+    say(0.4, "Repainting")
+    res = edit_frame(pipe, img, mask, prompt)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    res.save(out, "PNG")
+    say(1.0, "Done")
+    return {"width": res.width, "height": res.height, "mode": "image"}

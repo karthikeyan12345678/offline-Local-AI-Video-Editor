@@ -5,6 +5,24 @@ import { ModelList } from "./Models";
 import UpdatesCard, { ModulesCard } from "./Updates";
 import SmartInstall from "./SmartInstall";
 
+function LookCard() {
+  const [look, setLook] = useState<string>(() => document.documentElement.dataset.look ?? "classic");
+  const pick = (v: "classic" | "kling") => {
+    setLook(v);
+    if (v === "kling") document.documentElement.dataset.look = "kling"; else delete document.documentElement.dataset.look;
+    try { localStorage.setItem("vk_look", v); } catch { /* ignore */ }
+  };
+  return (
+    <section className="card stack gap" aria-labelledby="look">
+      <h2 id="look">Look</h2>
+      <div className="row gap wrap">
+        <Button variant={look === "classic" ? "primary" : "secondary"} small onClick={() => pick("classic")}>Classic (light)</Button>
+        <Button variant={look === "kling" ? "primary" : "secondary"} small onClick={() => pick("kling")}><span className="look-swatch" />Kling Studio (dark, green)</Button>
+      </div>
+    </section>
+  );
+}
+
 const MEMORY = [
   ["auto", "Automatic (recommended)"], ["none", "Keep everything on the GPU (fastest, needs lots of VRAM)"], ["model", "Move whole parts to the GPU as needed"],
   ["group", "Move small blocks as needed (low VRAM)"], ["sequential", "Move layer by layer (lowest VRAM, slowest)"],
@@ -22,6 +40,7 @@ export default function Settings() {
     <main className="page narrow stack gap-lg">
       <h1>Settings</h1>
 
+      <LookCard />
       <UpdatesCard />
       <ModulesCard />
       <SmartInstall compact />

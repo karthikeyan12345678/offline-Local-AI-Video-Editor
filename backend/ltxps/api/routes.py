@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..catalog import AUX, BASE_ID, MODELS
 from ..db import Asset, new_id
-from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, inpaint, ops
+from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, inpaint, motion, ops
 from ..editor.media import FfmpegError, run_ffmpeg
 from ..editor.project import TEXT_ANIM_IN, TEXT_ANIM_OUT, ExportOptions, Project
 from ..editor.render import AssetRef, PlanError, build_plan
@@ -548,12 +548,17 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
 
     @router.post("/editor/ai/inpaint")
     def ai_inpaint(body: InpaintBody) -> dict[str, Any]:
-        a, start, dur = ai_asset(body, ("video",))
+        a, start, dur = ai_asset(body, ("video", "image"))
         mdir = state.paths.models / "image-inpaint"
         if not state.downloads.is_installed("image-inpaint"):
             raise HTTPException(409, "Install the object editor first: open the Models page and download “Object editor: AI inpainting” (about 2.2 GB, one time).")
 
         def run(ctx: JobContext) -> dict[str, Any]:
+            if a.kind == "image":
+                png = state.paths.renders / f"{new_id()}_aiedit.png"
+                r = inpaint.edit_image(str(a.path), png, prompt=body.prompt, shapes=body.shapes, part=body.part, model_dir=mdir, on_progress=lambda p, m: ctx.update(p, m))
+                made = state.library.register(png, "edit", f"{a.name} · AI edit", {"tool": "inpaint", "from": a.id, "prompt": body.prompt})
+                return {"asset_id": made.id, **r}
             dest = state.paths.renders / f"{new_id()}_aiedit.mp4"
             r = inpaint.edit_video(str(a.path), start, dur, dest, prompt=body.prompt, shapes=body.shapes, part=body.part, mode=body.mode, model_dir=mdir,
                                    on_progress=lambda p, m: ctx.update(p, m), cancel=ctx.cancel)
@@ -561,6 +566,50 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
             return {"asset_id": made.id, **r}
 
         return ai_job("ai", f"AI edit: {a.name}", run)
+
+    # ------------------------------------------------------------------ motion control (Kling, cloud)
+    motion_settings = motion.MotionSettings(state.paths.root / "motion.json")
+
+    class MotionSettingsBody(BaseModel):
+        fal_key: str | None = Field(None, max_length=300)
+        mode: Literal["std", "pro"] | None = None
+
+    @router.get("/motion/settings")
+    def motion_get() -> dict[str, Any]:
+        return motion_settings.public()
+
+    @router.post("/motion/settings")
+    def motion_set(body: MotionSettingsBody) -> dict[str, Any]:
+        motion_settings.update(body.fal_key, body.mode)
+        return motion_settings.public()
+
+    class MotionBody(BaseModel):
+        image_asset_id: str
+        video_asset_id: str
+        orientation: Literal["image", "video"] = "video"
+        mode: Literal["std", "pro"] = "std"
+        prompt: str = Field("", max_length=500)
+        keep_sound: bool = True
+
+    @router.post("/motion/run")
+    def motion_run(body: MotionBody) -> dict[str, Any]:
+        img, vid = asset_or_404(body.image_asset_id), asset_or_404(body.video_asset_id)
+        if img.kind != "image":
+            raise HTTPException(422, "The character must be a picture.")
+        if vid.kind != "video":
+            raise HTTPException(422, "The motion reference must be a video.")
+        key = str(motion_settings.get().get("fal_key", ""))
+        if not key:
+            raise HTTPException(409, "Add your fal.ai key first (Motion Control page → Connect).")
+
+        def run(ctx: JobContext) -> dict[str, Any]:
+            dest = state.paths.renders / f"{new_id()}_motion.mp4"
+            r = motion.run(key, Path(img.path), Path(vid.path), dest, orientation=body.orientation, mode=body.mode, prompt=body.prompt, keep_sound=body.keep_sound,
+                           video_seconds=vid.duration, on_progress=lambda p, m: ctx.update(p, m), cancel=ctx.cancel)
+            made = state.library.register(dest, "edit", f"Motion control · {img.name}", {"tool": "motion_control", "image": img.id, "video": vid.id})
+            return {"asset_id": made.id, **r}
+
+        return ai_job("ai", f"Motion control: {img.name}", run)
 
     @router.get("/editor/ai/voices")
     def ai_voices() -> dict[str, Any]:

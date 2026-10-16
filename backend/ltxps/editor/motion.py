@@ -1,0 +1,159 @@
+"""Motion Control: a character picture is made to move exactly like the person in a reference video (Kling 2.6 Motion Control).
+
+This model is far too big to run on a laptop graphics card, so the studio sends the two files to Kling through fal.ai (the person's own
+key and credits) and brings the finished video back into the Library. Nothing is sent anywhere until the person presses the button.
+"""
+
+from __future__ import annotations
+
+import base64
+import json
+import mimetypes
+import threading
+import time
+from pathlib import Path
+from typing import Any, Callable
+
+import httpx
+
+from .ai import AIError
+
+QUEUE = "https://queue.fal.run"
+MODELS = {"std": "fal-ai/kling-video/v2.6/standard/motion-control", "pro": "fal-ai/kling-video/v2.6/pro/motion-control"}
+MAX_UPLOAD = 70 * 1024 * 1024
+WAIT_SECONDS = 20 * 60
+Progress = Callable[[float, str], None]
+
+
+class MotionError(AIError):
+    """Message is safe to show to the user."""
+
+
+class MotionSettings:
+    """The fal.ai key lives in one small file in the data folder; it is never sent anywhere except to fal.ai."""
+
+    def __init__(self, path: Path):
+        self.path = path
+
+    def get(self) -> dict[str, Any]:
+        try:
+            d = json.loads(self.path.read_text(encoding="utf-8"))
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def public(self) -> dict[str, Any]:
+        d = self.get()
+        k = str(d.get("fal_key", ""))
+        return {"has_key": bool(k), "key_hint": ("•" * 6 + k[-4:]) if len(k) >= 8 else ("•" * len(k)), "mode": d.get("mode", "std")}
+
+    def update(self, key: str | None, mode: str | None) -> None:
+        d = self.get()
+        if key is not None and not key.startswith("•"):
+            d["fal_key"] = key.strip()
+        if mode in ("std", "pro"):
+            d["mode"] = mode
+        self.path.write_text(json.dumps(d), encoding="utf-8")
+        try:
+            self.path.chmod(0o600)
+        except OSError:
+            pass
+
+
+def _data_uri(path: Path, fallback: str) -> str:
+    size = path.stat().st_size
+    if size > MAX_UPLOAD:
+        raise MotionError(f"“{path.name}” is {size / 1e6:.0f} MB. Keep each file under {MAX_UPLOAD // 1024 // 1024} MB (trim the video in the editor first).")
+    mime = mimetypes.guess_type(path.name)[0] or fallback
+    return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
+
+
+def _detail(r: httpx.Response) -> str:
+    try:
+        d = r.json()
+        det = d.get("detail", d)
+        if isinstance(det, list):
+            det = "; ".join(str(x.get("msg", x)) if isinstance(x, dict) else str(x) for x in det)
+        return str(det)[:240]
+    except (ValueError, AttributeError):
+        return r.text[:240]
+
+
+def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "video", mode: str = "std", prompt: str = "", keep_sound: bool = True,
+        video_seconds: float = 0.0, on_progress: Progress | None = None, cancel: threading.Event | None = None, client: httpx.Client | None = None,
+        poll: float = 4.0) -> dict[str, Any]:
+    say = on_progress or (lambda p, m: None)
+    if not key:
+        raise MotionError("Add your fal.ai key first (Motion Control page → Connect). It is used only to send these two files to Kling.")
+    if orientation not in ("image", "video"):
+        orientation = "video"
+    limit = 10.0 if orientation == "image" else 30.0
+    if video_seconds and video_seconds > limit + 0.05:
+        raise MotionError(f"The motion video is {video_seconds:.0f} s. With “keep the picture's own pose/camera” it must be {limit:.0f} s or shorter; with “follow the video” {30:.0f} s. Trim it in the editor first.")
+    if video_seconds and video_seconds < 2.9:
+        raise MotionError("The motion video must be at least 3 seconds long.")
+    c = client or httpx.Client(timeout=httpx.Timeout(120.0, connect=10.0))
+    headers = {"Authorization": f"Key {key}", "Content-Type": "application/json"}
+    body: dict[str, Any] = {"image_url": _data_uri(image, "image/png"), "video_url": _data_uri(video, "video/mp4"), "character_orientation": orientation,
+                            "keep_original_sound": bool(keep_sound)}
+    if prompt.strip():
+        body["prompt"] = prompt.strip()[:500]
+    say(0.05, "Sending the two files")
+    try:
+        r = c.post(f"{QUEUE}/{MODELS.get(mode, MODELS['std'])}", headers=headers, content=json.dumps(body))
+        if r.status_code in (401, 403):
+            raise MotionError("fal.ai did not accept the key, or the account has no credit left. Check the key and your balance on fal.ai.")
+        if r.status_code == 422:
+            raise MotionError("Kling refused the files: " + _detail(r))
+        if r.status_code >= 400:
+            raise MotionError(f"fal.ai answered with an error ({r.status_code}): {_detail(r)}")
+        sub = r.json()
+        status_url, result_url = sub["status_url"], sub["response_url"]
+    except MotionError:
+        raise
+    except httpx.HTTPError as exc:
+        raise MotionError("Cannot reach fal.ai. Check your internet connection (the upload can be large).") from exc
+    except (ValueError, KeyError, TypeError) as exc:
+        raise MotionError("fal.ai sent an answer this app does not understand.") from exc
+    started = time.time()
+    try:
+        while True:
+            if cancel is not None and cancel.is_set():
+                try:
+                    c.put(sub.get("cancel_url", ""), headers=headers)
+                except httpx.HTTPError:
+                    pass
+                raise MotionError("Cancelled.")
+            st = c.get(status_url, headers=headers)
+            if st.status_code >= 400:
+                raise MotionError(f"fal.ai could not report progress ({st.status_code}): {_detail(st)}")
+            info = st.json()
+            state = str(info.get("status", ""))
+            if state == "COMPLETED":
+                break
+            if state in ("FAILED", "ERROR"):
+                raise MotionError("Kling could not make this video: " + str(info.get("error") or info.get("detail") or "unknown reason")[:200])
+            pos = info.get("queue_position")
+            say(min(0.9, 0.1 + (time.time() - started) / 400), "Waiting in line" + (f" (position {pos})" if pos is not None else "") if state == "IN_QUEUE" else "Kling is animating your picture")
+            if time.time() - started > WAIT_SECONDS:
+                raise MotionError("It is taking too long (over 20 minutes). Try again later, or use the standard mode.")
+            time.sleep(poll)
+        res = c.get(result_url, headers=headers)
+        if res.status_code >= 400:
+            raise MotionError(f"The video was made but fal.ai would not hand it over ({res.status_code}): {_detail(res)}")
+        url = res.json()["video"]["url"]
+        say(0.93, "Downloading the finished video")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with c.stream("GET", url, follow_redirects=True) as dl:
+            if dl.status_code >= 400:
+                raise MotionError("The finished video could not be downloaded.")
+            with open(dest, "wb") as f:
+                for chunk in dl.iter_bytes():
+                    f.write(chunk)
+    except MotionError:
+        raise
+    except httpx.HTTPError as exc:
+        raise MotionError("The connection to fal.ai broke while waiting. Try again.") from exc
+    except (ValueError, KeyError, TypeError) as exc:
+        raise MotionError("fal.ai sent an answer this app does not understand.") from exc
+    return {"mode": mode, "orientation": orientation, "bytes": dest.stat().st_size}

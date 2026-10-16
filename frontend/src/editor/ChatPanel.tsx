@@ -130,6 +130,14 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
       const clip = clips[0];
       const a = clip && asset(clip.asset_id);
       if (!clip || !a) throw new Error("I could not find the clip to edit.");
+      if (a.kind === "image") {
+        const r = await ai.wait(await api.inpaint({ asset_id: a.id, prompt: t.prompt ?? "", mode: "patch", part: t.part ?? "", shapes: t.shapes ?? [] }));
+        await refreshAssets();
+        const made = r.asset_id as string | undefined;
+        if (!made) throw new Error("The edited picture was not created.");
+        commit((p) => ({ ...p, clips: p.clips.map((c) => c.id === clip.id ? { ...c, asset_id: made } : c), drawings: p.drawings.filter((d) => !(t.drawing_ids ?? []).includes(d.id)) }));
+        return "Done. The marked place on the picture was repainted with AI. Use Undo if you do not like it.";
+      }
       const span = (clip.trim_out || a.duration) - clip.trim_in;
       const len = Math.min(span, 8);
       const job = await api.inpaint({ asset_id: a.id, trim_in: clip.trim_in, trim_out: clip.trim_in + len, prompt: t.prompt ?? "", mode: t.mode ?? "patch", part: t.part ?? "", shapes: t.shapes ?? [] });

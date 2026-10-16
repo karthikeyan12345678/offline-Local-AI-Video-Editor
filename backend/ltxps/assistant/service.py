@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator
@@ -230,7 +231,7 @@ def run_turn(state: AssistantState, cid: str, text: str, file_ids: list[str], op
         import logging
 
         logging.getLogger("ltxps.assistant").exception("assistant turn failed")
-        msg = "Something went wrong while doing that. Details were saved to the log file."
+        msg = f"Something went wrong while doing that ({type(sys.exc_info()[1]).__name__}: {str(sys.exc_info()[1])[:160]}). Details were saved to the log file."
         state.store.add_message(cid, "assistant", "⚠ " + msg, [{"type": "error", "message": msg}])
         yield sse("error", {"message": msg})
         return
@@ -331,6 +332,8 @@ def _do_image(state: AssistantState, prompt: str, options: dict[str, Any]) -> tu
     out = images.generate_image(cfg, prompt, state.pictures, options.get("shape", "square"), options.get("seed"), hf_endpoint=options.get("hf_endpoint", ""))
     f = state.store.add_file("generated", out["name"], Path(out["path"]), "png")
     note = " The free fallback service adds a small logo; install the on-this-PC picture model (Install everything) for logo-free pictures with no limits." if out.get("watermark") else ""
+    if out.get("fallback_reason"):
+        note = f" Made by the free online engine because the one on this PC failed: {out['fallback_reason']}" + note
     return f"Here is your image ({out['width']}×{out['height']}).{note}", [{"type": "image", "file": f, "prompt": prompt, "width": out["width"], "height": out["height"], "provider": out["provider"]}]
 
 

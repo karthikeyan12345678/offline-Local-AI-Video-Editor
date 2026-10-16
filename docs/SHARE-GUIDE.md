@@ -70,3 +70,13 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 - **Documents that copy your file.** Attach a PDF, Word or PowerPoint file and ask `/pdf`, `/doc` or `/ppt` for something new. The AI follows that file's section order, length and tone, and the document uses its main colour and font.
 - **AI object edits in the chat editor.** Mark a place with the Draw tool (box, circle or scribble) and say "remove this hill", "remove the person", "change the hill to a snowy mountain". Or say "put a white cap on his head" (it finds the face). It repaints the video frames with an inpainting model (Models page → "Object editor: AI inpainting", about 2.2 GB, graphics card needed). Up to 8 seconds per clip per request. Still camera: fast "patch" mode. Moving person or camera: slower "track" mode, which may flicker a little. Undo restores the original.
 - Not included: Kling-style "Motion Control" (a character picture driven by a motion video). It needs a model far bigger than a 6 GB card can run.
+
+## What is new in 1.2.5
+
+- **Motion control** (new page in the left menu): choose a character picture and a video of someone moving; Kling 2.6 makes the character perform that movement. It runs in the cloud through your own fal.ai key (Dashboard → Keys; add a little credit). The motion video must be 3–30 s (3–10 s if you keep the picture's direction). Nothing is sent until you press the button.
+- **Kling Studio look**: Settings → Look → "Kling Studio" (dark with Kling's green).
+- **AI edits work on pictures too.** A picture on the timeline can now be repainted (mark the place with Draw, then "change the hill to a snowy mountain"). The object-editor model must be installed first (Models page).
+- **Pictures in the AI Assistant**: if the model on your PC fails, the free online engine is used automatically and the reply says why.
+
+## 1.2.6
+- Fixed the "Access was refused (401)" error when downloading "Object editor: AI inpainting": it now uses the open Stable Diffusion inpainting repository. Press "Resume download" again after updating.

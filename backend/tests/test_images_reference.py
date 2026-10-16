@@ -78,3 +78,13 @@ def test_reference_rejects_spreadsheets(tmp_path):
     p.write_text("a,b\n1,2\n")
     with pytest.raises(Exception):
         reference.profile(p)
+
+
+def test_broken_local_model_falls_back_instead_of_crashing(tmp_path, monkeypatch):
+    def boom(*a, **k):
+        raise ImageError("The picture model on this PC failed (RuntimeError: no kernel image).")
+
+    monkeypatch.setattr(images, "_local", boom)
+    monkeypatch.setattr(images, "_horde", lambda *a, **k: _png())
+    out = images.generate_image(ImageConfig("local", local_dir=str(tmp_path)), "a bus on a road", tmp_path)
+    assert out["provider"] == "horde" and "no kernel image" in out["fallback_reason"]

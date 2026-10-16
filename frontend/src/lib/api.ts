@@ -74,7 +74,13 @@ export interface SetupItem { id: string; label: string; why: string; approx_byte
 export interface SetupPlan { gpu: { name: string; vram_gb: number; present: boolean; usable: boolean; needs_gpu_build: boolean }; engine: { installed: boolean; version: string; kind: string }; items: SetupItem[]; missing_bytes: number; disk_free_gb: number; enough_disk: boolean; need_gb: number; summary: string }
 export interface ModuleRow { name: string; label: string; installed: string | null; recommended: string | null; previous: string[] }
 
+export interface MotionSettings { has_key: boolean; key_hint: string; mode: "std" | "pro" }
+export interface MotionRequest { image_asset_id: string; video_asset_id: string; orientation: "image" | "video"; mode: "std" | "pro"; prompt: string; keep_sound: boolean }
+
 export const api = {
+  motionSettings: () => call<MotionSettings>("GET", "/motion/settings"),
+  saveMotionSettings: (b: { fal_key?: string; mode?: "std" | "pro" }) => call<MotionSettings>("POST", "/motion/settings", b),
+  motionRun: (b: MotionRequest) => call<Job>("POST", "/motion/run", b),
   setupPlan: () => call<SetupPlan>("GET", "/setup/plan"),
   setupInstall: () => call<SetupPlan>("POST", "/setup/install"),
   moduleTable: () => call<{ online: boolean; modules: ModuleRow[] }>("GET", "/updates/modules"),

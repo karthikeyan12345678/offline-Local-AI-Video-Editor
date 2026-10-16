@@ -95,3 +95,24 @@ def test_chat_ai_edit_becomes_a_task_with_source_space_shapes():
     assert not r2["tasks"] and "draw" in r2["skipped"][0]
     r3 = apply_actions(p2, [{"do": "ai_edit", "region": "head", "prompt": "a white baseball cap on the head"}], {"a1": "walk.mp4"}, ctx)
     assert r3["tasks"][0]["part"] == "head" and r3["tasks"][0]["mode"] == "track"
+
+
+def test_a_picture_clip_can_be_repainted(tmp_path):
+    src = tmp_path / "p.png"
+    Image.new("RGB", (400, 300), (0, 120, 0)).save(src)
+    out = tmp_path / "o.png"
+    r = inpaint.edit_image(src, out, prompt="snowy mountain", shapes=[{"type": "rect", "points": [[0.3, 0.3], [0.7, 0.7]]}], pipe=FakePipe())
+    im = Image.open(out)
+    assert r["mode"] == "image" and im.getpixel((200, 150))[0] > 200 and im.getpixel((5, 5)) == (0, 120, 0)
+    with pytest.raises(inpaint.InpaintError):
+        inpaint.edit_image(src, out, prompt="snowy mountain", shapes=[], pipe=FakePipe())
+
+
+def test_chat_accepts_a_picture_clip():
+    from ltxps.editor.render import AssetRef
+
+    p = Project.model_validate({"clips": [{"id": "c1", "asset_id": "a1"}],
+                                "drawings": [{"id": "d1", "start": 0, "duration": 3, "shapes": [{"type": "pen", "points": [[0.2, 0.1], [0.5, 0.1], [0.5, 0.3], [0.2, 0.3], [0.2, 0.11]], "color": "#ff0000", "width": 1}]}]})
+    ctx = {"assets": {"a1": AssetRef(Path("x.jpg"), "image", 0.0, False, 1086, 1448)}}
+    r = apply_actions(p, [{"do": "ai_edit", "region": "drawing", "prompt": "snow covered rocky mountain"}], {"a1": "photo"}, ctx)
+    assert r["tasks"] and not r["skipped"] and r["tasks"][0]["clips"] == ["c1"]

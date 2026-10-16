@@ -245,6 +245,12 @@ def _local(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: int | Non
     except torch.cuda.OutOfMemoryError as exc:  # type: ignore[attr-defined]
         torch.cuda.empty_cache()
         raise ImageError("The graphics card ran out of memory. Pick the square size or close other programs.") from exc
+    except Exception as exc:  # noqa: BLE001 - driver / dtype / kernel errors: say what happened and let the caller fall back
+        import logging
+
+        logging.getLogger("ltxps.assistant").exception("local image generation failed")
+        _local_pipe = None  # a half-broken pipeline must not be reused
+        raise ImageError(f"The picture model on this PC failed ({type(exc).__name__}: {str(exc)[:140]}).") from exc
     buf = io.BytesIO()
     img.save(buf, "PNG")
     return buf.getvalue()
@@ -261,6 +267,8 @@ def generate_image(cfg: ImageConfig, prompt: str, out_dir: Path, shape: str = "s
     order = [cfg.provider]
     if cfg.provider in ("horde", "pollinations"):  # online engines back each other up; the logo-free one always goes first
         order += [p for p in ("horde", "pollinations") if p != cfg.provider]
+    if cfg.provider == "local":
+        order += ["horde", "pollinations"]  # the model on this PC failed (or is not usable): the free online engines take over
     if cfg.local_dir and cfg.provider != "local" and local_available()[0]:
         order.append("local")  # installed on this PC: the last resort when the online services are busy
     used, errors, raw = "", [], b""
@@ -280,10 +288,11 @@ def generate_image(cfg: ImageConfig, prompt: str, out_dir: Path, shape: str = "s
             break
         except ImageError as exc:
             errors.append(str(exc))
-            if prov == cfg.provider and cfg.provider in ("openai", "local"):
+            if prov == cfg.provider and cfg.provider == "openai":
                 break  # you chose this engine on purpose: tell you why it failed instead of quietly switching
     if not used:
         raise ImageError(errors[0] if len(errors) == 1 else errors[0] + " (The backup engine also failed: " + errors[-1] + ")")
+    fallback = errors[0] if errors and used != cfg.provider else ""
     png, real = _check_image(raw)
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{time.strftime('%Y%m%d-%H%M%S')}-{slug(prompt)}.png"
@@ -292,4 +301,4 @@ def generate_image(cfg: ImageConfig, prompt: str, out_dir: Path, shape: str = "s
         path = out_dir / f"{path.stem.rsplit('~', 1)[0]}~{n}.png"
         n += 1
     path.write_bytes(png)
-    return {"path": str(path), "name": path.name, "width": real[0], "height": real[1], "prompt": prompt, "provider": used, "watermark": used == "pollinations", "bytes": len(png)}
+    return {"path": str(path), "name": path.name, "width": real[0], "height": real[1], "prompt": prompt, "provider": used, "watermark": used == "pollinations", "fallback_reason": fallback, "bytes": len(png)}

@@ -111,7 +111,7 @@ AUX["image-sd-turbo"] = AuxSpec("image-sd-turbo", "Picture maker: Stable Diffusi
 INPAINT_PATTERNS = ("model_index.json", "scheduler/*.json", "tokenizer/*", "feature_extractor/*", "unet/config.json", "unet/diffusion_pytorch_model.fp16.safetensors",
                     "vae/config.json", "vae/diffusion_pytorch_model.fp16.safetensors", "text_encoder/config.json", "text_encoder/model.fp16.safetensors")
 AUX["image-inpaint"] = AuxSpec("image-inpaint", "Object editor: AI inpainting", "Lets the chat editor remove, change or add things inside your video (a hill, a person, a cap, shoes). About 2.2 GB.",
-                               "benjamin-paine/stable-diffusion-v1-5-inpainting", INPAINT_PATTERNS, kind="image")
+                               "stable-diffusion-v1-5/stable-diffusion-inpainting", INPAINT_PATTERNS, kind="image")
 
 # Rough download sizes, shown before the real size is known.
 APPROX_BYTES = {"ltxv-base": 9_500_000_000, "ltxv-2b-distilled": 4_300_000_000, "ltxv-2b-091": 4_700_000_000, "whisper-tiny": 75_000_000,
