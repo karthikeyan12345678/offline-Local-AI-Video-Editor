@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../lib/api";
-import { fmtBytes } from "../lib/format";
+import { fmtBytes, isDownloading } from "../lib/format";
 
 export function fmtEta(sec: number): string {
   if (!isFinite(sec) || sec <= 0) return "";
@@ -18,7 +18,7 @@ export function ModelCard({ m }: { m: ModelRow }) {
   const [size, setSize] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const d = m.download;
-  const running = d.status === "running" || d.status === "queued";
+  const running = isDownloading(d.status);
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);

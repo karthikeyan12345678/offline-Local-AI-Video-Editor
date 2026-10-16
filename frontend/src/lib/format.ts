@@ -16,3 +16,6 @@ export function fmtDuration(s: number): string {
 }
 export const uid = () => Math.random().toString(36).slice(2, 10);
 export const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** The model server reports "probing" (looking up files) and "downloading"; "running"/"queued" are accepted too. */
+export const isDownloading = (status: string | undefined) => status === "probing" || status === "downloading" || status === "running" || status === "queued";

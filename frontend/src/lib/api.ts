@@ -63,14 +63,14 @@ export interface AIRequest { asset_id: string; trim_in?: number; trim_out?: numb
 
 export interface ChatMsg { role: "user" | "assistant"; content: string; image_ids?: string[] }
 export interface ChatTask { name: string; clips?: string[]; language?: string; every?: number; text?: string; prompt?: string; use_reference?: boolean }
-export interface ChatResult { reply: string; project: Project; applied: string[]; skipped: string[]; tasks: ChatTask[]; changed: boolean }
+export interface ChatResult { reply: string; project: Project; applied: string[]; skipped: string[]; tasks: ChatTask[]; changed: boolean; focus?: number | null; understood?: boolean }
 export interface ChatStatus { ready: boolean; provider?: string; name?: string; model?: string; why?: string }
 export interface LLMPreset { name: string; style: string; base_url: string; needs_key: boolean; model: string; help: string }
 export interface AssistantInfo { providers: Record<string, LLMPreset> }
 export interface AssistantSettings { provider: string; providers: Record<string, { base_url?: string; model?: string; api_key_hint?: string }> }
 
-export interface SetupItem { id: string; label: string; why: string; approx_bytes: number; installed: boolean }
-export interface SetupPlan { items: SetupItem[]; missing_bytes: number; disk_free_gb: number; enough_disk: boolean; need_gb: number; summary: string }
+export interface SetupItem { id: string; label: string; why: string; approx_bytes: number; size_known?: boolean; installed: boolean }
+export interface SetupPlan { gpu: { name: string; vram_gb: number; present: boolean; usable: boolean; needs_gpu_build: boolean }; engine: { installed: boolean; version: string; kind: string }; items: SetupItem[]; missing_bytes: number; disk_free_gb: number; enough_disk: boolean; need_gb: number; summary: string }
 export interface ModuleRow { name: string; label: string; installed: string | null; recommended: string | null; previous: string[] }
 
 export const api = {

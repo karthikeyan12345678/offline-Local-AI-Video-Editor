@@ -57,7 +57,7 @@ function openMain(info) {
   const origin = new URL(info.url).origin;
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: product.minWidth, minHeight: product.minHeight, show: false, title: TITLE, backgroundColor: product.background, ...(product.icon ? { icon: path.join(__dirname, product.icon) } : {}),
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true },
+    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true },
   });
   // The only extra window ever allowed is the assistant, served by our own backend.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -113,6 +113,24 @@ function repairRuntime() {
   app.relaunch(); app.exit(0);
 }
 
+/** Installs the PyTorch build for the NVIDIA card (only this part is downloaded; everything that works is kept). */
+function turnOnGpu() {
+  if (!product.needTorch) return { ok: false, message: "This app does not use a graphics card." };
+  const gpu = rt.detectGpu();
+  if (!gpu) return { ok: false, message: "No NVIDIA graphics card was found. Install or update the NVIDIA driver, then try again." };
+  const choice = dialog.showMessageBoxSync({ type: "question", buttons: ["Turn on GPU", "Cancel"], defaultId: 0, cancelId: 1, title: "Turn on graphics card",
+    message: `Switch on ${gpu.name} for video making?`, detail: "The app downloads the graphics-card version of PyTorch (about 2.5 GB, one time) and restarts. Your videos, models and projects are kept. Keep the window open until it finishes." });
+  if (choice !== 0) return { ok: false, message: "Cancelled." };
+  try {
+    const f = path.join(dataDir, "runtime", "ready.json");
+    const info = rt.readyInfo(path.join(dataDir, "runtime")) || {};
+    fs.writeFileSync(f, JSON.stringify({ ...info, forceGpu: true }, null, 2));
+  } catch (_) { /* setup will simply run again */ }
+  quitting = true; rt.killTree(backend && backend.child);
+  app.relaunch(); app.exit(0);
+  return { ok: true };
+}
+
 let assistantWin = null;
 function openAssistant() {
   if (!backend) return;
@@ -137,6 +155,7 @@ function buildMenu() {
     { label: "View", submenu: [{ role: "reload" }, { role: "togglefullscreen" }, { role: "resetZoom" }, { role: "zoomIn" }, { role: "zoomOut" }] },
     { label: "Help", submenu: [
       { label: "Open log file", click: () => shell.openPath(path.join(dataDir, "logs", "studio.log")) },
+      { label: "Turn on graphics card (GPU)…", click: () => { const r = turnOnGpu(); if (!r.ok && r.message !== "Cancelled.") dialog.showMessageBox({ message: r.message }); } },
       { label: "Repair runtime…", click: repairRuntime },
       { type: "separator" }, { label: `Data folder: ${dataDir}`, enabled: false },
     ] },
@@ -149,6 +168,7 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
   app.on("before-quit", () => { quitting = true; rt.killTree(backend && backend.child); });
   app.on("window-all-closed", () => app.quit());
   ipcMain.on("retry", () => launch());
+  ipcMain.handle("turn-on-gpu", () => turnOnGpu());
   ipcMain.on("open-log", () => shell.openPath(logFile));
   ipcMain.on("quit", () => app.quit());
   app.whenReady().then(() => { buildMenu(); return launch(); });

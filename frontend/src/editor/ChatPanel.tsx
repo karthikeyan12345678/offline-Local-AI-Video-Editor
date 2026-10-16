@@ -7,7 +7,18 @@ import { layout, newText, upgradeProject } from "./model";
 import { useAI } from "./useAI";
 import type { Asset, Project, TextOverlay } from "../lib/types";
 
-interface Bubble { id: string; role: "user" | "assistant"; text: string; images?: string[]; notes?: string[]; error?: boolean }
+interface Bubble { id: string; role: "user" | "assistant"; text: string; images?: string[]; notes?: string[]; error?: boolean; result?: "changed" | "same" | "later"; focus?: number | null; undone?: boolean }
+
+/** Shows what the AI is doing right now, with a running clock, so the person always sees that something is happening. */
+function Working({ label, pics }: { label: string; pics: boolean }) {
+  const [s, setS] = useState(0);
+  useEffect(() => { const t = setInterval(() => setS((x) => x + 1), 1000); return () => clearInterval(t); }, []);
+  const steps = label ? [label] : ["Sending your message…", ...(pics ? ["Looking at your pictures…"] : []), "The AI is working out the edits…", "Still working — slow computers and free AIs can take up to a minute…"];
+  const at = label ? 0 : Math.min(steps.length - 1, s < 2 ? 0 : s < 5 && pics ? 1 : s < 40 ? steps.length - 2 : steps.length - 1);
+  return (
+    <div className="bubble bubble--assistant" role="status"><p><span className="spinner" aria-hidden /> {steps[at]} <span className="text-xs mono">{s}s</span></p></div>
+  );
+}
 
 const IDEAS = ["Make it vertical for a phone", "Add a fade between all clips", "Make it look cinematic", "Add the title “My Trip” at the start", "Slow everything down a little"];
 
@@ -61,8 +72,8 @@ function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => 
   );
 }
 
-export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset }: {
-  project: Project; commit: (fn: (p: Project) => Project, key?: string) => void; asset: (id: string) => Asset | undefined; onClose: () => void; onOpenAsset: (a: Asset) => void;
+export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset, onUndo, onSeek }: {
+  project: Project; commit: (fn: (p: Project) => Project, key?: string) => void; asset: (id: string) => Asset | undefined; onClose: () => void; onOpenAsset: (a: Asset) => void; onUndo: () => void; onSeek: (t: number) => void;
 }) {
   const { refreshAssets, toast } = useApp();
   const ai = useAI();
@@ -73,6 +84,7 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
   const [text, setText] = useState("");
   const [pics, setPics] = useState<Asset[]>([]);
   const [busy, setBusy] = useState("");
+  const [waiting, setWaiting] = useState<{ label: string; pics: boolean } | null>(null);
   const [setup, setSetup] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   const file = useRef<HTMLInputElement>(null);
@@ -160,20 +172,27 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
     const content = words || "Use these pictures as a reference.";
     const history: ChatMsg[] = [...bubbles.filter((b) => !b.error).slice(-8).map((b) => ({ role: b.role, content: b.text } as ChatMsg)), { role: "user", content, image_ids: sentPics.map((p) => p.id) }];
     add({ role: "user", text: content, images: sentPics.map((p) => p.id) });
-    setText(""); setPics([]); setBusy("Thinking…");
+    setText(""); setPics([]); setBusy("Thinking…"); setWaiting({ label: "", pics: sentPics.length > 0 });
     try {
       const r = await api.chat(history, projectRef.current);
+      setWaiting({ label: "Putting the edits on your video…", pics: false });
       if (r.changed) commit(() => upgradeProject({ ...r.project, id: projectRef.current.id, name: projectRef.current.name }));
-      add({ role: "assistant", text: r.reply || (r.changed ? "Done." : "OK."), notes: [...r.applied, ...r.skipped.map((s) => "Skipped — " + s)] });
+      const skipped = r.skipped.map((s) => "Not done — " + s);
+      const result: Bubble["result"] = r.changed ? "changed" : r.tasks.length ? "later" : "same";
+      const fallback = r.changed ? "Done." : r.understood === false ? "I could not read the AI’s answer. Please try again, or pick a smarter AI in “AI settings”." : "I did not change anything.";
+      add({ role: "assistant", text: r.reply || fallback, notes: [...r.applied, ...skipped], result, focus: r.focus ?? null });
+      if (r.changed && r.focus != null) onSeek(r.focus);
       for (const t of r.tasks) {
-        setBusy(t.name === "generate_video" ? "Making your AI video… this can take a few minutes" : "Working on it…");
+        setBusy("x"); setWaiting({ label: t.name === "generate_video" ? "Making your AI video… this can take a few minutes" : "Working on it…", pics: false });
         try { add({ role: "assistant", text: await runTask(t, sentPics[0]?.id) }); }
         catch (e) { add({ role: "assistant", text: e instanceof Error ? e.message : "That did not work.", error: true }); }
       }
     } catch (e) {
-      add({ role: "assistant", text: e instanceof Error ? e.message : "That did not work.", error: true });
+      const msg = e instanceof Error ? e.message : "That did not work.";
+      add({ role: "assistant", text: msg, error: true });
+      if (/model|ollama|key|server|connect|not running/i.test(msg)) setSetup(true);
       check();
-    } finally { setBusy(""); }
+    } finally { setBusy(""); setWaiting(null); }
   };
 
   return (
@@ -200,13 +219,15 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
                 {b.images && <div className="row gap wrap">{b.images.map((id) => <img key={id} className="bubble-img" alt="Reference" src={mediaUrl(id, "thumb")} />)}</div>}
                 <p>{b.text}</p>
                 {b.error && <Button small variant="secondary" onClick={() => setSetup(true)}>Fix AI settings</Button>}
+                {b.result === "changed" && <p className="bubble-done"><Icon d={I.check} size={14} /> Done — your video was changed{b.focus != null ? ` (shown at ${b.focus.toFixed(1)} s)` : ""}.</p>}
+                {b.result === "same" && !b.error && <p className="bubble-same">Nothing on the video changed. Try describing it in other words, or attach a picture and say where it should go.</p>}
                 {b.notes && b.notes.length > 0 && <ul className="bubble-notes">{b.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
+                {b.result === "changed" && <div className="row gap">{!b.undone && <Button small variant="secondary" icon={I.undo} onClick={() => { onUndo(); setBubbles((x) => x.map((y) => y.id === b.id ? { ...y, undone: true } : y)); }}>Undo this change</Button>}{b.undone && <span className="text-xs">Undone.</span>}{b.focus != null && <Button small variant="ghost" onClick={() => onSeek(b.focus as number)}>Show me</Button>}</div>}
               </div>
             ))}
-            {busy && <div className="bubble bubble--assistant"><p><span className="spinner" aria-hidden /> {busy}</p></div>}
+            {busy && waiting && <Working label={waiting.label} pics={waiting.pics} />}
             <div ref={end} />
           </div>
-          {bubbles.some((b) => b.notes?.length) && <p className="text-xs chat-undo">Changed something you don’t like? Press Ctrl+Z to undo.</p>}
           {pics.length > 0 && (
             <div className="row gap chat-pics">
               {pics.map((p) => <span key={p.id} className="chat-pic"><img alt={p.name} src={mediaUrl(p.id, "thumb")} /><button type="button" aria-label={`Remove ${p.name}`} onClick={() => setPics((x) => x.filter((y) => y.id !== p.id))}>×</button></span>)}

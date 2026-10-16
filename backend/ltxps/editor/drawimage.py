@@ -87,3 +87,24 @@ def render_drawing_png(d: Drawing, canvas_w: int, canvas_h: int, dest: Path) -> 
     dest.parent.mkdir(parents=True, exist_ok=True)
     img.save(dest)
     return img.size
+
+
+def render_image_overlay_png(ov, src, W: int, H: int, out) -> None:
+    """Puts the picture at its place on a transparent canvas-sized sheet (scaled, turned, see-through)."""
+    from pathlib import Path
+
+    from PIL import Image
+
+    sheet = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    with Image.open(Path(src)) as im:
+        im = im.convert("RGBA")
+        w = max(2, int(ov.size * W))
+        h = max(2, int(im.height * w / max(1, im.width)))
+        im = im.resize((w, h), Image.LANCZOS)
+    if ov.rotation:
+        im = im.rotate(-ov.rotation, expand=True, resample=Image.BICUBIC)
+    if ov.opacity < 1:
+        a = im.getchannel("A").point(lambda v: int(v * ov.opacity))
+        im.putalpha(a)
+    sheet.paste(im, (int(ov.x * W - im.width / 2), int(ov.y * H - im.height / 2)), im)
+    sheet.save(out)

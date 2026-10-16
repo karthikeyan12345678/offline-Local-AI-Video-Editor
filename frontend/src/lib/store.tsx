@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "./api";
+import { isDownloading } from "./format";
 import type { Asset, Job, Limits, ModelRow, Settings, SystemInfo } from "./types";
 
 interface Toast { id: number; text: string; error: boolean }
@@ -59,7 +60,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // One poll loop for everything that runs in the background: jobs, and downloads while any is active.
   const active = jobs.some((j) => j.status === "queued" || j.status === "running");
-  const downloading = models.some((m) => m.download.status === "running" || m.download.status === "queued");
+  const downloading = models.some((m) => isDownloading(m.download.status));
   useEffect(() => {
     if (!ready) return;
     let stop = false;

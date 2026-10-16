@@ -71,9 +71,10 @@ export interface AudioClip {
 export type ShapeType = "pen" | "highlight" | "line" | "arrow" | "rect" | "ellipse";
 export interface Shape { type: ShapeType; points: [number, number][]; color: string; width: number; opacity: number; filled: boolean; fill_color: string | null; fill_opacity: number }
 export interface Drawing { id: string; start: number; duration: number; shapes: Shape[]; opacity: number; fade_in: number; fade_out: number; anim_in: string; anim_out: string }
+export interface ImageOverlay { id: string; asset_id: string; start: number; duration: number; x: number; y: number; size: number; rotation: number; opacity: number; fade_in: number; fade_out: number; anim_in: string; anim_out: string }
 export interface Project {
   id: string; name: string; canvas: { width: number; height: number; fps: number; background: string };
-  clips: Clip[]; texts: TextOverlay[]; audio: AudioClip[]; drawings: Drawing[]; master_volume: number;
+  clips: Clip[]; texts: TextOverlay[]; audio: AudioClip[]; drawings: Drawing[]; images: ImageOverlay[]; master_volume: number;
   duck_music: boolean; duck_amount: number; master_normalize: boolean;
 }
 export interface Catalog {

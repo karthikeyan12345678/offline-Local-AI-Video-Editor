@@ -46,6 +46,7 @@ class LLMConfig:
     temperature: float = 0.6
     max_tokens: int = 4096
     timeout: float = 120.0
+    json_mode: bool = False  # ask OpenAI-style servers for a JSON-only answer
 
 
 def config_from(provider: str, saved: dict[str, Any]) -> LLMConfig:
@@ -129,7 +130,10 @@ def _prepare(cfg: LLMConfig, messages: list[dict[str, Any]], system: str) -> tup
             body["system"] = system
         return cfg.base_url + "/v1/messages", body
     full = ([{"role": "system", "content": system}] if system else []) + msgs
-    return cfg.base_url + "/chat/completions", {"model": cfg.model, "messages": full, "temperature": cfg.temperature, "max_tokens": cfg.max_tokens, "stream": True}
+    out: dict[str, Any] = {"model": cfg.model, "messages": full, "temperature": cfg.temperature, "max_tokens": cfg.max_tokens, "stream": True}
+    if cfg.json_mode:
+        out["response_format"] = {"type": "json_object"}
+    return cfg.base_url + "/chat/completions", out
 
 
 def parse_event(style: str, data: dict[str, Any]) -> str:

@@ -118,3 +118,25 @@ def test_drawing_png_has_ink_where_drawn(tmp_path):
     im = Image.open(out).convert("RGBA")
     assert im.size == (200, 100)
     assert im.getpixel((100, 50))[3] > 200 and im.getpixel((100, 5))[3] == 0
+
+
+@pytest.mark.parametrize("anim", ["none", "fade", "pop", "slide_up"])
+def test_picture_overlay_renders_and_shows_ink(anim, assets, tmp_path):
+    from ltxps.editor.project import ImageOverlay
+
+    ov = ImageOverlay(id="i", asset_id="image", start=0.2, duration=1.5, x=0.5, y=0.3, size=0.3, rotation=15, opacity=0.9, anim_in=anim, fade_in=0.3)
+    p = Project(canvas=cv(), clips=[Clip(id="1", asset_id="av", trim_out=2)], images=[ov])
+    _, info = render(p, assets, tmp_path / anim)
+    assert info.duration == pytest.approx(2, abs=0.3)
+
+
+def test_picture_overlay_png_is_placed_at_its_spot(assets, tmp_path):
+    from PIL import Image
+
+    from ltxps.editor.drawimage import render_image_overlay_png
+    from ltxps.editor.project import ImageOverlay
+
+    out = tmp_path / "i.png"
+    render_image_overlay_png(ImageOverlay(id="i", asset_id="image", x=0.25, y=0.5, size=0.2), assets["image"].path, 400, 200, out)
+    im = Image.open(out).convert("RGBA")
+    assert im.size == (400, 200) and im.getpixel((100, 100))[3] > 0 and im.getpixel((350, 10))[3] == 0

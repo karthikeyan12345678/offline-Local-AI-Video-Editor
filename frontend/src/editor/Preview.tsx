@@ -186,6 +186,14 @@ export default function Preview({ project, asset, time, playing, onTick, onEnd, 
         })()}
         {project.texts.filter((t) => time >= t.start && time < t.start + t.duration).map((t) => textNode(t, time))}
         <DrawingsLayer drawings={project.drawings} time={time} W={width} H={height} editingId={editingId} />
+        {(project.images ?? []).filter((im) => time >= im.start && time < im.start + im.duration).map((im) => {
+          const a = asset(im.asset_id);
+          if (!a) return null;
+          let o = im.opacity;
+          if (im.anim_in !== "none" && im.fade_in > 0 && time - im.start < im.fade_in) o *= Math.max(0, (time - im.start) / im.fade_in);
+          if (im.anim_out !== "none" && im.fade_out > 0 && im.start + im.duration - time < im.fade_out) o *= Math.max(0, (im.start + im.duration - time) / im.fade_out);
+          return <img key={im.id} className="stage-overlay-img" alt="" src={mediaUrl(a.id)} style={{ left: `${im.x * 100}%`, top: `${im.y * 100}%`, width: `${im.size * 100}%`, opacity: o, transform: `translate(-50%,-50%) rotate(${im.rotation}deg)` }} />;
+        })}
         {pen && onShape && <DrawCapture pen={pen} W={width} H={height} onShape={onShape} />}
         {!clip && <div className="stage-empty">Add a clip from the Media panel to start.</div>}
       </div>

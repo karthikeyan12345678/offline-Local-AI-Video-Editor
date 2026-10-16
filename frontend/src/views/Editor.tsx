@@ -97,7 +97,7 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
   // ---- actions on the selection
   const remove = useCallback(() => {
     if (!sel) return;
-    commit((p) => ({ ...p, clips: sel.type === "clip" ? p.clips.filter((c) => c.id !== sel.id) : p.clips, texts: sel.type === "text" ? p.texts.filter((c) => c.id !== sel.id) : p.texts, audio: sel.type === "audio" ? p.audio.filter((c) => c.id !== sel.id) : p.audio, drawings: sel.type === "draw" ? p.drawings.filter((c) => c.id !== sel.id) : p.drawings }));
+    commit((p) => ({ ...p, clips: sel.type === "clip" ? p.clips.filter((c) => c.id !== sel.id) : p.clips, texts: sel.type === "text" ? p.texts.filter((c) => c.id !== sel.id) : p.texts, audio: sel.type === "audio" ? p.audio.filter((c) => c.id !== sel.id) : p.audio, drawings: sel.type === "draw" ? p.drawings.filter((c) => c.id !== sel.id) : p.drawings, images: sel.type === "image" ? p.images.filter((c) => c.id !== sel.id) : p.images }));
     setSel(null);
   }, [sel, commit]);
   const duplicate = () => {
@@ -105,6 +105,7 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
     commit((p) => {
       if (sel.type === "clip") { const i = p.clips.findIndex((c) => c.id === sel.id); if (i < 0) return p; const copy = { ...p.clips[i], id: Math.random().toString(36).slice(2, 10) }; const clips = [...p.clips]; clips.splice(i + 1, 0, copy); return { ...p, clips }; }
       if (sel.type === "text") { const t = p.texts.find((x) => x.id === sel.id); return t ? { ...p, texts: [...p.texts, { ...t, id: Math.random().toString(36).slice(2, 10), start: t.start + t.duration }] } : p; }
+      if (sel.type === "image") { const d = p.images.find((x) => x.id === sel.id); return d ? { ...p, images: [...p.images, { ...d, id: Math.random().toString(36).slice(2, 10), start: d.start + d.duration }] } : p; }
       if (sel.type === "draw") { const d = p.drawings.find((x) => x.id === sel.id); return d ? { ...p, drawings: [...p.drawings, { ...d, id: Math.random().toString(36).slice(2, 10), start: d.start + d.duration }] } : p; }
       const a = p.audio.find((x) => x.id === sel.id);
       return a ? { ...p, audio: [...p.audio, { ...a, id: Math.random().toString(36).slice(2, 10), start: a.start + 1 }] } : p;
@@ -275,7 +276,7 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
 
       <Timeline project={project} asset={asset} time={time} onSeek={(t) => { setTime(t); }} sel={sel} onSelect={setSel} commit={mutate} zoom={zoom} total={total} />
 
-      {chatOpen && <ChatPanel project={project} commit={mutate} asset={asset} onClose={() => setChatOpen(false)} onOpenAsset={addAsset} />}
+      {chatOpen && <ChatPanel project={project} commit={mutate} asset={asset} onClose={() => setChatOpen(false)} onOpenAsset={addAsset} onUndo={h.undo} onSeek={(t) => setTime(t)} />}
 
       {exporting && <ExportDialog project={project} onClose={() => setExporting(false)} />}
       {projects && (

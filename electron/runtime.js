@@ -28,8 +28,13 @@ function torchCandidates(gpu) {
   if (!gpu) return ["cpu"];
   const cc = gpu.major * 10 + gpu.minor;
   // Newer builds drop old architectures, so older cards must try older builds first.
-  if (cc >= 75) return ["cu130", "cu128", "cu126"];
-  return ["cu126", "cu118"];
+  let tags = cc >= 75 ? ["cu130", "cu128", "cu126", "cu124"] : ["cu126", "cu118"];
+  // A build made for a newer CUDA than the driver supports installs fine but cannot run, so skip those.
+  if (gpu.driver) {
+    const fits = tags.filter((t) => Number(t.slice(2, -1) + "." + t.slice(-1)) <= gpu.driver);
+    if (fits.length) tags = fits;
+  }
+  return tags;
 }
 
 /** Parses `nvidia-smi --query-gpu=name,compute_cap,memory.total --format=csv,noheader,nounits`. */
@@ -46,10 +51,22 @@ function parseNvidiaSmi(text) {
   return best.mem >= 0 ? best : null;
 }
 
+/** "CUDA Version: 12.6" from the header of plain `nvidia-smi`, as a number (12.6), or 0 when unknown. */
+function parseDriverCuda(text) {
+  const m = /CUDA Version:\s*(\d+)\.(\d+)/.exec(String(text));
+  return m ? Number(`${m[1]}.${m[2]}`) : 0;
+}
+
 function detectGpu() {
   try {
     const r = spawnSync("nvidia-smi", ["--query-gpu=name,compute_cap,memory.total", "--format=csv,noheader,nounits"], { encoding: "utf8", timeout: 15000, windowsHide: true });
-    if (r.status === 0) return parseNvidiaSmi(r.stdout);
+    if (r.status === 0) {
+      const g = parseNvidiaSmi(r.stdout);
+      if (g) {
+        try { g.driver = parseDriverCuda(spawnSync("nvidia-smi", [], { encoding: "utf8", timeout: 15000, windowsHide: true }).stdout); } catch (_) { g.driver = 0; }
+      }
+      return g;
+    }
   } catch (_) { /* no NVIDIA driver */ }
   return null;
 }
@@ -154,6 +171,14 @@ function liveRequirements(text, manifest) {
   }).join("\n");
 }
 
+/** True when a graphics card exists but the installed PyTorch is the processor-only build and we have not already tried for this driver. */
+function gpuUpgradeWanted(info, gpu) {
+  if (!info || !IS_WIN || info.torch !== "cpu") return false;
+  const g = gpu === undefined ? detectGpu() : gpu;
+  if (!g) return false;
+  return !info.gpuTried || info.gpuTried.driver !== g.driver || info.gpuTried.name !== g.name;
+}
+
 function readyInfo(runtimeDir) {
   try { return JSON.parse(fs.readFileSync(path.join(runtimeDir, "ready.json"), "utf8")); } catch (_) { return null; }
 }
@@ -170,6 +195,7 @@ function findPython({ resourcesDir, dataDir, requirementsFile, env = process.env
   const info = readyInfo(runtimeDir);
   const py = pythonExe(path.join(runtimeDir, "python"));
   if (info && info.format === SETUP_FORMAT && info.requirements === sha(fs.readFileSync(requirementsFile)) && fs.existsSync(py)) {
+    if (info.forceGpu || gpuUpgradeWanted(info)) return null; // go through setup again: it keeps what works and only fetches the GPU build
     return { python: py, bundled: false, dir: path.dirname(py), info };
   }
   return null;
@@ -226,12 +252,14 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report: raw
 
   // 3. PyTorch: try builds until one can really use this GPU (the AI Assistant does not need it)
   let chosen = needTorch ? null : "none";
+  let gpuTried = null;
   if (needTorch) tracker.begin("torch");
-  // An app update that only adds libraries must not download PyTorch again: keep the working one.
+  // Never download PyTorch again when a working one exists. Only a missing GPU build is fetched, once per driver.
   const previous = readyInfo(runtimeDir);
+  const upgradeOnly = !!(needTorch && previous && previous.torch === "cpu" && gpu && (previous.forceGpu || gpuUpgradeWanted(previous, gpu)));
   if (needTorch && previous && previous.format === SETUP_FORMAT && previous.torch && previous.torch !== "none" && fs.existsSync(py) && hasPip) {
     const probe = spawnSync(py, ["-c", "import torch"], { windowsHide: true, timeout: 120000 });
-    if (probe.status === 0) { chosen = previous.torch; tracker.skip("torch"); report("Keeping your existing PyTorch", null, ""); }
+    if (probe.status === 0 && !upgradeOnly) { chosen = previous.torch; gpuTried = previous.gpuTried || null; tracker.skip("torch"); report("PyTorch is already installed — keeping it", null, ""); }
   }
   const candidates = needTorch && !chosen ? torchCandidates(gpu) : [];
   let lastError = "";
@@ -248,10 +276,12 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report: raw
     let res = null;
     try { res = JSON.parse(String(r.stdout).trim().split(/\r?\n/).pop()); } catch (_) { /* fall through */ }
     if (tag === "cpu" || (res && res.cuda && res.arch_ok)) { chosen = tag; break; }
-    lastError = `PyTorch ${tag} cannot run on this graphics card.`;
+    lastError = `PyTorch ${tag} cannot run on this graphics card${res && res.error ? ` (${res.error})` : ""}.`;
   }
+  if (gpu && needTorch) gpuTried = { driver: gpu.driver || 0, name: gpu.name, ok: !!chosen && chosen !== "cpu", error: chosen && chosen !== "cpu" ? "" : lastError.slice(0, 300), when: new Date().toISOString() };
   if (!chosen) {
-    if (gpu) { chosen = "cpu"; const label = "Downloading PyTorch (processor only)"; report(label, null, "No GPU build worked; falling back to the processor."); await run(py, torchArgs("cpu"), { onLine: pipLine(tracker, report, label) }); }
+    if (upgradeOnly) { chosen = "cpu"; report("Your graphics card could not be switched on", null, "The processor-only PyTorch stays installed. You can try again from Help → Turn on graphics card."); }
+    else if (gpu) { chosen = "cpu"; const label = "Downloading PyTorch (processor only)"; report(label, null, "No GPU build worked; falling back to the processor."); await run(py, torchArgs("cpu"), { onLine: pipLine(tracker, report, label) }); }
     else throw new Error(lastError || "Could not install PyTorch.");
   }
 
@@ -270,7 +300,7 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report: raw
   tracker.finish("libs");
   report("All done", null, "Starting the app…");
 
-  fs.writeFileSync(path.join(runtimeDir, "ready.json"), JSON.stringify({ format: SETUP_FORMAT, torch: chosen, requirements: sha(fs.readFileSync(requirementsFile)), when: new Date().toISOString(), gpu }, null, 2));
+  fs.writeFileSync(path.join(runtimeDir, "ready.json"), JSON.stringify({ format: SETUP_FORMAT, torch: chosen, gpuTried, requirements: sha(fs.readFileSync(requirementsFile)), when: new Date().toISOString(), gpu }, null, 2));
   fs.rmSync(tmp, { recursive: true, force: true });
   return { python: py, bundled: false, dir: pyDir };
 }
@@ -315,4 +345,4 @@ function killTree(child) {
   } catch (_) { /* already gone */ }
 }
 
-module.exports = { fetchManifest, liveRequirements, SetupProgress, IS_WIN, SETUP_FORMAT, pythonExe, sha, torchCandidates, parseNvidiaSmi, detectGpu, writePth, findPython, setupRuntime, startBackend, killTree, readyInfo };
+module.exports = { gpuUpgradeWanted, parseDriverCuda, fetchManifest, liveRequirements, SetupProgress, IS_WIN, SETUP_FORMAT, pythonExe, sha, torchCandidates, parseNvidiaSmi, detectGpu, writePth, findPython, setupRuntime, startBackend, killTree, readyInfo };

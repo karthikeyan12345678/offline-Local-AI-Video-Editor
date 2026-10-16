@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { Button, Field, Slider, Tabs, I } from "../ds";
 import { api } from "../lib/api";
 import { uid } from "../lib/format";
-import type { Asset, AudioClip, Clip, Drawing, Effect, Project, TextOverlay } from "../lib/types";
+import type { Asset, AudioClip, Clip, Drawing, Effect, ImageOverlay, Project, TextOverlay } from "../lib/types";
 import { animLabel, groupBy, useCatalog } from "./catalog";
 import FontPicker from "./FontPicker";
 import { CANVAS_PRESETS, TEXT_STYLES, layout, newAudio, newText, sourceEnd } from "./model";
 import { useAI } from "./useAI";
 
-export type Selection = { type: "clip" | "text" | "audio" | "draw"; id: string } | null;
+export type Selection = { type: "clip" | "text" | "audio" | "draw" | "image"; id: string } | null;
 type Commit = (fn: (p: Project) => Project, key?: string) => void;
 
 function GroupSelect({ id, label, value, items, onChange }: { id: string; label: string; value: string; items: { id: string; label: string; group?: string }[]; onChange: (v: string) => void }) {
@@ -29,6 +29,7 @@ export default function Inspector({ project, sel, asset, commit, onDelete, time 
   if (sel?.type === "text") { const t = project.texts.find((x) => x.id === sel.id); if (t) return <TextPanel key={t.id} t={t} commit={commit} onDelete={onDelete} />; }
   if (sel?.type === "audio") { const t = project.audio.find((x) => x.id === sel.id); if (t) return <AudioPanel key={t.id} ac={t} a={asset(t.asset_id)} commit={commit} onDelete={onDelete} />; }
   if (sel?.type === "draw") { const d = project.drawings.find((x) => x.id === sel.id); if (d) return <DrawPanel key={d.id} d={d} commit={commit} onDelete={onDelete} />; }
+  if (sel?.type === "image") { const im = (project.images ?? []).find((x) => x.id === sel.id); if (im) return <ImagePanel key={im.id} im={im} a={asset(im.asset_id)} commit={commit} onDelete={onDelete} />; }
   return <ProjectPanel project={project} asset={asset} commit={commit} time={time} />;
 }
 
@@ -449,6 +450,25 @@ function AudioPanel({ ac, a, commit, onDelete }: { ac: AudioClip; a: Asset | und
       <Slider label="Treble" value={ac.treble} min={-12} max={12} step={1} onChange={(v) => set({ treble: v }, "tr")} format={(v) => `${v > 0 ? "+" : ""}${v} dB`} />
       <label className="check"><input type="checkbox" checked={ac.denoise} onChange={(e) => set({ denoise: e.target.checked })} />Remove background noise</label>
       <label className="check"><input type="checkbox" checked={ac.normalize} onChange={(e) => set({ normalize: e.target.checked })} />Even out the loudness</label>
+    </div>
+  );
+}
+
+function ImagePanel({ im, a, commit, onDelete }: { im: ImageOverlay; a: Asset | undefined; commit: Commit; onDelete: () => void }) {
+  const set = (patch: Partial<ImageOverlay>, key?: string) => commit((p) => ({ ...p, images: p.images.map((x) => (x.id === im.id ? { ...x, ...patch } : x)) }), key ? `${im.id}:${key}` : undefined);
+  return (
+    <div className="stack gap">
+      <div className="row between"><h3>Picture on the video</h3><Button variant="ghost" small icon={I.trash} label="Delete picture" onClick={onDelete} /></div>
+      <p className="text-sm">{a?.name ?? "Picture"} — move it with the sliders. To add a new picture, drop a PNG or JPG on the preview or ask the chat editor.</p>
+      <Slider label="Left ↔ right" value={im.x} min={0} max={1} step={0.005} onChange={(v) => set({ x: v }, "x")} format={(v) => `${Math.round(v * 100)}%`} />
+      <Slider label="Up ↕ down" value={im.y} min={0} max={1} step={0.005} onChange={(v) => set({ y: v }, "y")} format={(v) => `${Math.round(v * 100)}%`} />
+      <Slider label="Size" value={im.size} min={0.03} max={1} step={0.005} onChange={(v) => set({ size: v }, "z")} format={(v) => `${Math.round(v * 100)}%`} />
+      <Slider label="Turn" value={im.rotation} min={-180} max={180} step={1} onChange={(v) => set({ rotation: v }, "r")} format={(v) => `${Math.round(v)}°`} />
+      <Slider label="See-through" value={1 - im.opacity} min={0} max={0.9} step={0.05} onChange={(v) => set({ opacity: 1 - v }, "op")} format={(v) => `${Math.round(v * 100)}%`} />
+      <div className="grid-2">
+        <Field label="Appears at (s)" htmlFor="is"><input id="is" className="input" type="number" min={0} step={0.1} value={Number(im.start.toFixed(2))} onChange={(e) => set({ start: Math.max(0, Number(e.target.value) || 0) }, "s")} /></Field>
+        <Field label="Stays for (s)" htmlFor="id"><input id="id" className="input" type="number" min={0.2} step={0.1} value={Number(im.duration.toFixed(2))} onChange={(e) => set({ duration: Math.max(0.2, Number(e.target.value) || 0.2) }, "d")} /></Field>
+      </div>
     </div>
   );
 }

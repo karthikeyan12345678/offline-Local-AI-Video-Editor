@@ -10,13 +10,14 @@ from __future__ import annotations
 import math
 import re
 import subprocess
+from typing import Any
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from .audiofx import fx_filters
 from .effects import PRESET_FILTERS, XFADE_NAMES, Fragment, effect_filter, motion_filters, pick_random_transition
 from .media import NO_WINDOW, require_ffmpeg
-from .drawimage import render_drawing_png
+from .drawimage import render_drawing_png, render_image_overlay_png
 from .project import AudioClip, Clip, Drawing, ExportOptions, Project, TextOverlay
 from .textimage import render_text_png
 
@@ -398,7 +399,7 @@ def _music_chain(ac: AudioClip, idx: int, span: float, total: float) -> str:
     return f"[{idx}:a]" + ",".join(f) + f"[ax{idx}]"
 
 
-def _text_animation(t: TextOverlay | Drawing, W: int, H: int) -> tuple[list[str], str, str]:
+def _text_animation(t: Any, W: int, H: int) -> tuple[list[str], str, str]:
     """Filters for the text picture plus the overlay x / y expressions that move it in and out."""
     st, end = t.start, t.start + t.duration
     di = min(t.fade_in, t.duration / 2) if t.anim_in != "none" else 0.0
@@ -549,6 +550,23 @@ def build_plan(project: Project, assets: dict[str, AssetRef], opts: ExportOption
         graph.append(f"[{idx}:v]" + ",".join(chain) + f"[dx{k}]")
         nxt = f"vd{k}"
         graph.append(f"[{cur}][dx{k}]overlay=x='{x_expr}':y='{y_expr}':enable='between(t,{_f(d.start)},{_f(d.start + d.duration)})':format=auto[{nxt}]")
+        cur = nxt
+
+    # ---- picture overlays (a cap, a logo…): placed on a transparent sheet, same fade/slide as drawings
+    for k, ov in enumerate(project.images):
+        src = assets.get(ov.asset_id)
+        if src is None or src.kind != "image":
+            warnings.append("A picture on the timeline was removed from the library and was skipped.")
+            continue
+        png = workdir / f"img{k}.png"
+        render_image_overlay_png(ov, src.path, canvas.width, canvas.height, png)
+        args += ["-loop", "1", "-framerate", str(fps), "-t", _f(total), "-i", str(png)]
+        idx = next_input
+        next_input += 1
+        chain, x_expr, y_expr = _text_animation(ov, canvas.width, canvas.height)
+        graph.append(f"[{idx}:v]" + ",".join(chain) + f"[ix{k}]")
+        nxt = f"vi{k}"
+        graph.append(f"[{cur}][ix{k}]overlay=x='{x_expr}':y='{y_expr}':enable='between(t,{_f(ov.start)},{_f(ov.start + ov.duration)})':format=auto[{nxt}]")
         cur = nxt
 
     # ---- text overlays: Pillow PNG per overlay, composited with `overlay`

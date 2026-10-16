@@ -189,3 +189,18 @@ test("a fresh install moves pinned libraries to the manifest's newest tested ver
   assert.match(out, /^opencv_python\.headless==5\.0\.0\.93$/m);
   assert.strictEqual(rt.liveRequirements("a==1\n", null), "a==1\n");
 });
+
+test("only PyTorch builds the driver can run are tried, and the GPU build is tried once per driver", () => {
+  const g = { name: "RTX 4050", major: 8, minor: 9, mem: 6144, driver: 12.6 };
+  assert.deepStrictEqual(rt.torchCandidates(g), ["cu126", "cu124"]);
+  assert.deepStrictEqual(rt.torchCandidates({ ...g, driver: 13.0 }).slice(0, 2), ["cu130", "cu128"]);
+  assert.deepStrictEqual(rt.torchCandidates({ ...g, driver: 0 }).slice(0, 2), ["cu130", "cu128"]);
+  assert.deepStrictEqual(rt.torchCandidates(null), ["cpu"]);
+  assert.strictEqual(rt.parseDriverCuda("| NVIDIA-SMI 560.94  Driver Version: 560.94  CUDA Version: 12.6 |"), 12.6);
+  const was = process.platform; // gpuUpgradeWanted is Windows-only
+  if (was === "win32") {
+    assert.strictEqual(rt.gpuUpgradeWanted({ torch: "cpu" }, g), true);
+    assert.strictEqual(rt.gpuUpgradeWanted({ torch: "cpu", gpuTried: { driver: 12.6, name: "RTX 4050" } }, g), false);
+    assert.strictEqual(rt.gpuUpgradeWanted({ torch: "cu126" }, g), false);
+  }
+});

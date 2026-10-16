@@ -228,6 +228,38 @@ class Drawing(BaseModel):
         return v
 
 
+class ImageOverlay(BaseModel):
+    """A picture (a cap, a logo, a sticker) shown on top of the video for a while. x and y are the CENTRE, 0..1 of the picture."""
+
+    id: str
+    asset_id: str
+    start: float = Field(0, ge=0)
+    duration: float = Field(3, gt=0, le=3600)
+    x: float = Field(0.5, ge=-0.5, le=1.5)
+    y: float = Field(0.5, ge=-0.5, le=1.5)
+    size: float = Field(0.25, ge=0.01, le=2)  # width as a fraction of the video width
+    rotation: float = Field(0, ge=-360, le=360)
+    opacity: float = Field(1, ge=0, le=1)
+    fade_in: float = Field(0.2, ge=0, le=5)
+    fade_out: float = Field(0.2, ge=0, le=5)
+    anim_in: str = "fade"
+    anim_out: str = "fade"
+
+    @field_validator("anim_in")
+    @classmethod
+    def known_in(cls, v: str) -> str:
+        if v not in TEXT_ANIM_IN:
+            raise ValueError(f"Unknown animation '{v}'")
+        return v
+
+    @field_validator("anim_out")
+    @classmethod
+    def known_out(cls, v: str) -> str:
+        if v not in TEXT_ANIM_OUT:
+            raise ValueError(f"Unknown animation '{v}'")
+        return v
+
+
 class AudioClip(BaseModel):
     id: str
     asset_id: str
@@ -263,6 +295,7 @@ class Project(BaseModel):
     texts: list[TextOverlay] = Field(default_factory=list)
     audio: list[AudioClip] = Field(default_factory=list)
     drawings: list[Drawing] = Field(default_factory=list, max_length=200)
+    images: list[ImageOverlay] = Field(default_factory=list, max_length=100)
     master_volume: float = Field(1, ge=0, le=2)
     duck_music: bool = False  # lower the audio track while the clips are speaking
     duck_amount: float = Field(0.6, ge=0, le=1)

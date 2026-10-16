@@ -70,6 +70,31 @@ def _frames(path: str, start: float, dur: float, fps: float, width: int, cancel:
         proc.wait()
 
 
+def face_at(path: str, t: float) -> dict | None:
+    """The biggest face in the picture at second `t`: {'x','y','w','h'} (0..1 of the frame, x and y = top-left) or None."""
+    _need_numpy()
+    try:
+        import cv2
+    except ImportError:
+        return None
+    if not YUNET.exists():
+        return None
+    det = cv2.FaceDetectorYN.create(str(YUNET), "", (640, 640), 0.5, 0.3, 50)
+    best = None
+    for _, frame in _frames(path, max(0.0, t - 0.2), 0.8, 4.0, 640, None):
+        h, w = frame.shape[:2]
+        det.setInputSize((w, h))
+        _, faces = det.detect(frame)
+        if faces is not None and len(faces):
+            f = max(faces, key=lambda r: r[2] * r[3])
+            cand = {"x": float(f[0]) / w, "y": float(f[1]) / h, "w": float(f[2]) / w, "h": float(f[3]) / h, "area": float(f[2] * f[3])}
+            if best is None or cand["area"] > best["area"]:
+                best = cand
+    if best:
+        best.pop("area")
+    return best
+
+
 def _audio_mono(path: str, rate: int = 22050, max_seconds: float = 600) -> np.ndarray:
     _need_numpy()
     cmd = [ffmpeg_path(), "-v", "error", "-t", f"{max_seconds:.0f}", "-i", path, "-vn", "-ac", "1", "-ar", str(rate), "-f", "f32le", "-"]

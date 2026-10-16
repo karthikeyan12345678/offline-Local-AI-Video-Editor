@@ -136,9 +136,26 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
     def setup_plan() -> dict[str, Any]:
         info = state.system()
         g = info.gpu
-        gpu_ok = bool(g.available and g.arch_supported is not False)
-        return build_setup_plan(ram_gb=round(info.ram_mb / 1024, 1), vram_gb=round(g.vram_mb / 1024, 1) if g.available else 0, gpu_ok=gpu_ok,
-                                disk_free_gb=state.disk_free_gb(), default_model=state.settings.get().default_model, is_installed=state.downloads.is_installed)
+        present = g.available or g.vram_mb > 0
+        usable = bool(g.available and g.arch_supported is not False)
+        kw: dict[str, Any] = dict(ram_gb=round(info.ram_mb / 1024, 1), vram_gb=round(g.vram_mb / 1024, 1) if present else 0, gpu_ok=present, gpu_usable=usable, gpu_name=g.name if present else "",
+                                  disk_free_gb=state.disk_free_gb(), default_model=state.settings.get().default_model, is_installed=state.downloads.is_installed, torch_version=info.torch_version)
+        # Real sizes from the model server (cached, looked up in parallel); the built-in estimates are used when offline.
+        ids = [it["id"] for it in build_setup_plan(**kw)["items"] if not it["installed"]]
+        sizes: dict[str, int] = {}
+        if ids:
+            from concurrent.futures import ThreadPoolExecutor, wait
+
+            def probe(i: str) -> None:
+                try:
+                    sizes[i] = state.downloads.probe_size(i)
+                except Exception:  # noqa: BLE001 - offline or blocked: keep the estimate
+                    pass
+
+            ex = ThreadPoolExecutor(max_workers=len(ids))
+            wait([ex.submit(probe, i) for i in ids], timeout=8)
+            ex.shutdown(wait=False, cancel_futures=True)
+        return build_setup_plan(**kw, sizes=sizes)
 
     @router.get("/setup/plan")
     def get_setup_plan() -> dict[str, Any]:
@@ -148,7 +165,7 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
     def run_setup_install() -> dict[str, Any]:
         plan = setup_plan()
         for it in plan["items"]:
-            if not it["installed"] and state.downloads.state(it["id"]).status not in ("running", "queued"):
+            if not it["installed"] and state.downloads.state(it["id"]).status not in ("probing", "downloading"):
                 state.downloads.start(it["id"])
         return plan
 
@@ -577,15 +594,35 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
                     row["images"] = imgs
                     n_img += len(imgs)
             msgs.append(row)
-        system = editor_chat.system_prompt(editor_chat.describe(body.project, names, durations), library, n_img > 0)
+        attached = [i for m in body.messages[-1:] for i in m.image_ids if i in assets and assets[i].kind == "image"]
+        system = editor_chat.system_prompt(editor_chat.describe(body.project, names, durations), library, n_img > 0, [names[i] for i in attached])
+        base = {**cfg.__dict__, "temperature": 0.2, "max_tokens": 2048}
+
+        def ask(extra: list[dict[str, Any]], json_mode: bool) -> str:
+            return llm.complete(llm.LLMConfig(**{**base, "json_mode": json_mode}), msgs + extra, system)
+
         try:
-            text = llm.complete(llm.LLMConfig(**{**cfg.__dict__, "temperature": 0.2, "max_tokens": 2048}), msgs, system)
+            try:
+                text = ask([], cfg.style == "openai" and cfg.provider not in ("ollama", "lmstudio"))
+            except llm.LLMError as exc:
+                if cfg.style == "openai" and any(w in str(exc).lower() for w in ("response_format", "json")):
+                    text = ask([], False)  # this server has no JSON mode
+                else:
+                    raise
+            parsed = editor_chat.parse_answer(text)
+            if not parsed["ok"] or (not parsed["actions"] and editor_chat.looks_like_edit_request(body.messages[-1].content)):
+                retry = [{"role": "assistant", "content": text[:1500]},
+                         {"role": "user", "content": 'Answer again with ONLY the JSON object {"reply": "...", "actions": [...]}. Every action needs a "do" field. If the request needs a change to the video, include the action(s) now.'}]
+                again = editor_chat.parse_answer(ask(retry, False))
+                if again["ok"] and (again["actions"] or not parsed["ok"]):
+                    parsed = again
         except llm.LLMError as exc:
             raise HTTPException(502, str(exc)) from exc
-        parsed = editor_chat.parse_answer(text)
-        out = editor_chat.apply_actions(body.project, parsed["actions"], names)
-        return {"reply": parsed["reply"], "project": out["project"].model_dump(), "applied": out["applied"], "skipped": out["skipped"], "tasks": out["tasks"],
-                "changed": bool(out["applied"]) and out["project"].model_dump() != body.project.model_dump()}
+        ctx = {"attached": attached, "assets": assets, "face": ai.face_at}
+        out = editor_chat.apply_actions(body.project, parsed["actions"], names, ctx)
+        changed = bool(out["applied"]) and out["project"].model_dump() != body.project.model_dump()
+        return {"reply": parsed["reply"], "project": out["project"].model_dump(), "applied": out["applied"], "skipped": out["skipped"], "tasks": out["tasks"], "changed": changed,
+                "focus": out["focus"], "understood": parsed["ok"]}
 
     @router.get("/editor/chat/status")
     def editor_chat_status() -> dict[str, Any]:

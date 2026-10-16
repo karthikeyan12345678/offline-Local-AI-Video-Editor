@@ -29,7 +29,7 @@ export default function Settings() {
       <section className="card stack gap" aria-labelledby="sys">
         <h2 id="sys">This PC</h2>
         <dl className="kv text-sm">
-          <dt>Graphics card</dt><dd>{g.available ? `${g.name} · ${g.vram_gb} GB` : "None detected"}</dd>
+          <dt>Graphics card</dt><dd>{g.name ? `${g.name} · ${g.vram_gb} GB${g.available ? " (switched on)" : " (found, not switched on — see the install card above)"}` : "None detected"}</dd>
           <dt>Memory</dt><dd>{system.ram_gb} GB</dd>
           <dt>Free disk space</dt><dd>{system.disk_free_gb} GB</dd>
           <dt>Torch</dt><dd>{system.torch ?? "not installed"}</dd>
