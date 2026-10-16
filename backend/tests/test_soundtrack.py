@@ -11,13 +11,14 @@ from ltxps.app import create_app
 from ltxps.editor import soundtrack
 from ltxps.editor.media import probe
 from ltxps.state import build_state
+from ltxps.system import ffmpeg_path
 from test_api import TOKEN, wait
 
 pytestmark = needs_ffmpeg
 
 
 def silent_video(path, seconds=2.0):
-    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"color=c=blue:s=128x72:d={seconds}:r=12", "-pix_fmt", "yuv420p", str(path)], check=True)
+    subprocess.run([ffmpeg_path(), "-y", "-v", "error", "-f", "lavfi", "-i", f"color=c=blue:s=128x72:d={seconds}:r=12", "-pix_fmt", "yuv420p", str(path)], check=True)
     return path
 
 
