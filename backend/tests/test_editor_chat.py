@@ -178,3 +178,27 @@ def test_chat_endpoint_puts_attached_picture_on_the_video_and_retries_bad_answer
     client.fake.reply = "sure! I would add a cap"
     r2 = client.post("/api/editor/chat", json={"messages": [{"role": "user", "content": "add a cap"}], "project": p}).json()
     assert r2["changed"] is False and r2["understood"] is False and len(client.fake.requests) - n == 2
+
+
+@pytest.mark.parametrize("word,size", [("youtube", (1920, 1080)), ("Shorts", (1080, 1920)), ("instagram reels", (1080, 1920)), ("Instagram-Feed", (1080, 1350)), ("tiktok", (1080, 1920))])
+def test_set_canvas_platform_presets(word, size):
+    out = chat.apply_actions(proj(), [{"do": "set_canvas", "preset": word}], NAMES)
+    c = out["project"].canvas
+    assert (c.width, c.height) == size and c.fps == 30
+
+
+def test_set_canvas_unknown_preset_is_reported_not_crashing():
+    out = chat.apply_actions(proj(), [{"do": "set_canvas", "preset": "myspace"}], NAMES)
+    assert out["project"].canvas.width == 1280
+
+
+def test_soundtrack_and_sound_on_new_video_tasks():
+    out = chat.apply_actions(proj(), [
+        {"do": "task", "name": "soundtrack", "target": "first", "narration": "Welcome", "ambience": "rain", "music": True},
+        {"do": "task", "name": "generate_video", "prompt": "a calm sea", "narration": "Hello sea", "ambience": "bogus"},
+        {"do": "task", "name": "soundtrack", "target": "all", "ambience": "none"},
+    ], NAMES)
+    t = out["tasks"]
+    assert t[0]["name"] == "soundtrack" and t[0]["ambience"] == "rain" and t[0]["music"] and len(t[0]["clips"]) == 1
+    assert t[1]["name"] == "generate_video" and t[1]["narration"] == "Hello sea" and t[1]["ambience"] == "auto"
+    assert len(t) == 2  # the empty soundtrack request was refused

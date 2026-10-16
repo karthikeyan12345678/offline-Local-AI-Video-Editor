@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..catalog import AUX, BASE_ID, MODELS
 from ..db import Asset, new_id
-from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, inpaint, motion, ops
+from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, inpaint, motion, ops, soundtrack
 from ..editor.media import FfmpegError, run_ffmpeg
 from ..editor.project import TEXT_ANIM_IN, TEXT_ANIM_OUT, ExportOptions, Project
 from ..editor.render import AssetRef, PlanError, build_plan
@@ -202,6 +202,29 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         return {"ok": True}
 
     # ------------------------------------------------------------------ generation
+    class SoundBody(BaseModel):
+        """Sound and voice added after a video is made (or to an existing video)."""
+        narration: str = Field("", max_length=3000)
+        voice: str = ""
+        rate: int = Field(0, ge=-10, le=10)
+        ambience: str = "auto"  # auto | none | waves | rain | wind | fire | city | night | space | calm
+        music: bool = False
+        level: float = Field(0.5, ge=0, le=1)
+
+    def add_sound(video: Path, name: str, prompt: str, s: SoundBody, ctx: JobContext | None = None) -> dict[str, Any] | None:
+        """Mixes sound into `video` in place (the silent file is replaced). Returns what was added; never raises, so a sound problem cannot lose the video."""
+        if not (s.narration.strip() or s.ambience != "none" or s.music):
+            return None
+        tmp = video.with_name(video.stem + "_sound.mp4")
+        try:
+            r = soundtrack.build(video, tmp, prompt=prompt, narration=s.narration, voice=s.voice, rate=s.rate, ambience=s.ambience, music=s.music, level=s.level,
+                                 work=state.paths.renders, on_status=(lambda m: ctx.update(0.98, m)) if ctx else None)
+            tmp.replace(video)
+            return r
+        except (ai.AIError, FfmpegError, OSError) as exc:
+            tmp.unlink(missing_ok=True)
+            return {"error": str(exc), "warnings": ["Your video was made but the sound could not be added: " + str(exc)]}
+
     class GenerateBody(BaseModel):
         mode: Literal["t2v", "i2v"] = "t2v"
         prompt: str = Field(min_length=1, max_length=4000)
@@ -216,6 +239,7 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         model_id: str | None = None
         image_asset_id: str | None = None
         unlock_limits: bool = False
+        sound: SoundBody | None = None
 
     def build_request(body: GenerateBody, image_path: Path | None) -> GenRequest:
         st = state.settings.get()
@@ -236,20 +260,25 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
             fps=body.fps or st.output_fps, steps=steps, guidance=guidance, seed=seed, model_id=model_id, image_path=image_path,
         )
 
-    def submit_generation(req: GenRequest, title: str, extra_meta: dict[str, Any]) -> dict[str, Any]:
+    def submit_generation(req: GenRequest, title: str, extra_meta: dict[str, Any], sound: SoundBody | None = None) -> dict[str, Any]:
         def run(ctx: JobContext) -> dict[str, Any]:
             out = state.paths.outputs / f"{time.strftime('%Y%m%d-%H%M%S')}_{new_id()[:6]}_{safe_name(req.prompt)[:30]}.mp4"
             ctx.update(0.01, "Starting")
             info = state.engine.generate(req, out, ctx)
-            ctx.update(0.97, "Adding to your library")
+            sound_info = None
+            if sound is not None:
+                ctx.update(0.95, "Adding sound and voice")
+                sound_info = add_sound(out, title, req.prompt, sound, ctx)
+            ctx.update(0.99, "Adding to your library")
             asset = state.library.register(
                 out, "generated", name=title,
                 meta={
                     "prompt": req.prompt, "negative_prompt": req.negative_prompt, "seed": req.seed, "model": req.model_id,
                     "steps": req.steps, "guidance": req.guidance, "mode": req.mode, "frames": req.frames, **info, **extra_meta,
+                    **({"sound": {k: v for k, v in sound_info.items() if k != "warnings"}} if sound_info else {}),
                 },
             )
-            return {"asset_id": asset.id}
+            return {"asset_id": asset.id, "warnings": (sound_info or {}).get("warnings", [])}
 
         job = state.jobs.submit("generate", title, run, lane="gpu")
         return job.to_json()
@@ -267,7 +296,7 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
                 raise HTTPException(422, "Choose an image from your library as the starting frame.")
             image_path = Path(asset.path)
         req = build_request(body, image_path)
-        return submit_generation(req, title_of(body.prompt), {"image_asset_id": body.image_asset_id} if image_path else {})
+        return submit_generation(req, title_of(body.prompt), {"image_asset_id": body.image_asset_id} if image_path else {}, body.sound)
 
     class ExtendBody(GenerateBody):
         source_asset_id: str
@@ -287,7 +316,7 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
             raise HTTPException(422, str(exc)) from exc
         body.mode = "i2v"
         req = build_request(body, frame)
-        return submit_generation(req, "Continues: " + title_of(body.prompt), {"continues": src.id})
+        return submit_generation(req, "Continues: " + title_of(body.prompt), {"continues": src.id}, body.sound)
 
     # ------------------------------------------------------------------ jobs
     @router.get("/jobs")
@@ -630,6 +659,30 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
             return {"asset_id": made.id}
 
         return ai_job("ai", "Voice-over", run)
+
+    class SoundtrackBody(SoundBody):
+        asset_id: str
+        prompt: str = Field("", max_length=4000)  # what the scene shows; picks the background sound when ambience is "auto"
+
+    @router.get("/editor/ai/ambiences")
+    def ai_ambiences() -> dict[str, Any]:
+        return {"ambiences": [{"id": i, "label": soundtrack.LABELS[i]} for i in [*soundtrack.AMBIENCES, "none"]]}
+
+    @router.post("/editor/ai/soundtrack")
+    def ai_soundtrack(body: SoundtrackBody) -> dict[str, Any]:
+        a = state.db.get_asset(body.asset_id)
+        if a is None or a.kind != "video":
+            raise HTTPException(422, "Choose a video from your library.")
+
+        def run(ctx: JobContext) -> dict[str, Any]:
+            dest = state.paths.renders / f"{new_id()}_sound.mp4"
+            ctx.update(0.1, "Preparing sound")
+            r = soundtrack.build(Path(a.path), dest, prompt=body.prompt or str(a.meta.get("prompt", "")) or a.name, narration=body.narration, voice=body.voice, rate=body.rate,
+                                 ambience=body.ambience, music=body.music, level=body.level, work=state.paths.renders, on_status=lambda m: ctx.update(0.6, m))
+            made = state.library.register(dest, "edit", f"{a.name} · with sound", {"tool": "soundtrack", "from": a.id, **{k: v for k, v in r.items() if k != "warnings"}})
+            return {"asset_id": made.id, "warnings": r["warnings"]}
+
+        return ai_job("ai", f"Sound and voice: {a.name}", run)
 
     # ------------------------------------------------------------------ editor: chat
     class ChatMsg(BaseModel):

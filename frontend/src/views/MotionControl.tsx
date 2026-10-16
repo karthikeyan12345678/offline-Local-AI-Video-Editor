@@ -5,7 +5,7 @@ import { useAI } from "../editor/useAI";
 import { Button, Empty, Field, I } from "../ds";
 import { fmtDuration } from "../lib/format";
 
-/** Motion Control: one character picture + one motion video -> the character performs that motion (Kling 2.6, through the person's own fal.ai key). */
+/** Motion Control: one character picture + one motion video -> the character performs that motion (through the person's own fal.ai key). */
 export default function MotionControl({ goLibrary }: { goLibrary: () => void }) {
   const { assets, refreshAssets, toast } = useApp();
   const ai = useAI();
@@ -46,7 +46,7 @@ export default function MotionControl({ goLibrary }: { goLibrary: () => void }) 
     <main className="page two-col motion">
       <section className="stack gap">
         <h1>Motion control</h1>
-        <p className="muted">Pick a character picture and a video of someone moving. The character performs the same movement. Powered by Kling 2.6 on fal.ai (your own key; about a minute or two per clip).</p>
+        <p className="muted">Pick a character picture and a video of someone moving. The character performs the same movement. Runs on fal.ai with your own key; about a minute or two per clip.</p>
 
         <div className="card stack gap" aria-labelledby="mc-key">
           <h2 id="mc-key">1 · Connect</h2>

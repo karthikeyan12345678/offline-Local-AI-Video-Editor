@@ -5,6 +5,7 @@ import { Button, Icon, I } from "../ds";
 import { uid } from "../lib/format";
 import { layout, newText, upgradeProject } from "./model";
 import { useAI } from "./useAI";
+import MediaPicker from "./MediaPicker";
 import type { Asset, Project, TextOverlay } from "../lib/types";
 
 interface Bubble { id: string; role: "user" | "assistant"; text: string; images?: string[]; notes?: string[]; error?: boolean; result?: "changed" | "same" | "later"; focus?: number | null; undone?: boolean }
@@ -72,10 +73,10 @@ function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => 
   );
 }
 
-export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset, onUndo, onSeek }: {
-  project: Project; commit: (fn: (p: Project) => Project, key?: string) => void; asset: (id: string) => Asset | undefined; onClose: () => void; onOpenAsset: (a: Asset) => void; onUndo: () => void; onSeek: (t: number) => void;
+export default function ChatPanel({ project, commit, asset, onOpenAsset, onUndo, onSeek }: {
+  project: Project; commit: (fn: (p: Project) => Project, key?: string) => void; asset: (id: string) => Asset | undefined; onOpenAsset: (a: Asset) => void; onUndo: () => void; onSeek: (t: number) => void;
 }) {
-  const { refreshAssets, toast } = useApp();
+  const { refreshAssets, toast, assets } = useApp();
   const ai = useAI();
   const [status, setStatus] = useState<ChatStatus | null>(null);
   const storeKey = `vk_chat_${project.id}`;
@@ -115,7 +116,7 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
       const long = 512, w = project.canvas.width >= project.canvas.height;
       const ratio = project.canvas.width / project.canvas.height;
       const short = Math.max(256, Math.round((long / Math.max(ratio, 1 / ratio)) / 32) * 32);
-      const body = { mode: t.use_reference && refId ? "i2v" as const : "t2v" as const, prompt: t.prompt ?? "", negative_prompt: "", width: w ? long : short, height: w ? short : long, frames: 49, seed: -1, unlock_limits: false, ...(t.use_reference && refId ? { image_asset_id: refId } : {}) };
+      const body = { mode: t.use_reference && refId ? "i2v" as const : "t2v" as const, prompt: t.prompt ?? "", negative_prompt: "", width: w ? long : short, height: w ? short : long, frames: 49, seed: -1, unlock_limits: false, ...(t.narration || (t.ambience && t.ambience !== "none") || t.music ? { sound: { narration: t.narration ?? "", voice: "", rate: 0, ambience: t.ambience ?? "auto", music: !!t.music, level: 0.5 } } : {}), ...(t.use_reference && refId ? { image_asset_id: refId } : {}) };
       const job = await api.generate(body);
       const r = await ai.wait(job);
       await refreshAssets();
@@ -153,6 +154,19 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
         drawings: p.drawings.filter((d) => !(t.drawing_ids ?? []).includes(d.id)),
       }));
       return `Done. The marked place was repainted with AI${cut ? ` for the first ${len.toFixed(0)} seconds of the clip (the rest is a separate clip)` : ""}. Use Undo if you do not like it.`;
+    }
+    if (t.name === "soundtrack") {
+      let n = 0;
+      for (const clip of clips) {
+        const a = asset(clip.asset_id);
+        if (!a || a.kind !== "video") continue;
+        const r = await ai.wait(await api.soundtrack({ asset_id: a.id, prompt: a.name, narration: t.narration ?? "", ambience: t.ambience ?? "auto", music: !!t.music, level: 0.5 }));
+        await refreshAssets();
+        const made = r.asset_id as string | undefined;
+        if (made) { commit((p) => ({ ...p, clips: p.clips.map((c) => c.id === clip.id ? { ...c, asset_id: made } : c) })); n++; }
+        const w = r.warnings as string[] | undefined; if (w?.length) toast(w[0], true);
+      }
+      return n ? `Done. Sound and voice were added to ${n} clip${n > 1 ? "s" : ""}. Use Undo if you do not like it.` : "I could only add sound to video clips.";
     }
     if (t.name === "voiceover") { const voice = (await api.voices().catch(() => ({ voices: [] as string[] }))).voices[0] ?? "";
       const r = await ai.speak(t.text ?? "", voice, 1); await refreshAssets(); return r.asset_id ? "The voice-over is in your Library — drag it to the sound track." : "Voice-over created."; }
@@ -223,26 +237,34 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
     } finally { setBusy(""); setWaiting(null); }
   };
 
+  const [logOpen, setLogOpen] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const showLog = logOpen;
+  useEffect(() => { if (busy || setup) setLogOpen(true); }, [busy, setup]);
+
+  const upload = async (files: FileList) => { await attach(files); };
+
   return (
-    <aside className="chat" aria-label="Chat with the AI editor">
-      <header className="chat-head row between center-v">
-        <b><Icon d={I.sparkle} /> Chat editor</b>
-        <span className="row gap">
-          <Button variant="ghost" small icon={I.trash} label="Delete this chat" disabled={bubbles.length === 0} onClick={() => { if (confirm("Delete this whole chat? Your video is not changed.")) { setBubbles([]); try { localStorage.removeItem(storeKey); } catch { /* ignore */ } } }} />
-          <Button variant="ghost" small onClick={() => setSetup((s) => !s)}>AI settings</Button>
-          <Button variant="ghost" small icon={I.x} label="Close chat" onClick={onClose} />
-        </span>
-      </header>
-      {setup ? <Setup status={status} onReady={() => { setSetup(false); check(); }} /> : (
-        <>
-          <div className="chat-log" role="log" aria-live="polite">
-            {bubbles.length === 0 && (
+    <section className="fx-prompt" aria-label="Chat with the AI editor">
+      {showLog && (
+        <div className="fx-log" role="region" aria-label="Conversation">
+          <header className="chat-head row between center-v">
+            <b><Icon d={I.sparkle} /> Chat editor</b>
+            <span className="row gap">
+              <Button variant="ghost" small icon={I.trash} label="Delete this chat" disabled={bubbles.length === 0} onClick={() => { if (confirm("Delete this whole chat? Your video is not changed.")) { setBubbles([]); try { localStorage.removeItem(storeKey); } catch { /* ignore */ } } }} />
+              <Button variant="ghost" small onClick={() => setSetup((s) => !s)}>AI settings</Button>
+              <Button variant="ghost" small icon={I.x} label="Hide the conversation" onClick={() => { setLogOpen(false); setSetup(false); }} />
+            </span>
+          </header>
+          {setup ? <Setup status={status} onReady={() => { setSetup(false); check(); }} /> : (
+            <div className="chat-log" role="log" aria-live="polite">
+              {bubbles.length === 0 && (
               <div className="chat-hello stack gap">
                 <p>Tell me what you want, and I will edit the video. You can also add reference pictures (PNG or JPG) — I can match their look or turn them into a video.</p>
                 <div className="row wrap gap">{IDEAS.map((i) => <button key={i} type="button" className="chip" onClick={() => send(i)}>{i}</button>)}</div>
               </div>
             )}
-            {bubbles.map((b) => (
+              {bubbles.map((b) => (
               <div key={b.id} className={`bubble bubble--${b.role}${b.error ? " bubble--error" : ""}`}>
                 {b.images && <div className="row gap wrap">{b.images.map((id) => <img key={id} className="bubble-img" alt="Reference" src={mediaUrl(id, "thumb")} />)}</div>}
                 <p>{b.text}</p>
@@ -253,23 +275,29 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
                 {b.result === "changed" && <div className="row gap">{!b.undone && <Button small variant="secondary" icon={I.undo} onClick={() => { onUndo(); setBubbles((x) => x.map((y) => y.id === b.id ? { ...y, undone: true } : y)); }}>Undo this change</Button>}{b.undone && <span className="text-xs">Undone.</span>}{b.focus != null && <Button small variant="ghost" onClick={() => onSeek(b.focus as number)}>Show me</Button>}</div>}
               </div>
             ))}
-            {busy && waiting && <Working label={waiting.label} pics={waiting.pics} />}
-            <div ref={end} />
-          </div>
-          {pics.length > 0 && (
-            <div className="row gap chat-pics">
-              {pics.map((p) => <span key={p.id} className="chat-pic"><img alt={p.name} src={mediaUrl(p.id, "thumb")} /><button type="button" aria-label={`Remove ${p.name}`} onClick={() => setPics((x) => x.filter((y) => y.id !== p.id))}>×</button></span>)}
+              {busy && waiting && <Working label={waiting.label} pics={waiting.pics} />}
+              <div ref={end} />
             </div>
           )}
-          <form className="chat-input row gap" onSubmit={(e) => { e.preventDefault(); send(); }}>
-            <input ref={file} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => attach(e.target.files)} />
-            <Button variant="ghost" icon={I.upload} label="Add reference pictures (PNG or JPG)" onClick={() => file.current?.click()} disabled={pics.length >= 4} />
-            <textarea className="textarea grow" rows={2} aria-label="Message" placeholder="e.g. make it vertical, add a fade, put “Hello” at the start…" value={text} maxLength={4000}
-              onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
-            <Button type="submit" busy={!!busy} disabled={!text.trim() && !pics.length}>Send</Button>
-          </form>
-        </>
+        </div>
       )}
-    </aside>
+      {picker && <MediaPicker assets={assets} mode="reference" projectName={project.name} onClose={() => setPicker(false)} onUpload={upload} onPick={(a) => { setPics((x) => x.some((y) => y.id === a.id) ? x : [...x, a].slice(0, 4)); setPicker(false); }} />}
+      <form className="fx-bar" onSubmit={(e) => { e.preventDefault(); send(); }}>
+        {pics.length > 0 && (
+          <div className="row gap chat-pics">
+            {pics.map((p) => <span key={p.id} className="chat-pic"><img alt={p.name} src={mediaUrl(p.id, "thumb")} /><button type="button" aria-label={`Remove ${p.name}`} onClick={() => setPics((x) => x.filter((y) => y.id !== p.id))}>×</button></span>)}
+          </div>
+        )}
+        <textarea className="fx-text" rows={2} aria-label="Message" placeholder="Describe how to edit this video…" value={text} maxLength={4000}
+          onFocus={() => setLogOpen(true)} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
+        <div className="fx-row">
+          <button type="button" className="fx-round" aria-label="Add reference pictures" title="Add reference pictures" disabled={pics.length >= 4} onClick={() => setPicker((v) => !v)}>+</button>
+          {bubbles.length > 0 && !logOpen && <button type="button" className="gchip" onClick={() => setLogOpen(true)}><span>Show conversation</span><small>{bubbles.length} messages</small></button>}
+          <span className="grow" />
+          <button type="button" className="gchip" onClick={() => { setLogOpen(true); setSetup(true); }} title="Choose which AI edits your video"><span><Icon d={I.sparkle} size={14} /> {status?.ready ? (status.name || status.provider || "AI helper") : "Set up AI"}</span><small>{status?.ready ? (status.model || "ready") : "needed to chat"}</small></button>
+          <button type="submit" className="fx-send" aria-label="Send" disabled={(!text.trim() && !pics.length) || !!busy}>{busy ? <span className="spinner" /> : "→"}</button>
+        </div>
+      </form>
+    </section>
   );
 }

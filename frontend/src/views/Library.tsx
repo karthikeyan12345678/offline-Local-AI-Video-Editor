@@ -23,6 +23,16 @@ export default function Library({ onEdit }: { onEdit: (a: Asset) => void }) {
   const [uploading, setUploading] = useState(0);
   const [drag, setDrag] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [selecting, setSelecting] = useState(false);
+  const toggle = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const deletePicked = async () => {
+    if (!picked.size || !confirm(`Delete ${picked.size} item${picked.size > 1 ? "s" : ""} from the library? The files are removed from disk.`)) return;
+    let failed = 0;
+    for (const id of picked) { try { await api.deleteAsset(id); } catch { failed++; } }
+    setPicked(new Set()); setSelecting(false); await refreshAssets();
+    toast(failed ? `${failed} item${failed > 1 ? "s" : ""} could not be deleted.` : "Deleted.", failed > 0);
+  };
   useEffect(() => { api.tools().then(setTools).catch(() => {}); }, []);
 
   const items = useMemo(() => assets.filter((a) => filter === "all" || a.kind === filter), [assets, filter]);
@@ -42,18 +52,28 @@ export default function Library({ onEdit }: { onEdit: (a: Asset) => void }) {
         <h1>Library</h1>
         <div className="row gap wrap">
           <Tabs label="Filter" value={filter} onChange={setFilter} options={[{ id: "all", label: "All" }, { id: "video", label: "Videos" }, { id: "image", label: "Pictures" }, { id: "audio", label: "Audio" }]} />
+          <Button variant="secondary" active={selecting} onClick={() => { setSelecting(!selecting); setPicked(new Set()); }}>{selecting ? "Cancel select" : "Select"}</Button>
           <Button icon={I.upload} busy={uploading > 0} onClick={() => fileRef.current?.click()}>Add files</Button>
           <input ref={fileRef} type="file" hidden multiple accept="video/*,image/*,audio/*,.mkv,.webm,.mov,.gif" onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }} />
         </div>
       </div>
+      {selecting && (
+        <div className="selbar row gap wrap" role="toolbar" aria-label="Selection">
+          <span className="text-sm w-medium">{picked.size} selected</span>
+          <Button variant="secondary" small onClick={() => setPicked(new Set(items.map((a) => a.id)))}>Select all shown</Button>
+          <Button variant="secondary" small disabled={!picked.size} onClick={() => setPicked(new Set())}>Clear</Button>
+          <Button small icon={I.trash} disabled={!picked.size} onClick={deletePicked}>Delete selected</Button>
+        </div>
+      )}
       {drag && <div className="dropzone" role="status">Drop files to add them</div>}
       {items.length === 0 ? (
-        <Empty icon={I.folder} title={assets.length ? "Nothing in this filter" : "Your library is empty"}>Generated videos appear here. You can also drag videos, pictures and music into this window.</Empty>
+        <Empty icon={I.folder} title={assets.length ? "Nothing in this filter" : "Your library is empty"}>Generated videos appear here. Drag videos, pictures and music anywhere into this window, or press Add files.</Empty>
       ) : (
         <ul className="grid-assets" aria-label="Library items">
           {items.map((a) => (
             <li key={a.id}>
-              <button type="button" className="tile" onClick={() => setSel(a)} aria-label={`Open ${a.name}`}>
+              <button type="button" className={`tile${picked.has(a.id) ? " tile--picked" : ""}`} onClick={() => (selecting ? toggle(a.id) : setSel(a))} aria-label={selecting ? `Select ${a.name}` : `Open ${a.name}`} aria-pressed={selecting ? picked.has(a.id) : undefined}>
+                {selecting && <span className={`pick-tick${picked.has(a.id) ? " pick-tick--on" : ""}`} aria-hidden="true">{picked.has(a.id) ? "✓" : ""}</span>}
                 <Thumb asset={a} />
                 <span className="stack tile-meta">
                   <span className="text-sm w-medium truncate">{a.name}</span>

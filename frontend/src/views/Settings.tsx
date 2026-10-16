@@ -6,10 +6,10 @@ import UpdatesCard, { ModulesCard } from "./Updates";
 import SmartInstall from "./SmartInstall";
 
 function LookCard() {
-  const [look, setLook] = useState<string>(() => document.documentElement.dataset.look ?? "classic");
-  const pick = (v: "classic" | "kling") => {
+  const [look, setLook] = useState<string>(() => document.documentElement.dataset.look === "studio" ? "studio" : "classic");
+  const pick = (v: "classic" | "studio") => {
     setLook(v);
-    if (v === "kling") document.documentElement.dataset.look = "kling"; else delete document.documentElement.dataset.look;
+    if (v === "studio") document.documentElement.dataset.look = "studio"; else delete document.documentElement.dataset.look;
     try { localStorage.setItem("vk_look", v); } catch { /* ignore */ }
   };
   return (
@@ -17,7 +17,7 @@ function LookCard() {
       <h2 id="look">Look</h2>
       <div className="row gap wrap">
         <Button variant={look === "classic" ? "primary" : "secondary"} small onClick={() => pick("classic")}>Classic (light)</Button>
-        <Button variant={look === "kling" ? "primary" : "secondary"} small onClick={() => pick("kling")}><span className="look-swatch" />Kling Studio (dark, green)</Button>
+        <Button variant={look === "studio" ? "primary" : "secondary"} small onClick={() => pick("studio")}><span className="look-swatch" />Studio (dark, default)</Button>
       </div>
     </section>
   );

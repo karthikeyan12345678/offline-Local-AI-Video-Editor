@@ -25,6 +25,13 @@ from .project import TEXT_ANIM_IN, TEXT_ANIM_OUT, Project
 
 RATIOS = {"16:9": (1280, 720), "9:16": (720, 1280), "1:1": (1080, 1080), "4:3": (1024, 768), "21:9": (1260, 540), "4:5": (864, 1080), "3:4": (810, 1080)}
 
+# Platform presets the chat can apply ("make it for Shorts", "Instagram reel", "YouTube video"): width, height, fps.
+PLATFORMS: dict[str, tuple[int, int, int]] = {
+    "youtube": (1920, 1080, 30), "shorts": (1080, 1920, 30), "reels": (1080, 1920, 30), "tiktok": (1080, 1920, 30),
+    "instagram_feed": (1080, 1350, 30), "instagram": (1080, 1350, 30), "square": (1080, 1080, 30),
+}
+PLATFORM_ALIASES = {"yt": "youtube", "youtube_shorts": "shorts", "short": "shorts", "reel": "reels", "instagram_reels": "reels", "instagram_reel": "reels", "insta_reels": "reels", "feed": "instagram_feed"}
+
 TEXT_STYLES: dict[str, dict[str, Any]] = {
     "clean": {"font": "montserrat", "bold": True, "color": "#FFFFFF", "shadow": 0.3, "box": False},
     "subtitle": {"font": "poppins", "bold": False, "color": "#FFFFFF", "box": True, "box_opacity": 0.6, "size": 5, "y": 0.88},
@@ -98,7 +105,7 @@ Library files you may refer to: {', '.join(library[:40]) or 'none'}
 {('The person attached picture(s): ' + ', '.join('"' + n + '"' for n in (attached or [])) + '. You can see them. To put an attached picture ON the video use add_image with image="attached" (or its name).') if has_images else ''}
 
 ACTIONS (target = "all" | "first" | "last" | clip number such as 2 | list of numbers | part of a file name)
-{{"do":"set_canvas","ratio":"16:9|9:16|1:1|4:3|21:9|4:5","fps":24}}
+{{"do":"set_canvas","ratio":"16:9|9:16|1:1|4:3|21:9|4:5","preset":"youtube|shorts|reels|instagram_feed|tiktok|square","fps":24}}
 {{"do":"set_clip","target":T,"set":{{ speed 0.25-4, volume 0-2, muted, fade_in, fade_out, zoom 1-4, fit, rotate, flip_h, flip_v, blur 0-30, sharpen 0-5, vignette, denoise, reverse, preset (look), motion, motion_strength 0-1, audio_fx, pitch -12..12, bass, treble, adjust:{{brightness,contrast,saturation -100..100,gamma 0.3-3,hue}} }}}}
 {{"do":"trim_clip","target":T,"start":seconds,"end":seconds}}   (positions inside the source file)
 {{"do":"delete_clip","target":T}}   {{"do":"move_clip","target":T,"to":number}}
@@ -114,7 +121,10 @@ ACTIONS (target = "all" | "first" | "last" | clip number such as 2 | list of num
 Long jobs (the app runs them with progress bars):
 {{"do":"task","name":"captions","target":T,"language":"en|ta|hi|..."}}   {{"do":"task","name":"follow_person","target":T}}   {{"do":"task","name":"cut_silence","target":T}}
 {{"do":"task","name":"scene_split","target":T}}   {{"do":"task","name":"auto_enhance","target":T}}   {{"do":"task","name":"beat_cut","every":1|2|4}}   {{"do":"task","name":"voiceover","text":"words to speak"}}
-{{"do":"task","name":"generate_video","prompt":"<rich visual description: subject, setting, camera movement, light, mood, style; English; 1-3 sentences>","use_reference":true|false}}
+{{"do":"task","name":"generate_video","prompt":"<rich visual description: subject, setting, camera movement, light, mood, style; English; 1-3 sentences>","use_reference":true|false,"narration":"optional words a voice speaks over it","ambience":"auto|none|waves|rain|wind|fire|city|night|space|calm","music":true|false}}
+   narration / ambience / music make the NEW video come with a voice and background sound. Leave them out for a silent video; ambience "auto" picks a sound that fits the scene.
+{{"do":"task","name":"soundtrack","target":T,"narration":"words to speak (optional)","ambience":"auto|none|waves|rain|wind|fire|city|night|space|calm","music":true|false}}
+   adds a voice and/or background sound to existing clips ("add sound", "add a voice saying ...", "add rain sound", "add background music").
    use_reference=true makes the attached picture the first frame (picture-to-video). Without a picture write a full text-to-video prompt.
 {{"do":"task","name":"ai_edit","target":T,"region":"drawing"|"head"|"face","prompt":"<what the marked place should look like AFTER the edit>","mode":"patch"|"track"}}
    CHANGES THE VIDEO PICTURE ITSELF with AI (repaints the frames). Use it for: remove / hide / delete / replace / change something that is IN the video (a hill, a person, a sign, a car),
@@ -242,8 +252,16 @@ class Applier:
         fn(a)
 
     def a_set_canvas(self, a):
+        preset = str(a.get("preset") or "").strip().lower().replace(" ", "_").replace("-", "_")
+        preset = PLATFORM_ALIASES.get(preset, preset)
+
         def m():
-            if a.get("ratio") in RATIOS:
+            if preset:
+                if preset not in PLATFORMS:
+                    raise ValueError("unknown preset " + str(a.get("preset")))
+                w, h, f = PLATFORMS[preset]
+                self.p["canvas"].update(width=w, height=h, fps=f)
+            elif a.get("ratio") in RATIOS:
                 w, h = RATIOS[a["ratio"]]
                 self.p["canvas"].update(width=w, height=h)
             elif "ratio" in a:
@@ -251,7 +269,7 @@ class Applier:
             if "fps" in a:
                 self.p["canvas"]["fps"] = int(max(1, min(60, float(a["fps"]))))
         self.validated(m)
-        self.applied.append("Changed the video size" + (f" to {a['ratio']}" if a.get("ratio") else ""))
+        self.applied.append("Changed the video size" + (f" for {preset}" if preset else f" to {a['ratio']}" if a.get("ratio") else ""))
 
     def a_set_clip(self, a):
         idx = self.pick(a)
@@ -575,11 +593,11 @@ class Applier:
         name = str(a.get("name", ""))
         if name in ("remove_object", "erase", "inpaint"):
             name = "ai_edit"
-        allowed = {"captions", "follow_person", "cut_silence", "scene_split", "auto_enhance", "beat_cut", "voiceover", "generate_video", "ai_edit"}
+        allowed = {"captions", "follow_person", "cut_silence", "scene_split", "auto_enhance", "beat_cut", "voiceover", "generate_video", "ai_edit", "soundtrack"}
         if name not in allowed:
             raise ValueError(f"unknown task '{name}'")
         task: dict[str, Any] = {"name": name}
-        if name in ("captions", "follow_person", "cut_silence", "scene_split", "auto_enhance"):
+        if name in ("captions", "follow_person", "cut_silence", "scene_split", "auto_enhance", "soundtrack"):
             idx = self.pick(a)
             task["clips"] = [self.p["clips"][i]["id"] for i in idx]
         if name == "captions":
@@ -590,6 +608,14 @@ class Applier:
             task["text"] = str(a.get("text", ""))[:2000]
             if not task["text"].strip():
                 raise ValueError("nothing to say")
+        if name in ("generate_video", "soundtrack"):
+            from .soundtrack import AMBIENCES
+            amb = str(a.get("ambience") or ("auto" if name == "soundtrack" else "none")).strip().lower()
+            task["narration"] = str(a.get("narration") or "")[:2000]
+            task["ambience"] = amb if amb in (*AMBIENCES, "auto", "none") else "auto"
+            task["music"] = bool(a.get("music"))
+            if name == "soundtrack" and not (task["narration"].strip() or task["ambience"] != "none" or task["music"]):
+                raise ValueError("nothing to add: say what voice or sound you want")
         if name == "generate_video":
             task["prompt"] = str(a.get("prompt", ""))[:1500]
             task["use_reference"] = bool(a.get("use_reference"))
@@ -599,7 +625,7 @@ class Applier:
             task.update(self._ai_edit_task(a))
         self.tasks.append(task)
         self.applied.append({"ai_edit": "Will repaint the video with AI (" + str(task.get("prompt", ""))[:40] + ")", "captions": "Will add captions", "follow_person": "Will track the person", "cut_silence": "Will cut the silences", "scene_split": "Will split at scene changes",
-                             "auto_enhance": "Will improve the colours", "beat_cut": "Will cut to the beat", "voiceover": "Will create the voice-over", "generate_video": "Will generate a new AI video"}[name])
+                             "auto_enhance": "Will improve the colours", "beat_cut": "Will cut to the beat", "voiceover": "Will create the voice-over", "generate_video": "Will generate a new AI video" + (" with sound" if (task.get("narration") or task.get("ambience") not in (None, "none") or task.get("music")) else ""), "soundtrack": "Will add sound and voice"}[name])
 
 
 ALIASES = {"remove_object": "ai_edit", "erase": "ai_edit", "inpaint": "ai_edit", "remove": "ai_edit", "add_picture": "add_image", "add_sticker": "add_image", "overlay_image": "add_image", "add_overlay": "add_image", "place_image": "add_image", "add_drawings": "add_drawing",

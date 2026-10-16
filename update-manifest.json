@@ -1,6 +1,6 @@
 {
-  "app_version": "1.2.6",
-  "notes": "1.2.6: object editor download fixed",
+  "app_version": "1.2.8",
+  "notes": "1.2.8: Flow-style editor and prompt bar, media picker, history, sound and voice for generated videos",
   "download_url": "https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest",
   "modules": [
     {

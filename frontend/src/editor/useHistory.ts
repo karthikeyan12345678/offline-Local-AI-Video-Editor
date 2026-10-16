@@ -18,5 +18,7 @@ export function useHistory<T>(initial: T) {
   const undo = useCallback(() => { last.current = null; setState((s) => (s.past.length ? { past: s.past.slice(0, -1), present: s.past[s.past.length - 1], future: [s.present, ...s.future] } : s)); }, []);
   const redo = useCallback(() => { last.current = null; setState((s) => (s.future.length ? { past: [...s.past, s.present], present: s.future[0], future: s.future.slice(1) } : s)); }, []);
   const reset = useCallback((v: T) => { last.current = null; setState({ past: [], present: v, future: [] }); }, []);
-  return { value: state.present, commit, undo, redo, reset, canUndo: state.past.length > 0, canRedo: state.future.length > 0 };
+  /** Jump to any earlier or later step: 0 is the oldest. */
+  const jump = useCallback((i: number) => { last.current = null; setState((s) => { const all = [...s.past, s.present, ...s.future]; if (i < 0 || i >= all.length || i === s.past.length) return s; return { past: all.slice(0, i), present: all[i], future: all.slice(i + 1) }; }); }, []);
+  return { value: state.present, steps: [...state.past, state.present, ...state.future], at: state.past.length, jump, commit, undo, redo, reset, canUndo: state.past.length > 0, canRedo: state.future.length > 0 };
 }

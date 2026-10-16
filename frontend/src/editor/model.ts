@@ -9,6 +9,17 @@ export const CANVAS_PRESETS: { label: string; width: number; height: number }[] 
   { label: "Vertical 9:16 · 720×1280", width: 720, height: 1280 }, { label: "Small 16:9 · 854×480", width: 854, height: 480 },
 ];
 
+// Platform formats shown in the editor's Format menu and the export dialog.
+export type PlatformPreset = { id: string; label: string; hint: string; width: number; height: number; fps: number; maxSeconds?: number };
+export const PLATFORM_PRESETS: PlatformPreset[] = [
+  { id: "youtube", label: "YouTube 16:9", hint: "1920×1080 · 30 fps", width: 1920, height: 1080, fps: 30 },
+  { id: "shorts", label: "YouTube Shorts 9:16", hint: "1080×1920 · up to 3 min", width: 1080, height: 1920, fps: 30, maxSeconds: 180 },
+  { id: "reels", label: "Instagram Reels 9:16", hint: "1080×1920 · up to 90 s", width: 1080, height: 1920, fps: 30, maxSeconds: 90 },
+  { id: "insta-feed", label: "Instagram Feed 4:5", hint: "1080×1350", width: 1080, height: 1350, fps: 30, maxSeconds: 60 },
+  { id: "square", label: "Square 1:1", hint: "1080×1080", width: 1080, height: 1080, fps: 30 },
+];
+export const presetFor = (w: number, h: number) => PLATFORM_PRESETS.find((p) => p.width === w && p.height === h);
+
 export const newProject = (): Project => ({
   id: uid() + uid(), name: "Untitled project", canvas: { width: 1280, height: 720, fps: 24, background: "#000000" }, clips: [], texts: [], audio: [], drawings: [], images: [], master_volume: 1,
   duck_music: false, duck_amount: 0.6, master_normalize: false,

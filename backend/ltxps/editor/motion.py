@@ -84,7 +84,7 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
         poll: float = 4.0) -> dict[str, Any]:
     say = on_progress or (lambda p, m: None)
     if not key:
-        raise MotionError("Add your fal.ai key first (Motion Control page → Connect). It is used only to send these two files to Kling.")
+        raise MotionError("Add your fal.ai key first (Motion Control page → Connect). It is used only to send these two files to the cloud service.")
     if orientation not in ("image", "video"):
         orientation = "video"
     limit = 10.0 if orientation == "image" else 30.0
@@ -104,7 +104,7 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
         if r.status_code in (401, 403):
             raise MotionError("fal.ai did not accept the key, or the account has no credit left. Check the key and your balance on fal.ai.")
         if r.status_code == 422:
-            raise MotionError("Kling refused the files: " + _detail(r))
+            raise MotionError("The service refused the files: " + _detail(r))
         if r.status_code >= 400:
             raise MotionError(f"fal.ai answered with an error ({r.status_code}): {_detail(r)}")
         sub = r.json()
@@ -132,9 +132,9 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
             if state == "COMPLETED":
                 break
             if state in ("FAILED", "ERROR"):
-                raise MotionError("Kling could not make this video: " + str(info.get("error") or info.get("detail") or "unknown reason")[:200])
+                raise MotionError("The service could not make this video: " + str(info.get("error") or info.get("detail") or "unknown reason")[:200])
             pos = info.get("queue_position")
-            say(min(0.9, 0.1 + (time.time() - started) / 400), "Waiting in line" + (f" (position {pos})" if pos is not None else "") if state == "IN_QUEUE" else "Kling is animating your picture")
+            say(min(0.9, 0.1 + (time.time() - started) / 400), "Waiting in line" + (f" (position {pos})" if pos is not None else "") if state == "IN_QUEUE" else "Animating your picture")
             if time.time() - started > WAIT_SECONDS:
                 raise MotionError("It is taking too long (over 20 minutes). Try again later, or use the standard mode.")
             time.sleep(poll)

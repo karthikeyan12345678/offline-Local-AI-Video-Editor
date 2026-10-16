@@ -5,6 +5,8 @@ import "../../shared/design/components.css";
 import "./app.css";
 import App from "./App";
 
-try { const l = localStorage.getItem("vk_look"); if (l === "kling") document.documentElement.dataset.look = "kling"; } catch { /* storage blocked: classic look */ }
+// The dark "Studio" look is the default; people who chose Classic in Settings keep it.
+document.documentElement.dataset.look = "studio";
+try { if (localStorage.getItem("vk_look") === "classic") delete document.documentElement.dataset.look; } catch { /* storage blocked: Studio look */ }
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

@@ -50,9 +50,10 @@ async function call<T>(method: string, path: string, body?: unknown, form?: Form
 
 export const mediaUrl = (id: string, what: "file" | "thumb" | "download" = "file") => `/api/assets/${id}/${what}?t=${encodeURIComponent(token)}`;
 
+export interface SoundOptions { narration: string; voice: string; rate: number; ambience: string; music: boolean; level: number }
 export interface GenerateBody {
   mode: "t2v" | "i2v"; prompt: string; negative_prompt: string; width: number; height: number; frames: number;
-  steps?: number; guidance?: number; seed: number; model_id?: string; image_asset_id?: string; unlock_limits: boolean;
+  steps?: number; guidance?: number; seed: number; model_id?: string; image_asset_id?: string; unlock_limits: boolean; sound?: SoundOptions;
 }
 
 export const fontSampleUrl = (font: string, text: string, bold = false, height = 44) =>
@@ -62,7 +63,7 @@ export const fontFileUrl = (font: string, bold = false) => `/api/editor/fonts/${
 export interface AIRequest { asset_id: string; trim_in?: number; trim_out?: number; options?: Record<string, unknown> }
 
 export interface ChatMsg { role: "user" | "assistant"; content: string; image_ids?: string[] }
-export interface ChatTask { name: string; clips?: string[]; language?: string; every?: number; text?: string; prompt?: string; use_reference?: boolean; mode?: "patch" | "track"; part?: "" | "head" | "face"; shapes?: unknown[]; drawing_ids?: string[] }
+export interface ChatTask { name: string; clips?: string[]; language?: string; every?: number; text?: string; prompt?: string; use_reference?: boolean; mode?: "patch" | "track"; part?: "" | "head" | "face"; shapes?: unknown[]; drawing_ids?: string[]; narration?: string; ambience?: string; music?: boolean }
 export interface InpaintRequest extends AIRequest { prompt: string; mode: "patch" | "track"; part: "" | "head" | "face"; shapes: unknown[] }
 export interface ChatResult { reply: string; project: Project; applied: string[]; skipped: string[]; tasks: ChatTask[]; changed: boolean; focus?: number | null; understood?: boolean }
 export interface ChatStatus { ready: boolean; provider?: string; name?: string; model?: string; why?: string }
@@ -102,6 +103,8 @@ export const api = {
   inpaint: (b: InpaintRequest) => call<Job>("POST", "/editor/ai/inpaint", b),
   enhance: (b: AIRequest) => call<Adjust>("POST", "/editor/ai/enhance", b),
   voices: () => call<{ voices: string[] }>("GET", "/editor/ai/voices"),
+  ambiences: () => call<{ ambiences: { id: string; label: string }[] }>("GET", "/editor/ai/ambiences"),
+  soundtrack: (b: Partial<SoundOptions> & { asset_id: string; prompt?: string }) => call<Job>("POST", "/editor/ai/soundtrack", b),
   speak: (text: string, voice: string, rate: number) => call<Job>("POST", "/editor/ai/speak", { text, voice, rate }),
   system: (refresh = false) => call<SystemInfo>("GET", `/system${refresh ? "?refresh=true" : ""}`),
   settings: () => call<Settings>("GET", "/settings"),

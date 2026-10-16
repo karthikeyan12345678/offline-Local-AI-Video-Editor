@@ -116,3 +116,18 @@ def test_chat_accepts_a_picture_clip():
     ctx = {"assets": {"a1": AssetRef(Path("x.jpg"), "image", 0.0, False, 1086, 1448)}}
     r = apply_actions(p, [{"do": "ai_edit", "region": "drawing", "prompt": "snow covered rocky mountain"}], {"a1": "photo"}, ctx)
     assert r["tasks"] and not r["skipped"] and r["tasks"][0]["clips"] == ["c1"]
+
+
+def test_new_diffusers_without_pipeline_vae_slicing_still_loads():
+    class Vae:
+        called = False
+
+        def enable_slicing(self):
+            Vae.called = True
+
+    class Pipe:  # like diffusers 0.3x: no enable_vae_slicing on the pipeline itself
+        vae = Vae()
+
+    inpaint._vae_slicing(Pipe())
+    assert Vae.called
+    inpaint._vae_slicing(object())  # nothing available: no crash

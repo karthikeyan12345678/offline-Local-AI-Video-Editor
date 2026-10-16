@@ -4,8 +4,9 @@ import { useApp } from "../lib/store";
 import { Button, Dialog, Field } from "../ds";
 import { JobCard } from "../views/shared";
 import type { ExportOptions, Project } from "../lib/types";
+import { presetFor } from "./model";
 
-export default function ExportDialog({ project, onClose }: { project: Project; onClose: () => void }) {
+export default function ExportDialog({ project, seconds = 0, onClose }: { project: Project; seconds?: number; onClose: () => void }) {
   const { jobs, watchJob, toast } = useApp();
   const [opts, setOpts] = useState<ExportOptions>({ format: "mp4", quality: "medium", include_audio: true, preview: false, fps: project.canvas.fps, width: project.canvas.width, height: project.canvas.height });
   const [jobId, setJobId] = useState<string | null>(null);
@@ -24,8 +25,13 @@ export default function ExportDialog({ project, onClose }: { project: Project; o
     } catch (e) { toast((e as Error).message, true); } finally { setBusy(false); }
   };
 
+  const plat = presetFor(project.canvas.width, project.canvas.height);
+  const tooLong = plat?.maxSeconds && seconds > plat.maxSeconds ? `${plat.label} allows about ${plat.maxSeconds} seconds; this video is ${Math.round(seconds)} s.` : "";
+
   return (
     <Dialog title="Export video" onClose={onClose} footer={<><Button variant="ghost" onClick={onClose}>{outId ? "Close" : "Cancel"}</Button>{!outId && <Button icon="M12 4v12M7 11l5 5 5-5M5 20h14" busy={busy} disabled={active || project.clips.length === 0} onClick={start}>Export</Button>}</>}>
+      {plat && <p className="text-sm export-for">Exporting for <b>{plat.label}</b> ({project.canvas.width}×{project.canvas.height}). Change it from the Format menu in the editor.</p>}
+      {tooLong && <p className="text-sm warn" role="alert">{tooLong}</p>}
       <Field label="Format" htmlFor="fmt">
         <select id="fmt" className="select" value={opts.format} onChange={(e) => setOpts({ ...opts, format: e.target.value as ExportOptions["format"] })}>
           <option value="mp4">MP4 — plays everywhere</option><option value="webm">WebM — for websites</option><option value="gif">GIF — animated picture, no sound</option>

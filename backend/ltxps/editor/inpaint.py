@@ -114,6 +114,18 @@ _pipe: Any = None
 _pipe_dir = ""
 
 
+def _vae_slicing(pipe: Any) -> None:
+    """Newer diffusers moved this to the VAE and removed it from the pipeline; older ones only have it on the pipeline."""
+    for target, name in ((getattr(pipe, "vae", None), "enable_slicing"), (pipe, "enable_vae_slicing")):
+        fn = getattr(target, name, None)
+        if callable(fn):
+            try:
+                fn()
+                return
+            except Exception:  # noqa: BLE001 - slicing only saves memory; never worth failing for
+                continue
+
+
 def load_pipe(model_dir: str | Path):
     global _pipe, _pipe_dir
     if _pipe is not None and _pipe_dir == str(model_dir):
@@ -131,8 +143,11 @@ def load_pipe(model_dir: str | Path):
         raise InpaintError("The object-edit model could not be loaded. Open the Models page and install “Object editor (AI inpainting)” again.") from exc
     if cuda:
         pipe.enable_model_cpu_offload()
-        pipe.enable_attention_slicing()
-        pipe.enable_vae_slicing()
+        try:
+            pipe.enable_attention_slicing()
+        except Exception:  # noqa: BLE001
+            pass
+        _vae_slicing(pipe)
     pipe.set_progress_bar_config(disable=True)
     _pipe, _pipe_dir = pipe, str(model_dir)
     return pipe

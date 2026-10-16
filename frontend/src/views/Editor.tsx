@@ -2,15 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, mediaUrl } from "../lib/api";
 import { clamp, fmtTime, uid } from "../lib/format";
 import { useApp } from "../lib/store";
-import { Button, Dialog, Icon, I } from "../ds";
+import { Button, Dialog, Icon, I, Tabs } from "../ds";
 import Preview from "../editor/Preview";
 import Timeline from "../editor/Timeline";
 import Inspector, { type Selection } from "../editor/Inspector";
 import ExportDialog from "../editor/ExportDialog";
+import FormatMenu from "../editor/FormatMenu";
 import { layout, newAudio, newClip, newDrawing, newProject, newText, splitAt, upgradeProject } from "../editor/model";
 import { COLORS, TOOLS, type PenSettings } from "../editor/Draw";
 import { useHistory } from "../editor/useHistory";
 import ChatPanel from "../editor/ChatPanel";
+import MediaPicker from "../editor/MediaPicker";
 import { Thumb, JobCard } from "./shared";
 import type { Asset, Project, Shape } from "../lib/types";
 
@@ -36,13 +38,16 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
   const [previewJob, setPreviewJob] = useState<string | null>(null);
   const [bin, setBin] = useState<"all" | "video" | "image" | "audio">("all");
   const dirty = useRef(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [tab, setTab] = useState<"settings" | "media" | "history">("settings");
+  const [picking, setPicking] = useState(false);
   const [tourOff, setTourOff] = useState(tourDone);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(0);
   const [drawing, setDrawing] = useState(false);
   const [pen, setPen] = useState<PenSettings>({ tool: "pen", color: "#FF3B30", width: 0.8, filled: false });
 
+  useEffect(() => { if (sel) setTab("settings"); }, [sel]);
   const { total } = layout(project, asset);
   useEffect(() => { if (!visible) setPlaying(false); }, [visible]);
 
@@ -174,66 +179,47 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
     if (added.length) toast(`Added ${added.length} file${added.length > 1 ? "s" : ""} to the timeline.`);
   };
 
+  useEffect(() => {
+    const on = (e: Event) => { if (visible) void dropFiles((e as CustomEvent<File[]>).detail); };
+    window.addEventListener("vk-drop-files", on);
+    return () => window.removeEventListener("vk-drop-files", on);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pickFiles = useRef<HTMLInputElement>(null);
   const binItems = assets.filter((a) => bin === "all" || a.kind === bin);
   const missing = project.clips.filter((c) => !asset(c.asset_id)).length + project.audio.filter((c) => !asset(c.asset_id)).length;
   const selectedTextClip = sel?.type === "clip";
 
   return (
-    <div className="editor"
+    <div className="editor fx"
       onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
       onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); setDragging(false); void dropFiles(e.dataTransfer.files); } }}>
       {(dragging || uploading > 0) && <div className="drop-veil" role="status">{uploading > 0 ? `Adding your files… ${uploading} left` : "Drop videos, pictures or music here"}</div>}
-      <div className="ed-bar row gap wrap" role="toolbar" aria-label="Editor tools">
+      <header className="fx-top" role="toolbar" aria-label="Project">
+        <input className="fx-title" aria-label="Project name" value={project.name} placeholder="Untitled project" maxLength={80} onChange={(e) => commit((p) => ({ ...p, name: e.target.value }), "name")} />
+        <FormatMenu project={project} commit={h.commit} />
+        <span className="text-xs fx-save" aria-live="polite">{saveState === "saving" ? "Saving…" : saveState === "error" ? "Couldn’t save — check disk space" : "All changes saved"}</span>
+        <span className="grow" />
         <Button variant="ghost" small icon={I.undo} label="Undo (Ctrl+Z)" disabled={!h.canUndo} onClick={h.undo} />
         <Button variant="ghost" small icon={I.redo} label="Redo (Ctrl+Y)" disabled={!h.canRedo} onClick={h.redo} />
-        <span className="vr" />
-        <Button variant="ghost" small icon={I.scissors} onClick={split} label="Split at playhead (S)">Split</Button>
-        <Button variant="ghost" small icon={I.dup} onClick={duplicate} disabled={!sel}>Duplicate</Button>
-        <Button variant="ghost" small icon={I.trash} onClick={remove} disabled={!sel}>Delete</Button>
-        <Button variant="ghost" small icon={I.text} onClick={addText}>Add text</Button>
-        <Button variant="secondary" small icon={I.sparkle} active={chatOpen} onClick={() => setChatOpen((c) => !c)}>AI chat</Button>
-        <Button variant="ghost" small icon={I.wand} active={drawing} onClick={() => { setDrawing((d) => !d); setPlaying(false); }}>Draw</Button>
-        <span className="vr" />
-        <Button variant="ghost" small icon={I.zoomOut} label="Zoom timeline out" onClick={() => setZoom((z) => clamp(z / 1.5, 8, 300))} />
-        <Button variant="ghost" small icon={I.zoomIn} label="Zoom timeline in" onClick={() => setZoom((z) => clamp(z * 1.5, 8, 300))} />
-        <span className="grow" />
-        <span className="text-xs" aria-live="polite">{saveState === "saving" ? "Saving…" : saveState === "error" ? "Couldn’t save — check disk space" : "All changes saved"}</span>
-        <Button variant="secondary" small icon={I.folder} onClick={openProjects}>Projects</Button>
+        <Button variant="ghost" small icon={I.folder} onClick={openProjects}>Projects</Button>
+        <Button variant="ghost" small active={panelOpen} aria-pressed={panelOpen} onClick={() => setPanelOpen((v) => !v)}>{panelOpen ? "Hide panel" : "Show panel"}</Button>
         <Button variant="secondary" small icon={I.wand} onClick={renderPreview} busy={!!pj} disabled={project.clips.length === 0}>Render preview</Button>
-        <Button small icon={I.download} onClick={() => setExporting(true)} disabled={project.clips.length === 0}>Export</Button>
-      </div>
+        <Button className="fx-done" small icon={I.download} onClick={() => setExporting(true)} disabled={project.clips.length === 0}>Export</Button>
+      </header>
 
       {missing > 0 && <p className="banner" role="alert"><Icon d={I.alert} size={14} /> {missing} item{missing > 1 ? "s" : ""} on the timeline use files that were deleted from the Library. Remove them before exporting.</p>}
 
-      <div className="ed-main">
-        <aside className="ed-side stack gap" aria-label="Media">
-          <div className="row between"><h3>Media</h3>
-            <select className="select select--sm" aria-label="Filter media" value={bin} onChange={(e) => setBin(e.target.value as typeof bin)}><option value="all">All</option><option value="video">Videos</option><option value="image">Pictures</option><option value="audio">Audio</option></select>
-          </div>
-          {binItems.length === 0 ? <p className="text-sm">Nothing here yet. Generate a video or add files in the Library.</p> : (
-            <ul className="bin">
-              {binItems.map((a) => (
-                <li key={a.id}>
-                  <button type="button" className="bin-item" onClick={() => addAsset(a)} title={`Add “${a.name}” to the timeline`}>
-                    <Thumb asset={a} />
-                    <span className="stack"><span className="text-sm truncate">{a.name}</span><span className="text-xs">{a.kind}{a.duration ? ` · ${a.duration.toFixed(1)} s` : ""}</span></span>
-                    <Icon d={I.plus} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
-
-        <section className="ed-center stack gap" aria-label="Preview">
+      <div className={`fx-main${panelOpen ? "" : " fx-main--wide"}`}>
+        <section className="fx-center" aria-label="Preview">
           {project.clips.length === 0 && !tourOff && (
             <div className="card tour stack gap" role="note">
               <b>New here? Four easy steps</b>
               <ol className="text-sm">
-                <li><b>Add</b> a video, picture or song: drag it into this window, or press the <b>+</b> next to a file on the left.</li>
-                <li><b>Change</b> it: click a block on the timeline at the bottom, then use the settings on the right.</li>
-                <li><b>Ask the AI</b>: press <b>AI chat</b> and say what you want, like “make it vertical” or “add the title Hello”.</li>
+                <li><b>Add</b> a video, picture or song: drag it into this window, or press the <b>+</b> on the timeline.</li>
+                <li><b>Change</b> it: click a block on the timeline, then use the Settings panel on the right.</li>
+                <li><b>Ask the AI</b>: type in the box at the bottom and say what you want, like “make it vertical” or “add the title Hello”.</li>
                 <li><b>Save it</b>: press <b>Export</b>. Your work is saved automatically all the time.</li>
               </ol>
               <div className="row"><Button small variant="secondary" onClick={() => { setTourOff(true); try { localStorage.setItem(TOUR, "1"); } catch { /* ignore */ } }}>Got it, hide this</Button></div>
@@ -258,27 +244,83 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
                 </div>
               )}
               <Preview project={project} asset={asset} time={time} playing={playing} onTick={onTick} onEnd={onEnd} pen={drawing ? pen : null} editingId={drawing && sel?.type === "draw" ? sel.id : null} onShape={addShape} />
-              <div className="row gap center-v">
-                <Button variant="ghost" icon={I.skipBack} label="Back to start" onClick={() => { setPlaying(false); setTime(0); }} />
-                <Button icon={playing ? I.pause : I.play} label={playing ? "Pause (Space)" : "Play (Space)"} onClick={togglePlay} disabled={total <= 0} />
-                <span className="mono text-sm" aria-live="off">{fmtTime(time)} / {fmtTime(total)}</span>
-              </div>
             </>
           )}
           {pj && <JobCard job={pj} />}
+          <div className="fx-transport" role="group" aria-label="Playback">
+            <span className="mono text-sm" aria-live="off">{fmtTime(time)}</span>
+            <Button variant="ghost" icon={I.skipBack} label="Back to start" onClick={() => { setPlaying(false); setTime(0); }} />
+            <button type="button" className="fx-play" aria-label={playing ? "Pause (Space)" : "Play (Space)"} disabled={total <= 0} onClick={togglePlay}><Icon d={playing ? I.pause : I.play} size={22} /></button>
+            <span className="mono text-sm" aria-live="off">{fmtTime(total)}</span>
+          </div>
+          <div className="fx-tools" role="toolbar" aria-label="Editor tools">
+            <Button variant="ghost" small icon={I.scissors} onClick={split} label="Split at playhead (S)">Split</Button>
+            <Button variant="ghost" small icon={I.dup} onClick={duplicate} disabled={!sel}>Duplicate</Button>
+            <Button variant="ghost" small icon={I.trash} onClick={remove} disabled={!sel}>Delete</Button>
+            <span className="vr" />
+            <Button variant="ghost" small icon={I.text} onClick={addText}>Add text</Button>
+            <Button variant="ghost" small icon={I.wand} active={drawing} onClick={() => { setDrawing((d) => !d); setPlaying(false); }}>Draw</Button>
+            <Button variant="ghost" small icon={I.plus} onClick={() => setPicking(true)}>Add media</Button>
+            <span className="vr" />
+            <Button variant="ghost" small icon={I.zoomOut} label="Zoom timeline out" onClick={() => setZoom((z) => clamp(z / 1.5, 8, 300))} />
+            <Button variant="ghost" small icon={I.zoomIn} label="Zoom timeline in" onClick={() => setZoom((z) => clamp(z * 1.5, 8, 300))} />
+          </div>
         </section>
 
-        <aside className="ed-side ed-inspector" aria-label="Settings for the selection">
-          <Inspector project={project} sel={sel} asset={asset} commit={mutate} onDelete={remove} time={time} />
-          {selectedTextClip && <p className="hint">Tip: Press S to split at the playhead, drag the ends of a clip to trim, drag a clip sideways to reorder.</p>}
-        </aside>
+        {panelOpen && (
+          <aside className="fx-panel" aria-label="Side panel">
+            <Tabs label="Panel" value={tab} onChange={setTab} options={[{ id: "settings", label: "Settings" }, { id: "media", label: "Media" }, { id: "history", label: "History" }]} />
+            {tab === "settings" && (
+              <div className="ed-inspector stack gap">
+                <Inspector project={project} sel={sel} asset={asset} commit={mutate} onDelete={remove} time={time} />
+                {selectedTextClip && <p className="hint">Tip: Press S to split at the playhead, drag the ends of a clip to trim, drag a clip sideways to reorder.</p>}
+              </div>
+            )}
+            {tab === "media" && (
+              <div className="stack gap">
+                <input ref={pickFiles} type="file" hidden multiple accept="video/*,image/*,audio/*,.mkv,.webm,.mov,.gif" onChange={(e) => { if (e.target.files) void dropFiles(e.target.files); e.target.value = ""; }} />
+                <Button small variant="secondary" icon={I.upload} onClick={() => pickFiles.current?.click()}>Add files</Button>
+                <div className="row between"><h3>Media</h3>
+                  <select className="select select--sm" aria-label="Filter media" value={bin} onChange={(e) => setBin(e.target.value as typeof bin)}><option value="all">All</option><option value="video">Videos</option><option value="image">Pictures</option><option value="audio">Audio</option></select>
+                </div>
+                {binItems.length === 0 ? <p className="text-sm">Nothing here yet. Generate a video or add files in the Library.</p> : (
+                  <ul className="bin">
+              {binItems.map((a) => (
+                <li key={a.id}>
+                  <button type="button" className="bin-item" onClick={() => addAsset(a)} title={`Add “${a.name}” to the timeline`}>
+                    <Thumb asset={a} />
+                    <span className="stack"><span className="text-sm truncate">{a.name}</span><span className="text-xs">{a.kind}{a.duration ? ` · ${a.duration.toFixed(1)} s` : ""}</span></span>
+                    <Icon d={I.plus} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+                )}
+              </div>
+            )}
+            {tab === "history" && (
+              <div className="stack gap">
+                <h3>Edit history</h3>
+                <p className="text-sm">Every change you make is a step. Click one to go back to it, or forward again.</p>
+                <ol className="hist" reversed>
+                  {[...h.steps].map((st, i) => ({ st, i })).reverse().map(({ st, i }) => (
+                    <li key={i}><button type="button" className={`hist-item${i === h.at ? " on" : ""}`} aria-current={i === h.at ? "step" : undefined} onClick={() => h.jump(i)}>
+                      <b>{i === 0 ? "Start" : `Step ${i}`}</b><span className="text-xs">{st.clips.length} clip{st.clips.length === 1 ? "" : "s"} · {st.texts.length} text · {st.audio.length} sound · {st.canvas.width}×{st.canvas.height}</span></button></li>
+                  ))}
+                </ol>
+                <Button variant="secondary" small icon={I.folder} onClick={openProjects}>Saved drafts…</Button>
+              </div>
+            )}
+          </aside>
+        )}
       </div>
 
-      <Timeline project={project} asset={asset} time={time} onSeek={(t) => { setTime(t); }} sel={sel} onSelect={setSel} commit={mutate} zoom={zoom} total={total} />
+      <Timeline project={project} asset={asset} time={time} onSeek={(t) => { setTime(t); }} sel={sel} onSelect={setSel} commit={mutate} zoom={zoom} total={total} onAdd={() => setPicking(true)} />
 
-      {chatOpen && <ChatPanel project={project} commit={mutate} asset={asset} onClose={() => setChatOpen(false)} onOpenAsset={addAsset} onUndo={h.undo} onSeek={(t) => setTime(t)} />}
+      <ChatPanel project={project} commit={mutate} asset={asset} onOpenAsset={addAsset} onUndo={h.undo} onSeek={(t) => setTime(t)} />
+      {picking && <MediaPicker assets={assets} mode="timeline" projectName={project.name} onClose={() => setPicking(false)} onUpload={(f) => void dropFiles(f)} onPick={(a) => { addAsset(a); toast(`Added “${a.name}” to the timeline.`); }} />}
 
-      {exporting && <ExportDialog project={project} onClose={() => setExporting(false)} />}
+      {exporting && <ExportDialog seconds={total} project={project} onClose={() => setExporting(false)} />}
       {projects && (
         <Dialog title="Projects and drafts" onClose={() => setProjects(null)} footer={<Button onClick={startNew} icon={I.plus}>New project</Button>}>
           <p className="text-sm">Every project is saved by itself as a draft. Open one to carry on, or make a copy before you try something risky.</p>

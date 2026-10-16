@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppProvider, useApp } from "./lib/store";
 import { Icon, I } from "./ds";
 import Generate from "./views/Generate";
@@ -10,7 +10,7 @@ import Setup from "./views/Setup";
 import { JobCard } from "./views/shared";
 import { useUpdateCheck } from "./views/Updates";
 import type { Asset } from "./lib/types";
-import { token } from "./lib/api";
+import { api, token } from "./lib/api";
 
 type View = "generate" | "library" | "editor" | "motion" | "settings";
 const NAV: { id: View; label: string; icon: string }[] = [
@@ -18,6 +18,8 @@ const NAV: { id: View; label: string; icon: string }[] = [
   { id: "editor", label: "Editor", icon: I.film }, { id: "motion", label: "Motion control", icon: I.wand },
   { id: "settings", label: "Settings", icon: I.gear },
 ];
+
+function useRefValue<T>(v: T) { const r = useRef(v); r.current = v; return r; }
 
 function Shell() {
   const { ready, connectionLost, jobs, toasts, needsSetup, system } = useApp();
@@ -27,6 +29,31 @@ function Shell() {
   const [queue, setQueue] = useState<Asset[]>([]);
   const upd = useUpdateCheck(ready);
   const hasUpdate = !!upd.info && (upd.info.app_update || upd.info.modules_update);
+
+  const { refreshAssets, toast } = useApp();
+  const [overDrop, setOverDrop] = useState(false);
+  const viewRef = useRefValue(view);
+
+  // Dropping files ANYWHERE in the window adds them (a view's own handler runs first; this catches every other spot, so the app never tries to open the file itself).
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) => !!e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files");
+    const over = (e: DragEvent) => { if (hasFiles(e)) { e.preventDefault(); setOverDrop(true); } };
+    const leave = (e: DragEvent) => { if (!e.relatedTarget) setOverDrop(false); };
+    const drop = async (e: DragEvent) => {
+      setOverDrop(false);
+      if (!hasFiles(e)) return;
+      if (e.defaultPrevented) return; // a page (Library, Editor) already took the files
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (!files.length) return;
+      if (viewRef.current === "editor") { window.dispatchEvent(new CustomEvent("vk-drop-files", { detail: files })); return; }
+      for (const f of files) { try { await api.upload(f); } catch (err) { toast(`${f.name}: ${(err as Error).message}`, true); } }
+      await refreshAssets();
+      toast(`Added ${files.length} file${files.length > 1 ? "s" : ""} to your Library.`);
+    };
+    window.addEventListener("dragover", over); window.addEventListener("dragleave", leave); window.addEventListener("drop", drop);
+    return () => { window.removeEventListener("dragover", over); window.removeEventListener("dragleave", leave); window.removeEventListener("drop", drop); };
+  }, [refreshAssets, toast, viewRef]);
 
   const go = (v: View) => { setView(v); setVisited((s) => new Set(s).add(v)); };
   const shownJobs = jobs.filter((j) => j.status === "queued" || j.status === "running").slice(0, 4);
@@ -57,6 +84,7 @@ function Shell() {
         <div hidden={view !== "motion"}>{visited.has("motion") && <MotionControl goLibrary={() => go("library")} />}</div>
         <div hidden={view !== "settings"}>{visited.has("settings") && <Settings />}</div>
       </div>
+      {overDrop && <div className="drop-veil" role="status">Drop to add to your Library</div>}
       <div className="toasts" aria-live="polite">{toasts.map((t) => <div key={t.id} className={`toast${t.error ? " toast--error" : ""}`} role={t.error ? "alert" : "status"}>{t.text}</div>)}</div>
     </div>
   );

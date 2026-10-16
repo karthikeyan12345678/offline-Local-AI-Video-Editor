@@ -8,7 +8,7 @@ import type { Selection } from "./Inspector";
 type Commit = (fn: (p: Project) => Project, key?: string) => void;
 interface Props {
   project: Project; asset: (id: string) => Asset | undefined; time: number; onSeek: (t: number) => void;
-  sel: Selection; onSelect: (s: Selection) => void; commit: Commit; zoom: number; total: number;
+  sel: Selection; onSelect: (s: Selection) => void; commit: Commit; zoom: number; total: number; onAdd?: () => void;
 }
 
 const LABEL_W = 84;
@@ -24,7 +24,7 @@ function drag(e: RPE, move: (dx: number) => void, done?: (dx: number, moved: boo
   window.addEventListener("pointerup", up);
 }
 
-export default function Timeline({ project, asset, time, onSeek, sel, onSelect, commit, zoom, total }: Props) {
+export default function Timeline({ project, asset, time, onSeek, sel, onSelect, commit, zoom, total, onAdd }: Props) {
   const { items } = layout(project, asset);
   const [ghost, setGhost] = useState<{ id: string; dx: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -137,6 +137,7 @@ export default function Timeline({ project, asset, time, onSeek, sel, onSelect, 
         <div className="tl-row">
           <div className="tl-label text-xs w-medium">Video</div>
           <div className="tl-lane tl-lane--video" style={{ width }} onPointerDown={(e) => { if (e.target === e.currentTarget) { onSelect(null); seekFrom(e); } }}>
+            {onAdd && <button type="button" className="tl-add" aria-label="Add media to the timeline" title="Add media" style={{ left: items.reduce((m, it) => Math.max(m, (it.start + it.dur) * zoom), 0) + 12 }} onPointerDown={(e) => e.stopPropagation()} onClick={onAdd}>+</button>}
             {items.map(({ clip, start, dur }, i) => {
               const a = asset(clip.asset_id);
               const w = Math.max(8, dur * zoom);

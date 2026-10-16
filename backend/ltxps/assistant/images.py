@@ -201,6 +201,17 @@ def _horde(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: int | Non
 _local_pipe: Any = None
 
 
+def _vae_slicing(pipe: Any) -> None:
+    for target, name in ((getattr(pipe, "vae", None), "enable_slicing"), (pipe, "enable_vae_slicing")):
+        fn = getattr(target, name, None)
+        if callable(fn):
+            try:
+                fn()
+                return
+            except Exception:  # noqa: BLE001
+                continue
+
+
 def local_available() -> tuple[bool, str]:
     try:
         import diffusers  # noqa: F401
@@ -234,8 +245,11 @@ def _local(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: int | Non
             raise ImageError("The local image model could not be loaded. If this is the first use it needs a one-time download: check your internet connection and free disk space (about 3 GB).") from exc
         if cuda:
             pipe.enable_model_cpu_offload()  # keeps peak memory low enough for a 4 GB card
-            pipe.enable_attention_slicing()
-            pipe.enable_vae_slicing()
+            try:
+                pipe.enable_attention_slicing()
+            except Exception:  # noqa: BLE001
+                pass
+            _vae_slicing(pipe)
         _local_pipe = pipe
     w = min(768, max(256, size[0] // 64 * 64 // (2 if size[0] > 768 else 1)))
     h = min(768, max(256, size[1] // 64 * 64 // (2 if size[1] > 768 else 1)))

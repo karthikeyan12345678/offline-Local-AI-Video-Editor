@@ -80,3 +80,18 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 
 ## 1.2.6
 - Fixed the "Access was refused (401)" error when downloading "Object editor: AI inpainting": it now uses the open Stable Diffusion inpainting repository. Press "Resume download" again after updating.
+
+## 1.2.7
+- **Object editor (AI inpainting)** no longer crashes on newer `diffusers` (`enable_vae_slicing` error); the same fix covers the local picture maker.
+- **Studio look** is now the default (dark, green accent, Google Sans type). "Classic (light)" is still in Settings → Look. The Kling name is gone from the app.
+- **Library**: Select → pick several (or Select all) → Delete selected. Deleted files can be uploaded again.
+- **Drag and drop** works anywhere in the window, plus an "Add files" button in the Library and the editor's Media panel. If dropping still does nothing, the app is probably running as administrator (Windows blocks drops into elevated windows): untick "Run as administrator" in the exe's Properties → Compatibility.
+- **Make a video** redesigned: result stage on top, prompt bar at the bottom, shape chips (16:9, 9:16, 1:1, 4:5), live timer, progress bar, time left and stage flow. When Generate is greyed out the reason is written next to it (models still downloading with %, or prompt missing).
+- **Formats**: editor Format menu for YouTube 16:9, YouTube Shorts, Instagram Reels, Instagram Feed 4:5 and Square, "Fill the frame", length warnings at export, and chat commands ("make it for Reels").
+
+## 1.2.8
+- **Editor redesigned in the Google Flow style** (nothing removed): project title and format menu on top, big centred preview with a round play button, a floating tool strip (Split, Duplicate, Delete, Add text, Draw, Add media, zoom), a full-width thumbnail timeline with a **+** at its end, and a right panel with **Settings / Media / History** tabs (Hide panel in the top bar).
+- **AI chat is now a prompt bar** at the bottom ("Describe how to edit this video…"): **+** attaches reference pictures from a Flow-style media picker (All, Videos, Images, Voices, Sound & music, Uploads, search, sort, preview, Upload media), the chip shows which AI is connected, the round arrow sends. The conversation opens above the bar; Undo, Delete chat and AI settings are still there.
+- **History tab**: every edit is a step; click one to jump back or forward.
+- **Sound and voice while generating**: on Make video, "Sound on" adds a voice-over (the voices installed in Windows), a background sound that matches your prompt (sea, rain, wind, fire, city, night, space or calm music) and optional soft music. Also in chat: "make a video of … with a voice saying …" and "add rain sound to this clip".
+  The background sounds are synthesised on this PC (not AI-generated recordings); the voice is the Windows voice, so quality depends on the voices you have installed (Settings → Time & language → Speech).
