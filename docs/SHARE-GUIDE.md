@@ -13,32 +13,32 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 2. Copy these lines, one block at a time, pressing Enter after each:
    ```powershell
    git add -A
-   git commit -m "VK Editor 1.2.2: drawing, AI chat editor, auto setup, updates"
+   git commit -m "VK Editor 1.2.3: drawing, AI chat editor, auto setup, updates"
    git push
    ```
    (If `assistant-ui\package-lock.json` still exists, delete it first — it breaks the Windows build.)
 3. Go to your repository page → **Actions** tab. A yellow circle means "the robot is building your app". Wait until it turns into a green tick (about 15–25 minutes).
 
 ### Make the download page (the "Release")
-1. In PowerShell type these two lines (the `v1.2.2` must match the version in `electron/package.json`):
+1. In PowerShell type these two lines (the `v1.2.3` must match the version in `electron/package.json`):
    ```powershell
-   git tag v1.2.2
-   git push origin v1.2.2
+   git tag v1.2.3
+   git push origin v1.2.3
    ```
-2. Wait for the robot again (Actions tab). When it is green, open your repository → right side → **Releases**. You will see **v1.2.2** with the files:
-   - `VKEditor-Setup-1.2.2.exe` — normal installer
-   - `VKEditor-1.2.2-portable.exe` — runs from any folder, nothing to install
+2. Wait for the robot again (Actions tab). When it is green, open your repository → right side → **Releases**. You will see **v1.2.3** with the files:
+   - `VKEditor-Setup-1.2.3.exe` — normal installer
+   - `VKEditor-1.2.3-portable.exe` — runs from any folder, nothing to install
    - `AIAssistant-…exe` — the separate AI Assistant app
 3. **Share this one link** with anyone: `https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest`
    (The repository must be **Public** for strangers to download. In a private repository only people you invite can.)
 
 ### When you make a new version
-1. Change the version number (example `1.2.2`) in `electron/package.json`, `frontend/package.json`, `backend/ltxps/__init__.py`.
+1. Change the version number (example `1.2.3`) in `electron/package.json`, `frontend/package.json`, `backend/ltxps/__init__.py`.
 2. Refresh the "what is new" list so users get the update button (it reads the version you set in step 1):
    ```powershell
-   python scripts\make_update_manifest.py "What is new in 1.2.2"
+   python scripts\make_update_manifest.py "What is new in 1.2.3"
    ```
-3. `git add -A`, `git commit -m "1.2.2"`, `git push`, then `git tag v1.2.2` and `git push origin v1.2.2`.
+3. `git add -A`, `git commit -m "1.2.3"`, `git push`, then `git tag v1.2.3` and `git push origin v1.2.3`.
 
 ---
 

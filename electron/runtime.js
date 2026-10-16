@@ -176,8 +176,27 @@ function gpuUpgradeWanted(info, gpu) {
   if (!info || !IS_WIN || info.torch !== "cpu") return false;
   const g = gpu === undefined ? detectGpu() : gpu;
   if (!g) return false;
-  return !info.gpuTried || info.gpuTried.driver !== g.driver || info.gpuTried.name !== g.name;
+  return !info.gpuTried || info.gpuTried.v !== GPU_CHECK_VERSION || info.gpuTried.driver !== g.driver || info.gpuTried.name !== g.name;
 }
+
+/** Bump when the graphics-card test changes, so a card wrongly judged unusable by an older test is tried again once. */
+const GPU_CHECK_VERSION = 2;
+
+/** Runs inside the new PyTorch, on its own: it must not depend on the app files being present. */
+const SELFCHECK_PY = [
+  "import json",
+  "out={'cuda':False,'arch_ok':False}",
+  "try:",
+  " import torch",
+  " out['torch']=torch.__version__",
+  " if torch.cuda.is_available():",
+  "  out['cuda']=True; out['gpu']=torch.cuda.get_device_name(0)",
+  "  x=torch.ones(8,device='cuda',dtype=torch.float16)*2",
+  "  out['arch_ok']=bool(float(x.sum().item())==16.0)",
+  "except Exception as e:",
+  " out['error']=type(e).__name__+': '+str(e)[:200]",
+  "print(json.dumps(out))",
+].join("\n");
 
 function readyInfo(runtimeDir) {
   try { return JSON.parse(fs.readFileSync(path.join(runtimeDir, "ready.json"), "utf8")); } catch (_) { return null; }
@@ -269,6 +288,7 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report: raw
   }
   const candidates = needTorch && !chosen ? torchCandidates(gpu) : [];
   let lastError = "";
+  let tried = 0;
   const torchArgs = (tag) => ["-m", "pip", "install", "--upgrade", "--force-reinstall", "--no-warn-script-location", "--progress-bar", "raw", "torch", "--index-url", `https://download.pytorch.org/whl/${tag}`];
   for (const tag of candidates) {
     check();
@@ -278,13 +298,15 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report: raw
       await run(py, torchArgs(tag), { onLine: pipLine(tracker, report, label) });
     } catch (e) { lastError = e.message; continue; }
     report("Testing the graphics card", null, "");
-    const r = spawnSync(py, ["-m", "ltxps.selfcheck"], { encoding: "utf8", windowsHide: true, timeout: 180000 });
+    const r = spawnSync(py, ["-c", SELFCHECK_PY], { encoding: "utf8", windowsHide: true, timeout: 180000 });
     let res = null;
     try { res = JSON.parse(String(r.stdout).trim().split(/\r?\n/).pop()); } catch (_) { /* fall through */ }
+    report("Testing the graphics card", null, `${tag}: ${String(r.stdout || "").trim().slice(-200)} ${String(r.stderr || "").trim().slice(-200)}`);
     if (tag === "cpu" || (res && res.cuda && res.arch_ok)) { chosen = tag; break; }
     lastError = `PyTorch ${tag} cannot run on this graphics card${res && res.error ? ` (${res.error})` : ""}.`;
+    if (++tried >= 2) break; // two honest tries are enough; every build is a 2 GB download
   }
-  if (gpu && needTorch) gpuTried = { driver: gpu.driver || 0, name: gpu.name, ok: !!chosen && chosen !== "cpu", error: chosen && chosen !== "cpu" ? "" : lastError.slice(0, 300), when: new Date().toISOString() };
+  if (gpu && needTorch) gpuTried = { v: GPU_CHECK_VERSION, driver: gpu.driver || 0, name: gpu.name, ok: !!chosen && chosen !== "cpu", error: chosen && chosen !== "cpu" ? "" : lastError.slice(0, 300), when: new Date().toISOString() };
   if (!chosen) {
     if (upgradeOnly) { chosen = "cpu"; report("Your graphics card could not be switched on", null, "The processor-only PyTorch stays installed. You can try again from Help → Turn on graphics card."); }
     else if (gpu) { chosen = "cpu"; const label = "Downloading PyTorch (processor only)"; report(label, null, "No GPU build worked; falling back to the processor."); await run(py, torchArgs("cpu"), { onLine: pipLine(tracker, report, label) }); }

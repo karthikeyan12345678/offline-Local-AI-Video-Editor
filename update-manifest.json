@@ -1,6 +1,6 @@
 {
-  "app_version": "1.2.2",
-  "notes": "Fixed setup: PyTorch is saved as soon as it is installed and never downloaded again after a failed step.",
+  "app_version": "1.2.3",
+  "notes": "Fixed first-time setup on the portable app (files vanishing from the temp folder) and the graphics card test.",
   "download_url": "https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest",
   "modules": [
     {

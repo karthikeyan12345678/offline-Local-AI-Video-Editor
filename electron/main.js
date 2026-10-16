@@ -11,11 +11,11 @@ const TITLE = product.title;
 
 // ---------------------------------------------------------------- locations
 const resourcesDir = app.isPackaged ? process.resourcesPath : path.join(__dirname, "..");
-const backendDir = app.isPackaged ? path.join(resourcesDir, "backend") : path.join(__dirname, "..", "backend");
-const uiDir = uiDirFor(product, { packaged: app.isPackaged, resourcesDir, root: path.join(__dirname, "..") });
+let backendDir = app.isPackaged ? path.join(resourcesDir, "backend") : path.join(__dirname, "..", "backend");
+let uiDir = uiDirFor(product, { packaged: app.isPackaged, resourcesDir, root: path.join(__dirname, "..") });
 // The video studio also carries the assistant as a second window.
-const assistantUiDir = product.id === "studio" ? (app.isPackaged ? path.join(resourcesDir, "assistant-ui") : path.join(__dirname, "..", "assistant-ui", "dist")) : undefined;
-const requirementsFile = path.join(backendDir, product.requirements);
+let assistantUiDir = product.id === "studio" ? (app.isPackaged ? path.join(resourcesDir, "assistant-ui") : path.join(__dirname, "..", "assistant-ui", "dist")) : undefined;
+let requirementsFile = path.join(backendDir, product.requirements);
 
 /** Portable build: everything (settings, models, videos, runtime) lives next to the .exe so the folder can be copied to another PC. */
 function resolveDataDir() {
@@ -26,8 +26,35 @@ function resolveDataDir() {
 }
 const dataDir = resolveDataDir();
 const logFile = path.join(dataDir, "logs", "shell.log");
+let lastSetupLog = { stage: "", at: 0 };
+/** Setup reports progress hundreds of times a second; keep the log readable (a line when the step changes, then every 5 s). */
+function logSetup(stage, detail) {
+  const now = Date.now(), step = String(stage).replace(/[\d.,]+\s*(KB|MB|GB)( of [\d.,]+ (KB|MB|GB))?.*$/, "").trim();
+  if (step !== lastSetupLog.stage || now - lastSetupLog.at > 5000) { lastSetupLog = { stage: step, at: now }; log(`setup: ${stage} ${detail || ""}`); }
+}
 function log(line) {
   try { fs.mkdirSync(path.dirname(logFile), { recursive: true }); fs.appendFileSync(logFile, `${new Date().toISOString()} ${line}\n`); } catch (_) { /* logging must never crash the app */ }
+}
+
+/**
+ * The portable .exe unpacks itself into a temporary folder that Windows (or a cleaner) can remove while the first
+ * setup is still running — then Python cannot find the app any more. So the portable build keeps its own copy of
+ * the app files next to the data, and everything uses that copy.
+ */
+function mirrorResources() {
+  if (!app.isPackaged || !process.env.PORTABLE_EXECUTABLE_DIR) return;
+  const dest = path.join(dataDir, "app");
+  try {
+    fs.rmSync(dest, { recursive: true, force: true });
+    for (const name of ["backend", "ui", "assistant-ui"]) {
+      const from = path.join(resourcesDir, name);
+      if (fs.existsSync(from)) fs.cpSync(from, path.join(dest, name), { recursive: true, force: true });
+    }
+    backendDir = path.join(dest, "backend");
+    uiDir = path.join(dest, "ui");
+    if (product.id === "studio") assistantUiDir = path.join(dest, "assistant-ui");
+    requirementsFile = path.join(backendDir, product.requirements);
+  } catch (err) { log(`could not copy the app files (${err.message}); using the unpacked ones`); }
 }
 
 // ---------------------------------------------------------------- state
@@ -82,10 +109,11 @@ async function launch() {
   showSplash();
   try {
     fs.mkdirSync(dataDir, { recursive: true });
+    mirrorResources();
     let py = rt.findPython({ resourcesDir, dataDir, requirementsFile });
     if (!py) {
       setStatus({ firstRun: true });
-      py = await rt.setupRuntime({ dataDir, backendDir, requirementsFile, needTorch: product.needTorch, minFreeGb: product.minFreeGb, report: (stage, fraction, detail, extra) => { log(`setup: ${stage} ${detail || ""}`); setStatus({ stage, fraction, detail, steps: extra && extra.steps ? extra.steps : status.steps }); } });
+      py = await rt.setupRuntime({ dataDir, backendDir, requirementsFile, needTorch: product.needTorch, minFreeGb: product.minFreeGb, report: (stage, fraction, detail, extra) => { logSetup(stage, detail); setStatus({ stage, fraction, detail, steps: extra && extra.steps ? extra.steps : status.steps }); } });
     } else if (!py.bundled) {
       rt.writePth(py.dir, backendDir); // the app folder may have moved since last run
     } else if (py.dir.startsWith(resourcesDir)) {

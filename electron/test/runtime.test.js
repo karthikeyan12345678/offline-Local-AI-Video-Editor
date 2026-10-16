@@ -200,7 +200,8 @@ test("only PyTorch builds the driver can run are tried, and the GPU build is tri
   const was = process.platform; // gpuUpgradeWanted is Windows-only
   if (was === "win32") {
     assert.strictEqual(rt.gpuUpgradeWanted({ torch: "cpu" }, g), true);
-    assert.strictEqual(rt.gpuUpgradeWanted({ torch: "cpu", gpuTried: { driver: 12.6, name: "RTX 4050" } }, g), false);
+    assert.strictEqual(rt.gpuUpgradeWanted({ torch: "cpu", gpuTried: { v: 2, driver: 12.6, name: "RTX 4050" } }, g), false);
+    assert.strictEqual(rt.gpuUpgradeWanted({ torch: "cpu", gpuTried: { driver: 12.6, name: "RTX 4050" } }, g), true); // judged by an older, faulty test
     assert.strictEqual(rt.gpuUpgradeWanted({ torch: "cu126" }, g), false);
   }
 });
@@ -209,4 +210,12 @@ test("setup keeps its own copy of requirements and saves PyTorch progress before
   const src = fs.readFileSync(path.join(__dirname, "..", "runtime.js"), "utf8");
   assert.match(src, /requirements\.base\.txt/);
   assert.ok(src.indexOf('requirements: "pending"') > 0 && src.indexOf('requirements: "pending"') < src.indexOf("// 4. everything else"));
+});
+
+test("portable build keeps its own copy of the app and the graphics test does not need the app files", () => {
+  const main = fs.readFileSync(path.join(__dirname, "..", "main.js"), "utf8");
+  const run = fs.readFileSync(path.join(__dirname, "..", "runtime.js"), "utf8");
+  assert.match(main, /function mirrorResources/);
+  assert.ok(main.indexOf("mirrorResources();") > main.indexOf("function mirrorResources"));
+  assert.ok(!/ltxps\.selfcheck/.test(run.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((l) => !l.trim().startsWith("//")).join("\n")));
 });
