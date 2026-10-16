@@ -204,3 +204,9 @@ test("only PyTorch builds the driver can run are tried, and the GPU build is tri
     assert.strictEqual(rt.gpuUpgradeWanted({ torch: "cu126" }, g), false);
   }
 });
+
+test("setup keeps its own copy of requirements and saves PyTorch progress before the libraries", () => {
+  const src = fs.readFileSync(path.join(__dirname, "..", "runtime.js"), "utf8");
+  assert.match(src, /requirements\.base\.txt/);
+  assert.ok(src.indexOf('requirements: "pending"') > 0 && src.indexOf('requirements: "pending"') < src.indexOf("// 4. everything else"));
+});

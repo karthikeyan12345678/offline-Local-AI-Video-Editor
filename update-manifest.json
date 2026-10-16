@@ -1,6 +1,6 @@
 {
-  "app_version": "1.2.1",
-  "notes": "Graphics card detected and switchable in one click; real download progress and time left; chat shows progress, Done and Undo; pictures such as a cap can be placed on the video.",
+  "app_version": "1.2.2",
+  "notes": "Fixed setup: PyTorch is saved as soon as it is installed and never downloaded again after a failed step.",
   "download_url": "https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest",
   "modules": [
     {

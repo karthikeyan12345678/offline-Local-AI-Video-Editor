@@ -208,6 +208,12 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report: raw
   const pyDir = path.join(runtimeDir, "python");
   const tmp = path.join(runtimeDir, "tmp");
   fs.mkdirSync(tmp, { recursive: true });
+  // The portable .exe unpacks into a temporary folder that Windows may delete while setup runs.
+  // Keep our own copy of the package list so a long setup (or a retry) never loses it.
+  const reqText = fs.readFileSync(requirementsFile);
+  const reqSha = sha(reqText);
+  requirementsFile = path.join(runtimeDir, "requirements.base.txt");
+  fs.writeFileSync(requirementsFile, reqText);
   const check = () => { if (signal.cancelled) throw new Error("Setup cancelled."); };
   const tracker = new SetupProgress([
     { id: "check", label: "Checking your computer", weight: 2 },
@@ -285,6 +291,9 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report: raw
     else throw new Error(lastError || "Could not install PyTorch.");
   }
 
+  // Remember the finished PyTorch step right now: if a later step fails, "Try again" must never download it again.
+  try { fs.writeFileSync(path.join(runtimeDir, "ready.json"), JSON.stringify({ format: SETUP_FORMAT, torch: chosen, gpuTried, requirements: "pending", when: new Date().toISOString(), gpu }, null, 2)); } catch (_) { /* best effort */ }
+
   // 4. everything else
   check();
   tracker.begin("libs");
@@ -300,7 +309,7 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report: raw
   tracker.finish("libs");
   report("All done", null, "Starting the app…");
 
-  fs.writeFileSync(path.join(runtimeDir, "ready.json"), JSON.stringify({ format: SETUP_FORMAT, torch: chosen, gpuTried, requirements: sha(fs.readFileSync(requirementsFile)), when: new Date().toISOString(), gpu }, null, 2));
+  fs.writeFileSync(path.join(runtimeDir, "ready.json"), JSON.stringify({ format: SETUP_FORMAT, torch: chosen, gpuTried, requirements: reqSha, when: new Date().toISOString(), gpu }, null, 2));
   fs.rmSync(tmp, { recursive: true, force: true });
   return { python: py, bundled: false, dir: pyDir };
 }
