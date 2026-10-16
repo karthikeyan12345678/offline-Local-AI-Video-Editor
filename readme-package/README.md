@@ -16,7 +16,7 @@
 
 <br>
 
-![Make a video](docs/screenshots/make-video.png)
+![Make a video](https://raw.githubusercontent.com/karthikeyan12345678/ai-assistant-studio/main/docs/screenshots/make-video.png)
 
 </div>
 
@@ -90,7 +90,7 @@ On the Welcome screen press **Install everything (one click)**. The app looks at
 6. Press **Minimise view** if you want the page to be small while it works.
 7. Made a mistake? Press the round **×** on a picture to remove it, or **Upload another**.
 
-![Make a video with start and end pictures](docs/screenshots/make-video.png)
+![Make a video with start and end pictures](https://raw.githubusercontent.com/karthikeyan12345678/ai-assistant-studio/main/docs/screenshots/make-video.png)
 
 > ⏱ **How long does it take?** On a 6 GB laptop card, a 4-second video can take several minutes. That is normal. Videos are saved in the **Library** automatically.
 
@@ -105,7 +105,7 @@ On the Welcome screen press **Install everything (one click)**. The app looks at
 5. Press the green **Export** button.
 6. **A window asks where to save the file** — choose the folder you like. 📁
 
-![Editor](docs/screenshots/editor.png)
+![Editor](https://raw.githubusercontent.com/karthikeyan12345678/ai-assistant-studio/main/docs/screenshots/editor.png)
 
 ---
 
@@ -116,7 +116,7 @@ On the Welcome screen press **Install everything (one click)**. The app looks at
 3. Add a **Character picture** (one person, head to toe) and a **Motion video** (3–30 seconds of someone moving). Each box has an **×** to remove and an **Upload** button to replace.
 4. Press **Generate**. Your result appears on the right.
 
-![Motion control](docs/screenshots/motion-control.png)
+![Motion control](https://raw.githubusercontent.com/karthikeyan12345678/ai-assistant-studio/main/docs/screenshots/motion-control.png)
 
 ---
 
@@ -124,7 +124,7 @@ On the Welcome screen press **Install everything (one click)**. The app looks at
 
 Click **AI Assistant** in the left menu. A second window opens.
 
-![AI Assistant](docs/screenshots/ai-assistant.png)
+![AI Assistant](https://raw.githubusercontent.com/karthikeyan12345678/ai-assistant-studio/main/docs/screenshots/ai-assistant.png)
 
 **First, tell it which AI brain to use** (once): open **Settings** inside the assistant and choose one. The easiest free choices are **Ollama** (runs on your PC) or a free online key (Gemini, Groq, OpenRouter).
 
