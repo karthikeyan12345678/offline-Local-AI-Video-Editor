@@ -8,11 +8,11 @@
 
 <br>
 
-[![Download VKEditor for Windows](https://img.shields.io/badge/⬇_Download-VKEditor_1.2.9_for_Windows-72E528?style=for-the-badge&labelColor=1a1a1a)](https://github.com/karthikeyan12345678/ai-assistant-studio/releases/download/v1.2.9/VKEditor-1.2.9-portable.exe)
+[![Download VKEditor for Windows](https://img.shields.io/badge/⬇_Download-VKEditor_1.2.9_for_Windows-72E528?style=for-the-badge&labelColor=1a1a1a)](https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/download/v1.2.9/VKEditor-1.2.9-portable.exe)
 
-**Direct link:** https://github.com/karthikeyan12345678/ai-assistant-studio/releases/download/v1.2.9/VKEditor-1.2.9-portable.exe
+**Direct link:** https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/download/v1.2.9/VKEditor-1.2.9-portable.exe
 
-*(If the button says "not found", open the [Releases page](https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest) and click the file that ends in `-portable.exe`.)*
+*(If the button says "not found", open the [Releases page](https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest) and click the file that ends in `-portable.exe`.)*
 
 <br>
 
@@ -158,7 +158,7 @@ What you can do:
 
 ## 🔄 Updating to a new version
 
-1. Download the new `.exe` from the [Releases page](https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest).
+1. Download the new `.exe` from the [Releases page](https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest).
 2. Put it in the **same folder** as the old one (next to `LTXStudioData`).
 3. Run the new one. Your videos and settings stay.
 
@@ -174,7 +174,7 @@ What you can do:
 | Generate button is grey | The line under it tells you why (for example models still downloading) |
 | Drag and drop does nothing | Don't run the app "as administrator" |
 | Lost videos | Look in the `LTXStudioData` folder next to the exe |
-| Still stuck | Open an [Issue](https://github.com/karthikeyan12345678/ai-assistant-studio/issues) and attach a screenshot |
+| Still stuck | Open an [Issue](https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/issues) and attach a screenshot |
 
 ---
 
