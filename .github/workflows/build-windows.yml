@@ -26,7 +26,15 @@ jobs:
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements-dev.txt
           sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
-          python -m pytest tests -q --timeout=300
+          set +e
+          python -m pytest tests -q --timeout=300 -rfE 2>&1 | tee /tmp/pytest.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            # put the failing test names on the run summary page so they are easy to read and share
+            grep -E "^(FAILED|ERROR) " /tmp/pytest.log | head -15 | while IFS= read -r l; do echo "::error title=pytest::${l:0:600}"; done
+            echo "::error title=pytest-tail::$(tail -40 /tmp/pytest.log | tr '\n' '|' | cut -c1-3500)"
+          fi
+          exit $code
       - name: Assistant tests on the light runtime (no PyTorch, exactly what the Assistant app installs)
         working-directory: backend
         run: |
