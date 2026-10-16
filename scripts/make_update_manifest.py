@@ -12,6 +12,6 @@ from ltxps.updates import UPDATABLE, json_text, manifest_from_requirements  # no
 
 notes = sys.argv[1] if len(sys.argv) > 1 else ""
 text = (root / "backend" / "requirements.txt").read_text(encoding="utf-8")
-m = manifest_from_requirements(text, __version__, notes, "https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest", UPDATABLE)
+m = manifest_from_requirements(text, __version__, notes, "https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest", UPDATABLE)
 (root / "update-manifest.json").write_text(json_text(m), encoding="utf-8")
 print("wrote", root / "update-manifest.json")

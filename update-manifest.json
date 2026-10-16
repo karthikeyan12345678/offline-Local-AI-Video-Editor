@@ -1,7 +1,7 @@
 {
-  "app_version": "1.2.9",
-  "notes": "Start and end pictures, minimise view, motion control layout, Claude-style assistant, resume tailoring, always ask where to save",
-  "download_url": "https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest",
+  "app_version": "1.2.10",
+  "notes": "Faster videos on 6 GB graphics cards",
+  "download_url": "https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest",
   "modules": [
     {
       "name": "pillow",

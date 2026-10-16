@@ -29,7 +29,7 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
    - `VKEditor-Setup-1.2.3.exe` — normal installer
    - `VKEditor-1.2.3-portable.exe` — runs from any folder, nothing to install
    - `AIAssistant-…exe` — the separate AI Assistant app
-3. **Share this one link** with anyone: `https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest`
+3. **Share this one link** with anyone: `https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest`
    (The repository must be **Public** for strangers to download. In a private repository only people you invite can.)
 
 ### When you make a new version
@@ -102,3 +102,7 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 - **AI Assistant** has a new look (warm dark paper, serif headings, line icons, a rounded message box with round attach and send buttons). **Pictures show a progress bar** with the time passed.
 - **Tailor my resume**: attach a resume (PDF, Word, text or CSV) and a job description (a second file or pasted in the message) and say "tailor my resume to this JD with high ATS score". You get a new PDF (or Word file if you ask) that only uses facts from your resume, plus the ATS score before and after and the job terms that could not be added honestly.
 - **Saving always asks where**: every export and "Save as…" opens the Save As window in the desktop app, and a finished export opens it automatically.
+
+## 1.2.10
+- **Faster videos on 6 GB graphics cards (RTX 4050, 3050, 2060…)**: these cards now use the Lite profile (8-bit weights). Before, the full-size weights filled the 6 GB and Windows quietly moved the overflow into normal RAM, which made each step take minutes. The profile names now read Lite (4-7 GB) and Balanced (8-11 GB).
+- The log file now records which memory strategy and graphics card each video used.

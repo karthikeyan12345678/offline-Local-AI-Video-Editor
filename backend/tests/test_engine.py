@@ -325,3 +325,9 @@ def test_reduced_precision_with_8bit_weight_storage_matches_cached_embedding_dty
         assert "torch.float8_e4m3fn" in stored  # weights really are stored in 8 bits
     finally:
         mod.build_plans = orig
+
+
+def test_six_gb_card_gets_the_lite_profile():
+    for mb in (6141, 6144, 7000):
+        assert pick_profile(system(mb)).id == "lite"
+    assert pick_profile(system(8192)).id == "balanced"

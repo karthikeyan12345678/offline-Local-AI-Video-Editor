@@ -192,6 +192,7 @@ class LtxvEngine:
             if plan.mode in skip_modes:
                 continue
             ctx.check()
+            log.info("Generating %sx%s, %s frames, model %s, strategy: %s (GPU: %s)", req.width, req.height, req.frames, spec.id, plan.describe(), system.gpu.name if system.gpu.available else "none")
             try:
                 meta = self._run(req, spec, plan, out_path, ctx)
                 meta["strategy"] = plan.describe()

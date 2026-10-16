@@ -1,202 +1,118 @@
-<div align="center">
+# LTX Portable Studio + AI Assistant
 
-# 🎬 VK Editor
+Two Windows apps from one project:
 
-### Make videos with AI, edit them, and chat with an AI helper — all in one free Windows app
+1. **LTX Portable Studio**: local video generator and editor for 4 GB graphics cards (below).
+2. **AI Assistant**: a separate chat app with file creation (PDF, PowerPoint, Word, CSV, Excel), file comparison, a design picker, a resume ATS checker, image generation and file analytics. It also opens from the Studio (*AI Assistant* in the sidebar, or Ctrl+Shift+A).
 
-**Made by [Karthikeyan V](https://karthikeyanv.netlify.app)** · [LinkedIn](https://www.linkedin.com/in/karthikeyan-v-8a203a195) · [GitHub](https://github.com/karthikeyan12345678)
+A local video generator and editor for Windows that is tuned for **4 GB graphics cards**. Type a description (or give it a picture), get a short video, then cut, join, colour, caption and export it. Everything runs on your PC; nothing is uploaded.
 
-<br>
+```
+frontend/        React + TypeScript interface of the video studio (ChatGPT-style design system)
+assistant-ui/    React + TypeScript interface of the AI Assistant (Claude dark design system)
+backend/         Python: FastAPI server, LTX-Video engine, ffmpeg editor, downloader, and ltxps/assistant (documents, themes, compare, ATS, analytics, chat, images)
+electron/        Windows desktop shell for both products: starts the backend, installs the runtime on first run
+shared/design/         Design tokens + component CSS of the studio
+shared/design-claude/  Design tokens + component CSS of the assistant (see its README for the decisions made)
+scripts/         build-windows.bat (studio), build-assistant.bat (assistant), prepare-python.ps1, stage-electron.mjs
+```
 
-[![Download VKEditor for Windows](https://img.shields.io/badge/⬇_Download-VKEditor_1.2.9_for_Windows-72E528?style=for-the-badge&labelColor=1a1a1a)](https://github.com/karthikeyan12345678/ai-assistant-studio/releases/download/v1.2.9/VKEditor-1.2.9-portable.exe)
+## AI Assistant
 
-**Direct link:** https://github.com/karthikeyan12345678/ai-assistant-studio/releases/download/v1.2.9/VKEditor-1.2.9-portable.exe
+Separate app, own `.exe`, own data folder (`AIAssistantData` next to the portable exe, or `%LOCALAPPDATA%\AIAssistantPortable`). It needs no PyTorch: the first start installs about 150 MB of libraries.
 
-*(If the button says "not found", open the [Releases page](https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest) and click the file that ends in `-portable.exe`.)*
+| Feature | How | Where it runs |
+| --- | --- | --- |
+| Chat | Pick a provider in *Settings*: Ollama or LM Studio on this PC (free, private), OpenRouter, NVIDIA NIM, Groq, Gemini, OpenAI, Anthropic, or a running **free-claude-code** proxy (default `http://127.0.0.1:8082`) | the provider you choose |
+| Create PDF / PowerPoint / Word / CSV / Excel | `/pdf`, `/ppt`, `/doc`, `/csv`, `/xlsx` in chat (the AI writes the content), or *Create files* (you paste Markdown, no AI needed) | this PC |
+| Best design | 145 design themes taken from the Open Design catalogue. A rule-based recommender ranks them for your purpose and explains why; every theme is checked for readable contrast | this PC |
+| Compare files | PDF, Word, PowerPoint, Excel, CSV, text, in any combination; paragraph/slide/page diffs with word-level changes; tables matched by key column; downloadable report | this PC |
+| Resume ATS check | Score out of 100 from file readability, contact details, sections, writing quality, dates and keywords (against a pasted job description when given) with a fix list | this PC |
+| Image generation | Free Pollinations service, any OpenAI-compatible images API, or Stable Diffusion Turbo on this PC (only in the Studio, which includes PyTorch) | the engine you choose |
+| File analytics | Column statistics, outliers, missing values, duplicates, correlations, date ranges, text readability | this PC |
 
-<br>
+Build it with `scripts\build-assistant.bat` or the GitHub workflow (artifact *AIAssistant-windows*: `AIAssistant-Setup-1.0.0.exe` and `AIAssistant-1.0.0-portable.exe`). Develop it with `cd assistant-ui && npm install && npm run dev` and `python -m ltxps --mode assistant --port 8766`.
 
-<!-- 👉 IMAGE 1: drag the Make video screen (make-video.png) here, replacing this line -->
-**📸 IMAGE 1 — Make video screen (make-video.png)** *(delete this line after adding the picture)*
+**Limits to know about**
+- The ATS score is an estimate from common ATS checks, not any vendor's real system.
+- PDF output of Tamil, Hindi and other Indian scripts is not shaped correctly (reportlab limitation); the app warns you. Use Word (.docx) for those languages.
+- Answer quality, speed and cost depend on the chat model you pick. Small local models write weaker documents.
+- Image requests to Pollinations or an API leave your PC; chat requests go to the provider you chose. Everything else stays local.
+- The free-claude-code proxy is a separate program you run yourself (AGPL licence); this app only talks to it over HTTP and contains none of its code.
 
-</div>
+## LTX Portable Studio: what it can do
 
----
+- **Make video**: from text, from a picture, or continue a clip from its last frame.
+- **Library**: every generated or imported video, picture and sound; quick tools (smooth motion, upscale, stabilise, loop, boomerang, extract frame/audio, remove audio, GIF, convert).
+- **Editor**: multi-clip timeline, trim by dragging, split, reorder, duplicate, undo/redo, speed 0.25–4×, reverse, fades, transitions (17 kinds), crop/zoom/pan, rotate/flip, brightness/contrast/colour/gamma/hue, filters, blur/sharpen/vignette/denoise, text overlays, background music tracks, master volume, project autosave, rendered preview, export to MP4, WebM or GIF.
 
-## 🧒 What is this? (explained like you're 10)
+## How it fits in 4 GB
 
-Imagine a magic notebook:
+It does **not** use LTX-2 (22 B parameters; far too large). It uses **LTX-Video 2B** with these measures:
 
-- You **write** "a lighthouse on a cliff at sunrise" → it **draws a moving video** for you.
-- You give it **two photos** (the start and the end) → it makes the video travel from one to the other.
-- It has a **video editor** (like a tiny movie studio) where you cut, add text, add music, and press **Export**.
-- It has a **chat helper** that can write PDFs and Word files, and even **rewrite your resume for a job** so a computer scanner (ATS) likes it more.
+- the text encoder runs on the CPU and its output is cached on disk, so repeating or tweaking a prompt is instant;
+- the video model is stored as 8-bit weights and moved to the GPU in small blocks (or layer by layer if needed);
+- the picture decoder works on tiles;
+- if the card runs out of memory the app retries with a lower-memory mode by itself;
+- sizes and lengths that would not fit are refused with an explanation. *Lite* profile (under 6 GB): up to 97 frames, with a size × length budget (for example 512×320 for the full 97 frames, or about 704 px on the long side for shorter clips). Bigger cards unlock larger profiles.
 
-It all runs **on your own computer**. No account. No monthly fee.
+Expect minutes, not seconds, per clip on a 4 GB card, and the first video is slowest while the model loads. 16 GB of system RAM is recommended; the app warns below 12 GB.
 
----
+## Get the .exe
 
-## ✅ What you need
+You need a Windows PC (or GitHub) to build it; the Windows installer cannot be produced on Linux or macOS.
 
-| Thing | Simple answer |
-| --- | --- |
-| Computer | Windows 10 or Windows 11 (64-bit) |
-| Internet | Needed **the first time** (to download the AI parts). After that most things work offline |
-| Space | About **20 GB free** on your drive (the AI "brains" are big) |
-| Graphics card | Helps a lot. An NVIDIA card with 6 GB (like RTX 4050) works. **No card?** It still works, just slower |
-| Money | **Free** |
+**Option A: GitHub (no setup on your PC).** Put this folder in a GitHub repository and push. The workflow in `.github/workflows/build-windows.yml` runs the tests and uploads `LTXPortableStudio-Setup-1.0.0.exe` (installer) and `LTXPortableStudio-1.0.0-portable.exe` as downloadable artifacts.
 
----
+**Option B: your own PC.** Install Node.js 22, open a terminal as Administrator in this folder and run `scripts\build-windows.bat`. Results appear in `dist-installer\`.
 
-## 📥 Install — step by step
+### First start on any PC
 
-### Step 1 — Download
-1. Click the big green **Download** button above.
-2. Wait for the file `VKEditor-1.2.9-portable.exe` (about 85 MB) to finish.
+The installer is small. On first start the app downloads Python and the right PyTorch build for that PC's graphics card (2–3 GB, one time, needs internet), then you press **Download everything needed** to fetch the model files from Hugging Face. If Hugging Face is blocked, set a mirror in *Settings → Models → Download server*.
 
-### Step 2 — Put it in its own folder
-1. Make a new folder, for example `F:\VKEditor` (any drive is fine).
-2. Move the `.exe` file into that folder.
+### Using it on other PCs
 
-> 💡 **Why a folder?** The app saves your videos and settings in a folder called `LTXStudioData` **next to the exe**. Keep it there and never delete it, or you lose your work.
+- **Portable .exe**: keeps all data in a `LTXStudioData` folder next to itself. Copy the exe *and that folder* (models included) to a USB drive or another PC. Other PC, other graphics card generation? Use *Help → Repair runtime* once to install the matching PyTorch.
+- **Fully offline**: run `scripts\prepare-python.ps1 -Torch cu128` then `scripts\build-windows.bat -offline` to make a zip that already contains Python and PyTorch. PyTorch builds are tied to GPU generations, so make one bundle per generation if your PCs differ.
+- To skip the model download on a second PC, copy `<data folder>\models`.
 
-### Step 3 — Open it
-1. **Double-click** `VKEditor-1.2.9-portable.exe`.
-2. Windows may show a blue box: **"Windows protected your PC"**. This is normal for new apps from independent makers.
-   - Click **More info**
-   - Click **Run anyway**
+## Develop
 
-### Step 4 — Wait for the first-time setup (once only)
-- A window shows ticks, the download **speed** and **time left**.
-- It can take **10–40 minutes**. Keep the PC on and connected to the internet.
-- If it stops or you close it, just open it again. **It continues where it stopped.**
+```bash
+cd backend && pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements-dev.txt
+python -m pytest tests            # 149 tests, uses tiny fake weights and a fake model server, no GPU needed
+LTXPS_ENGINE=fake python -m ltxps --ui-dir ../frontend/dist   # prints the URL; fake engine makes test clips
 
-### Step 5 — Press "Install everything"
-On the Welcome screen press **Install everything (one click)**. The app looks at your PC and picks the best video model for it, then downloads it. Wait for it to finish.
+cd frontend && npm install && npm run dev      # UI on :5173, proxy to a backend started with --port 8765
+cd electron && npm install && npm start        # desktop shell (set LTXPS_PYTHON to a Python with the requirements)
+```
 
-🎉 **Done!** You are ready to make videos.
+Environment variables: `LTXPS_DATA_DIR` (where data lives), `LTXPS_ENGINE=fake` (no model needed), `LTXPS_FAKE_VRAM_MB=4096` (pretend to have 4 GB), `LTXPS_FFMPEG`, `LTXPS_PYTHON`.
 
----
+## What is and is not verified
 
-## 🎥 Make your first video
+Checked automatically: the editor's ffmpeg renderer against real ffmpeg, the API, the downloader against a local fake Hugging Face server (resume, cancel, errors), the memory-fallback logic with tiny CPU models, the interface in a real browser, the desktop shell starting the backend and stopping it again, the assistant in a real browser against a fake model server (chat streaming, all five file formats re-opened and checked, ATS, compare, analytics, images), and the assistant backend running without PyTorch or NumPy installed.
 
-1. Click **Make video** (top left).
-2. Choose how to start:
-   - **Text** – just describe what you want.
-   - **Picture** – start from your photo. You can also add an **End picture** (the video finishes on it).
-   - **Continue** – carry on from a video you already made.
-3. Type what should happen. Example: *"make a good realistic video with cinema camera move"*.
-4. Pick the shape: **16:9** (YouTube), **9:16** (Shorts / Reels), **1:1** (square), **4:5** (Instagram feed).
-5. Press **Generate** and wait. You see a progress bar, the time passed and the time left.
-6. Press **Minimise view** if you want the page to be small while it works.
-7. Made a mistake? Press the round **×** on a picture to remove it, or **Upload another**.
+**Not checked, because it needs hardware or a network this build environment does not have:** answers from a real chat model (only a fake server was used), the real image services (Pollinations, OpenAI, local Stable Diffusion), the free-claude-code proxy, generation on a real GPU (speed, true VRAM use, 8-bit weights on your card), downloading the real model files, and the Windows packaging itself. Expect to adjust the *Lite* limits or memory mode after the first real run. Choose a different memory mode in *Settings* if you see out-of-memory messages.
 
-<!-- 👉 IMAGE 1: drag the Make video screen (make-video.png) here, replacing this line -->
-**📸 IMAGE 1 — Make video screen (make-video.png)** *(delete this line after adding the picture)*
+## Licences
 
-> ⏱ **How long does it take?** On a 6 GB laptop card, a 4-second video can take several minutes. That is normal. Videos are saved in the **Library** automatically.
+The 145 assistant design themes were derived from Open Design (Apache-2.0); see `backend/ltxps/assistant/THIRD_PARTY.md`.
 
----
 
-## ✂️ Edit your video
+The app code is yours. The model files are not part of it: check the licence terms of `Lightricks/LTX-Video` and of the T5 text encoder on Hugging Face before commercial use.
 
-1. Click **Editor**.
-2. Drag your videos, pictures or music into the window (or press **Add media**).
-3. Use the tools: **Split**, **Duplicate**, **Delete**, **Add text**, **Draw**.
-4. Talk to the AI at the bottom: *"make it vertical"*, *"add a fade"*, *"put the title My Trip"*. Press **Ctrl + Z** to undo anything.
-5. Press the green **Export** button.
-6. **A window asks where to save the file** — choose the folder you like. 📁
+## Video editor upgrade
 
-<!-- 👉 IMAGE 2: drag the Editor screen (editor.png) here, replacing this line -->
-**📸 IMAGE 2 — Editor screen (editor.png)** *(delete this line after adding the picture)*
+- **Transitions:** 57 ffmpeg transitions (fade, wipe, slide, cover/reveal, shapes, slices, wind, zoom) plus *Random*; one click applies a transition to every cut.
+- **Looks, effects, camera motion:** 24 colour looks, 19 stackable effects (RGB split, glitch, VHS, film grain, neon edges, bloom, mirror, …), 11 camera moves (Ken Burns, pans, shake, pulse).
+- **Text:** 68 bundled fonts (Latin, display, script, plus Tamil, Hindi, Telugu, Kannada, Malayalam, Bengali), outline, shadow, glow, gradient, box, spacing, tilt, 14 one-click styles, in/out animations (fade, slide, zoom, pop, wipe reveal). Fonts are OFL/Apache licensed (see `backend/ltxps/editor/fonts/README.txt`).
+- **Sound:** 25 sound effects (voice clean-up, telephone, robot, reverb, echo, lo-fi, …), pitch, bass/treble, noise removal, loudness, music loop, automatic music ducking under speech.
+- **AI (all on this PC):** follow a person with a moving crop (YuNet face model bundled, falls back to movement), auto captions (Whisper via faster-whisper; models are downloaded from the Models page), cut silences, split at scene changes, auto-enhance colour, cut clips to the music beat, text-to-speech voice-over using the PC's own voices.
 
----
 
-## 🕺 Motion control (make a picture copy a dance or move)
-
-1. Click **Motion control**.
-2. Paste your **fal.ai key** once (get one free account at [fal.ai](https://fal.ai) → Dashboard → Keys, add a little credit).
-3. Add a **Character picture** (one person, head to toe) and a **Motion video** (3–30 seconds of someone moving). Each box has an **×** to remove and an **Upload** button to replace.
-4. Press **Generate**. Your result appears on the right.
-
-<!-- 👉 IMAGE 3: drag the Motion control screen (motion-control.png) here, replacing this line -->
-**📸 IMAGE 3 — Motion control screen (motion-control.png)** *(delete this line after adding the picture)*
-
----
-
-## 🤖 AI Assistant (the chat helper)
-
-Click **AI Assistant** in the left menu. A second window opens.
-
-<!-- 👉 IMAGE 4: drag the AI Assistant screen (ai-assistant.png) here, replacing this line -->
-**📸 IMAGE 4 — AI Assistant screen (ai-assistant.png)** *(delete this line after adding the picture)*
-
-**First, tell it which AI brain to use** (once): open **Settings** inside the assistant and choose one. The easiest free choices are **Ollama** (runs on your PC) or a free online key (Gemini, Groq, OpenRouter).
-
-What you can do:
-
-| You want to… | Type or click |
-| --- | --- |
-| Make a PDF, slides, Word, CSV or Excel file | `/pdf`, `/ppt`, `/doc`, `/csv`, `/xlsx` then say what you want |
-| Make a picture from words | **Images** (you see a progress bar) |
-| Check your resume score | **Resume ATS** and attach your resume |
-| **Rewrite your resume for a job** | Attach your resume **and** the job description, then type: *"Tailor my resume to this JD with a high ATS score"* |
-| Compare two files | **Compare files** |
-| Understand a spreadsheet | **Analyse file** |
-
-### 📄 Resume tailoring in 4 steps
-1. Click the **+** button and attach your resume (PDF, Word, text or CSV).
-2. Attach the job description too (or paste it in the message).
-3. Type: *Tailor my resume to this JD with a high ATS score* and press send.
-4. You get a **new PDF** and your score **before → after**. It only uses facts from your own resume, and it lists job words it could not add honestly. **Always read it before sending it to a company.**
-
----
-
-## 🔄 Updating to a new version
-
-1. Download the new `.exe` from the [Releases page](https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest).
-2. Put it in the **same folder** as the old one (next to `LTXStudioData`).
-3. Run the new one. Your videos and settings stay.
-
----
-
-## 🆘 Something is wrong?
-
-| Problem | What to do |
-| --- | --- |
-| "Windows protected your PC" | More info → **Run anyway** |
-| Setup stuck | Close the app and open it again — it continues |
-| Videos are tiny and slow, "graphics card is not switched on" | Open **Settings** and use the graphics card fix, or install the latest NVIDIA driver |
-| Generate button is grey | The line under it tells you why (for example models still downloading) |
-| Drag and drop does nothing | Don't run the app "as administrator" |
-| Lost videos | Look in the `LTXStudioData` folder next to the exe |
-| Still stuck | Open an [Issue](https://github.com/karthikeyan12345678/ai-assistant-studio/issues) and attach a screenshot |
-
----
-
-## 🔐 Privacy
-
-- Your videos, pictures and files stay **on your computer**.
-- Keys you paste (like fal.ai) are saved only in your data folder and sent only to that service.
-- Online helpers (free picture service, online AI chat) only get what you send them.
-
----
-
-## ⚠️ Good to know
-
-- This is a personal project, **free for everyone to use**. It comes **without any guarantee**.
-- AI can make mistakes. Check videos, files and resumes before you share them.
-- The AI models you download have their own licences from their makers.
-- ATS scores are an estimate, not the real score of any company's system.
-
----
-
-## 👤 Made by
-
-**Karthikeyan V** — Technical Program Manager & Solutions Architect (AR/VR/XR, cloud and AI)
-
-- 🌐 Portfolio: [karthikeyanv.netlify.app](https://karthikeyanv.netlify.app)
-- 💼 LinkedIn: [linkedin.com/in/karthikeyan-v-8a203a195](https://www.linkedin.com/in/karthikeyan-v-8a203a195)
-- 🐙 GitHub: [@karthikeyan12345678](https://github.com/karthikeyan12345678)
-
-If this helped you, please ⭐ **star the repo** and share the video tutorial!
+## New in 1.1
+- **Draw** on the frame (pen, highlighter, line, arrow, circle, box) — `editor/Draw.tsx`, `editor/drawimage.py`.
+- **AI chat editor** with reference pictures — `editor/ChatPanel.tsx`, `backend/ltxps/editor/chat.py`, `POST /api/editor/chat`. Uses the AI provider set in the chat's *AI settings*.
+- **First-run setup** with speed and time left, and **Settings → Updates** for AI modules.
+- Sharing guide for beginners: [`docs/SHARE-GUIDE.md`](docs/SHARE-GUIDE.md).

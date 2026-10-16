@@ -19,7 +19,7 @@ import httpx
 
 from . import __version__
 
-DEFAULT_URL = "https://raw.githubusercontent.com/karthikeyan12345678/ai-assistant-studio/main/update-manifest.json"
+DEFAULT_URL = "https://raw.githubusercontent.com/karthikeyan12345678/offline-Local-AI-Video-Editor/main/update-manifest.json"
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 Fetch = Callable[[str], dict[str, Any]]
 
