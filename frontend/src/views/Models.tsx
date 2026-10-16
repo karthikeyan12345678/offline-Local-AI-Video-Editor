@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import { fmtBytes } from "../lib/format";
+
+export function fmtEta(sec: number): string {
+  if (!isFinite(sec) || sec <= 0) return "";
+  if (sec < 45) return "less than a minute left";
+  const m = Math.round(sec / 60);
+  if (m < 60) return `about ${m} min left`;
+  return `about ${Math.floor(m / 60)} h ${m % 60} min left`;
+}
 import { useApp } from "../lib/store";
 import { Button, Progress, I } from "../ds";
 import type { ModelRow } from "../lib/types";
@@ -32,7 +40,7 @@ export function ModelCard({ m }: { m: ModelRow }) {
       {running && (
         <div className="stack">
           <Progress value={d.total ? d.done / d.total : 0} indeterminate={!d.total} />
-          <div className="row between text-xs"><span className="truncate">{d.current || "Preparing…"}</span><span className="mono">{fmtBytes(d.done)} / {d.total ? fmtBytes(d.total) : "?"}{d.speed ? ` · ${fmtBytes(d.speed)}/s` : ""}</span></div>
+          <div className="row between text-xs"><span className="truncate">{d.current || "Preparing…"}</span><span className="mono">{fmtBytes(d.done)} / {d.total ? fmtBytes(d.total) : "?"}{d.speed ? ` · ${fmtBytes(d.speed)}/s` : ""}{d.speed > 0 && d.total ? ` · ${fmtEta((d.total - d.done) / d.speed)}` : ""}</span></div>
         </div>
       )}
       {d.status === "error" && <p className="error-text" role="alert">{d.error}</p>}

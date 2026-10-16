@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
 import { fontFileUrl, mediaUrl } from "../lib/api";
 import type { Asset, Clip, Project, TextOverlay } from "../lib/types";
+import { DrawCapture, DrawingsLayer, type PenSettings } from "./Draw";
+import type { Shape } from "../lib/types";
 import { cssFilter, cssTransform, layout, objectFit, type Placed } from "./model";
 
 interface Props {
   project: Project; asset: (id: string) => Asset | undefined; time: number; playing: boolean;
   onTick: (t: number) => void; onEnd: () => void;
+  pen?: PenSettings | null; editingId?: string | null; onShape?: (s: Shape) => void;
 }
 
 
@@ -81,7 +84,7 @@ function textNode(t: TextOverlay, time: number) {
  * Live preview: plays the original files directly and approximates colour effects with CSS.
  * Blur, sharpen, denoise, vignette and transitions are only exact in a rendered preview.
  */
-export default function Preview({ project, asset, time, playing, onTick, onEnd }: Props) {
+export default function Preview({ project, asset, time, playing, onTick, onEnd, pen = null, editingId = null, onShape }: Props) {
   const { items, total } = layout(project, asset);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRefs = useRef(new Map<string, HTMLAudioElement>());
@@ -182,6 +185,8 @@ export default function Preview({ project, asset, time, playing, onTick, onEnd }
           );
         })()}
         {project.texts.filter((t) => time >= t.start && time < t.start + t.duration).map((t) => textNode(t, time))}
+        <DrawingsLayer drawings={project.drawings} time={time} W={width} H={height} editingId={editingId} />
+        {pen && onShape && <DrawCapture pen={pen} W={width} H={height} onShape={onShape} />}
         {!clip && <div className="stage-empty">Add a clip from the Media panel to start.</div>}
       </div>
       {project.audio.map((ac) => { const as = asset(ac.asset_id); return as ? <audio key={ac.id} preload="auto" src={mediaUrl(as.id)} ref={(el) => { if (el) audioRefs.current.set(ac.id, el); else audioRefs.current.delete(ac.id); }} /> : null; })}

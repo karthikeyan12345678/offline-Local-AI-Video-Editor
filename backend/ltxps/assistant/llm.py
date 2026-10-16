@@ -101,12 +101,22 @@ def explain(cfg: LLMConfig, exc: Exception | None = None, resp: httpx.Response |
     return LLMError(f"Could not talk to {name}: {exc}")
 
 
-def _prepare(cfg: LLMConfig, messages: list[dict[str, str]], system: str) -> tuple[str, dict[str, Any]]:
-    msgs = [{"role": m["role"], "content": m["content"]} for m in messages if m.get("content") and m["role"] in ("user", "assistant")]
+def _content(cfg: LLMConfig, m: dict[str, Any]) -> Any:
+    """Plain text, or text plus pictures (a message may carry "images": [{"media_type", "data"}])."""
+    imgs = m.get("images") or []
+    if not imgs:
+        return m["content"]
+    if cfg.style == "anthropic":
+        return [{"type": "image", "source": {"type": "base64", "media_type": i["media_type"], "data": i["data"]}} for i in imgs] + [{"type": "text", "text": m["content"]}]
+    return [{"type": "text", "text": m["content"]}] + [{"type": "image_url", "image_url": {"url": f"data:{i['media_type']};base64,{i['data']}"}} for i in imgs]
+
+
+def _prepare(cfg: LLMConfig, messages: list[dict[str, Any]], system: str) -> tuple[str, dict[str, Any]]:
+    msgs = [{"role": m["role"], "content": _content(cfg, m)} for m in messages if m.get("content") and m["role"] in ("user", "assistant")]
     if cfg.style == "anthropic":
         merged: list[dict[str, str]] = []
         for m in msgs:  # the API requires strictly alternating turns that start with the user
-            if merged and merged[-1]["role"] == m["role"]:
+            if merged and merged[-1]["role"] == m["role"] and isinstance(merged[-1]["content"], str) and isinstance(m["content"], str):
                 merged[-1]["content"] += "\n\n" + m["content"]
             else:
                 merged.append(dict(m))
@@ -139,7 +149,7 @@ def parse_event(style: str, data: dict[str, Any]) -> str:
     return ""
 
 
-def stream_chat(cfg: LLMConfig, messages: list[dict[str, str]], system: str = "") -> Iterator[str]:
+def stream_chat(cfg: LLMConfig, messages: list[dict[str, Any]], system: str = "") -> Iterator[str]:
     if not cfg.base_url:
         raise LLMError("No server address is set. Open Settings and choose a provider.")
     if not cfg.model:
@@ -178,7 +188,7 @@ def stream_chat(cfg: LLMConfig, messages: list[dict[str, str]], system: str = ""
         raise explain(cfg, exc=exc) from exc
 
 
-def complete(cfg: LLMConfig, messages: list[dict[str, str]], system: str = "") -> str:
+def complete(cfg: LLMConfig, messages: list[dict[str, Any]], system: str = "") -> str:
     return "".join(stream_chat(cfg, messages, system))
 
 

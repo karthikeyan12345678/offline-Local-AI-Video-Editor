@@ -68,9 +68,12 @@ export interface AudioClip {
   id: string; asset_id: string; start: number; trim_in: number; trim_out: number; volume: number; fade_in: number; fade_out: number;
   fx: string; pitch: number; bass: number; treble: number; denoise: boolean; normalize: boolean; loop: boolean; is_music: boolean;
 }
+export type ShapeType = "pen" | "highlight" | "line" | "arrow" | "rect" | "ellipse";
+export interface Shape { type: ShapeType; points: [number, number][]; color: string; width: number; opacity: number; filled: boolean; fill_color: string | null; fill_opacity: number }
+export interface Drawing { id: string; start: number; duration: number; shapes: Shape[]; opacity: number; fade_in: number; fade_out: number; anim_in: string; anim_out: string }
 export interface Project {
   id: string; name: string; canvas: { width: number; height: number; fps: number; background: string };
-  clips: Clip[]; texts: TextOverlay[]; audio: AudioClip[]; master_volume: number;
+  clips: Clip[]; texts: TextOverlay[]; audio: AudioClip[]; drawings: Drawing[]; master_volume: number;
   duck_music: boolean; duck_amount: number; master_normalize: boolean;
 }
 export interface Catalog {
@@ -84,3 +87,8 @@ export interface Catalog {
   whisper: { id: string; label: string; installed: boolean }[];
 }
 export interface ExportOptions { format: "mp4" | "webm" | "gif"; width?: number; height?: number; fps?: number; quality: "low" | "medium" | "high"; include_audio: boolean; preview: boolean }
+
+export interface UpdateInfo {
+  current: string; latest: string; app_update: boolean; download_url: string; notes: string; modules_update: boolean;
+  modules: { name: string; label: string; installed: string | null; latest: string; update: boolean; missing: boolean }[];
+}

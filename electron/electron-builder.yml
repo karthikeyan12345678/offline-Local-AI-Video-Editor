@@ -1,6 +1,6 @@
 appId: com.ltxportable.studio
-productName: LTX Portable Studio
-copyright: LTX Portable Studio
+productName: VK Editor
+copyright: VK Editor
 directories:
   output: ../dist-installer
   buildResources: build
@@ -41,6 +41,6 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  artifactName: LTXPortableStudio-Setup-${version}.exe
+  artifactName: VKEditor-Setup-${version}.exe
 portable:
-  artifactName: LTXPortableStudio-${version}-portable.exe
+  artifactName: VKEditor-${version}-portable.exe

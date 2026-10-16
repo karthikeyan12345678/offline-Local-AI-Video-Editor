@@ -13,13 +13,13 @@ if errorlevel 1 (
 
 echo [1/4] Building the interface...
 pushd frontend
-call npm ci
+call npm install
 if errorlevel 1 goto :fail
 call npm run build
 if errorlevel 1 goto :fail
 popd
 pushd assistant-ui
-call npm ci
+call npm install
 if errorlevel 1 goto :fail
 call npm run build
 if errorlevel 1 goto :fail
@@ -29,7 +29,7 @@ echo [2/4] Preparing the desktop shell...
 node scripts\stage-electron.mjs studio
 if errorlevel 1 goto :fail
 pushd electron
-call npm ci
+call npm install
 if errorlevel 1 goto :fail
 
 echo [3/4] Packaging (this downloads Electron the first time)...
@@ -50,9 +50,9 @@ popd
 echo Copying the offline Python runtime into the app...
 robocopy python-bundle "dist-installer\win-unpacked\resources\python" /E /NFL /NDL /NJH /NJS /NP >nul
 if errorlevel 8 goto :fail
-tar -a -c -f "dist-installer\LTXPortableStudio-offline.zip" -C dist-installer win-unpacked
+tar -a -c -f "dist-installer\VKEditor-offline.zip" -C dist-installer win-unpacked
 if errorlevel 1 goto :fail
-echo Offline bundle: dist-installer\LTXPortableStudio-offline.zip  (unzip anywhere and run "LTX Portable Studio.exe")
+echo Offline bundle: dist-installer\VKEditor-offline.zip  (unzip anywhere and run "VK Editor.exe")
 exit /b 0
 
 :finish
@@ -60,8 +60,8 @@ exit /b 0
 echo [4/4] Done. Your files are in the "dist-installer" folder:
 dir /b dist-installer\*.exe
 echo.
-echo   LTXPortableStudio-Setup-*.exe     installs on a PC
-echo   LTXPortableStudio-*-portable.exe  runs from any folder or USB drive, keeps its data next to itself
+echo   VKEditor-Setup-*.exe     installs on a PC
+echo   VKEditor-*-portable.exe  runs from any folder or USB drive, keeps its data next to itself
 exit /b 0
 
 :fail

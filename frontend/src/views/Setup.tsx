@@ -1,7 +1,9 @@
 import { api } from "../lib/api";
 import { useApp } from "../lib/store";
 import { Button, Icon, I } from "../ds";
-import { ModelList } from "./Models";
+import { ModelList, fmtEta } from "./Models";
+import { Progress } from "../ds";
+import { fmtBytes } from "../lib/format";
 
 function Check({ ok, title, detail }: { ok: boolean; title: string; detail: string }) {
   return (
@@ -22,15 +24,19 @@ export default function Setup({ onSkip }: { onSkip: () => void }) {
 
   const startAll = async () => {
     try {
-      for (const m of [base, chosen]) if (m && !m.installed && !["running", "queued"].includes(m.download.status)) await api.download(m.id);
+      for (const m of [base, chosen, models.find((x) => x.id === "whisper-base")]) if (m && !m.installed && !["running", "queued"].includes(m.download.status)) await api.download(m.id);
       await refreshModels();
     } catch (e) { toast((e as Error).message, true); }
   };
 
+  const wanted = [base, chosen, models.find((x) => x.id === "whisper-base")].filter((m): m is NonNullable<typeof m> => !!m && !m.installed);
+  const active = wanted.filter((m) => ["running", "queued"].includes(m.download.status));
+  const total = active.reduce((a, m) => a + m.download.total, 0), done = active.reduce((a, m) => a + m.download.done, 0), speed = active.reduce((a, m) => a + m.download.speed, 0);
+
   return (
     <main className="page narrow stack gap-lg">
       <div className="stack">
-        <h1>Welcome to LTX Portable Studio</h1>
+        <h1>Welcome to VK Editor</h1>
         <p>Make short videos from text or pictures on this PC, then edit them. Nothing is uploaded; everything runs here.</p>
       </div>
       <section className="card stack gap" aria-labelledby="chk">
@@ -44,6 +50,14 @@ export default function Setup({ onSkip }: { onSkip: () => void }) {
       </section>
       <section className="stack gap" aria-labelledby="mdl">
         <div className="stack"><h2 id="mdl">Download the model files</h2><p className="text-sm">One time only. They are saved in the app’s data folder; copy that folder to another PC to skip the download there.</p></div>
+        {active.length > 0 && (
+          <div className="card stack gap" role="status" aria-live="polite">
+            <b>Downloading {active.length} item{active.length > 1 ? "s" : ""}… keep this window open</b>
+            <Progress value={total ? done / total : 0} indeterminate={!total} />
+            <span className="text-sm">{fmtBytes(done)} of {total ? fmtBytes(total) : "?"}{speed ? ` · ${fmtBytes(speed)}/s` : ""}{speed > 0 && total ? ` · ${fmtEta((total - done) / speed)}` : ""}</span>
+            <span className="text-xs">You can pause and resume at any time; nothing is lost.</span>
+          </div>
+        )}
         <ModelList />
         <div className="row gap">
           <Button icon={I.download} onClick={startAll}>Download everything needed</Button>

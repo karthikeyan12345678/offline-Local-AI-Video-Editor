@@ -28,7 +28,7 @@ export default function Timeline({ project, asset, time, onSeek, sel, onSelect, 
   const { items } = layout(project, asset);
   const [ghost, setGhost] = useState<{ id: string; dx: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const textEnd = Math.max(0, ...project.texts.map((t) => t.start + t.duration));
+  const textEnd = Math.max(0, ...project.texts.map((t) => t.start + t.duration), ...project.drawings.map((d) => d.start + d.duration));
   const audioEnd = Math.max(0, ...project.audio.map((a) => a.start + audioLength(a, asset(a.asset_id))));
   const span = Math.max(total, textEnd, audioEnd, 10) + 5;
   const width = span * zoom;
@@ -88,16 +88,21 @@ export default function Timeline({ project, asset, time, onSeek, sel, onSelect, 
   };
 
   // ---- text + audio blocks (move = change start, right edge = change length)
-  const moveBlock = (e: RPE, kind: "text" | "audio", id: string) => {
+  const moveBlock = (e: RPE, kind: "text" | "audio" | "draw", id: string) => {
     onSelect({ type: kind, id });
-    const orig = kind === "text" ? project.texts.find((t) => t.id === id)!.start : project.audio.find((t) => t.id === id)!.start;
+    const orig = kind === "text" ? project.texts.find((t) => t.id === id)!.start : kind === "draw" ? project.drawings.find((t) => t.id === id)!.start : project.audio.find((t) => t.id === id)!.start;
     drag(e, (dx) => commit((p) => kind === "text"
       ? { ...p, texts: p.texts.map((t) => (t.id === id ? { ...t, start: Math.max(0, orig + dx / zoom) } : t)) }
-      : { ...p, audio: p.audio.map((t) => (t.id === id ? { ...t, start: Math.max(0, orig + dx / zoom) } : t)) }, `${id}:move`));
+      : kind === "draw"
+        ? { ...p, drawings: p.drawings.map((t) => (t.id === id ? { ...t, start: Math.max(0, orig + dx / zoom) } : t)) }
+        : { ...p, audio: p.audio.map((t) => (t.id === id ? { ...t, start: Math.max(0, orig + dx / zoom) } : t)) }, `${id}:move`));
   };
-  const resizeBlock = (e: RPE, kind: "text" | "audio", id: string) => {
+  const resizeBlock = (e: RPE, kind: "text" | "audio" | "draw", id: string) => {
     onSelect({ type: kind, id });
-    if (kind === "text") {
+    if (kind === "draw") {
+      const o = project.drawings.find((t) => t.id === id)!.duration;
+      drag(e, (dx) => commit((p) => ({ ...p, drawings: p.drawings.map((t) => (t.id === id ? { ...t, duration: Math.max(0.2, o + dx / zoom) } : t)) }), `${id}:len`));
+    } else if (kind === "text") {
       const o = project.texts.find((t) => t.id === id)!.duration;
       drag(e, (dx) => commit((p) => ({ ...p, texts: p.texts.map((t) => (t.id === id ? { ...t, duration: Math.max(0.2, o + dx / zoom) } : t)) }), `${id}:len`));
     } else {
@@ -156,6 +161,22 @@ export default function Timeline({ project, asset, time, onSeek, sel, onSelect, 
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect({ type: "text", id: t.id }); } }}>
                   <span className="block-label text-xs truncate">{t.text}</span>
                   <span className="handle handle--r" onPointerDown={(e) => resizeBlock(e, "text", t.id)} aria-hidden="true" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="tl-row">
+          <div className="tl-label text-xs w-medium">Draw</div>
+          <div className="tl-lane" style={{ width }} onPointerDown={(e) => { if (e.target === e.currentTarget) onSelect(null); }}>
+            {project.drawings.map((d) => {
+              const on = sel?.type === "draw" && sel.id === d.id;
+              return (
+                <div key={d.id} className={`block block--draw${on ? " block--on" : ""}`} style={{ left: d.start * zoom, width: Math.max(8, d.duration * zoom) }} onPointerDown={(e) => moveBlock(e, "draw", d.id)} tabIndex={0} role="button" aria-pressed={on} aria-label={`Drawing with ${d.shapes.length} shapes`}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect({ type: "draw", id: d.id }); } }}>
+                  <span className="block-label text-xs truncate">✎ {d.shapes.length} shape{d.shapes.length === 1 ? "" : "s"}</span>
+                  <span className="handle handle--r" onPointerDown={(e) => resizeBlock(e, "draw", d.id)} aria-hidden="true" />
                 </div>
               );
             })}

@@ -85,7 +85,7 @@ async function launch() {
     let py = rt.findPython({ resourcesDir, dataDir, requirementsFile });
     if (!py) {
       setStatus({ firstRun: true });
-      py = await rt.setupRuntime({ dataDir, backendDir, requirementsFile, needTorch: product.needTorch, minFreeGb: product.minFreeGb, report: (stage, fraction, detail) => { log(`setup: ${stage} ${detail || ""}`); setStatus({ stage, fraction, detail }); } });
+      py = await rt.setupRuntime({ dataDir, backendDir, requirementsFile, needTorch: product.needTorch, minFreeGb: product.minFreeGb, report: (stage, fraction, detail, extra) => { log(`setup: ${stage} ${detail || ""}`); setStatus({ stage, fraction, detail, steps: extra && extra.steps ? extra.steps : status.steps }); } });
     } else if (!py.bundled) {
       rt.writePth(py.dir, backendDir); // the app folder may have moved since last run
     } else if (py.dir.startsWith(resourcesDir)) {

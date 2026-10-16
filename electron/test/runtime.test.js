@@ -68,7 +68,7 @@ live("starts the real backend, serves the UI and stops when the parent goes away
     const health = await fetch(`http://127.0.0.1:${info.port}/api/health`, { headers: { Authorization: "Bearer t0k" } });
     assert.strictEqual(health.status, 200);
     const page = await fetch(info.url);
-    assert.match(await page.text(), /LTX Portable Studio/);
+    assert.match(await page.text(), /VK Editor/);
     assert.strictEqual((await fetch(`http://127.0.0.1:${info.port}/api/system`)).status, 401);
   } finally { rt.killTree(info.child); }
 });
@@ -137,4 +137,32 @@ live("the assistant backend starts without PyTorch libraries and serves its own 
     const i = await fetch(`http://127.0.0.1:${info.port}/api/assistant/info`, { headers: { Authorization: "Bearer t0k" } });
     assert.ok((await i.json()).formats.includes("pptx"));
   } finally { rt.killTree(info.child); }
+});
+
+test("setup progress combines steps into one bar, with speed and time left", () => {
+  const { SetupProgress, parsePipLine, fmtEta, fmtBytes } = require("../progress");
+  let t = 0;
+  const p = new SetupProgress([{ id: "a", label: "A", weight: 10 }, { id: "b", label: "B", weight: 90 }], () => t);
+  p.begin("a"); p.file(5 * 1048576, 10 * 1048576); t = 10000; p.file(10 * 1048576, 10 * 1048576);
+  p.begin("b");
+  assert.ok(Math.abs(p.fraction - 0.1) < 1e-9);
+  t = 20000; p.file(1 * 1048576, 100 * 1048576); t = 30000; p.file(11 * 1048576, 100 * 1048576);
+  assert.ok(p.speed > 500 * 1024); // about 1 MB/s
+  assert.ok(p.eta > 0);
+  assert.match(p.detail(), /11 MB of 100 MB/);
+  assert.deepStrictEqual(p.snapshot().steps.map((s) => s.state), ["done", "active"]);
+  assert.deepStrictEqual(parsePipLine("Progress 123 of 456"), { done: 123, total: 456 });
+  assert.strictEqual(parsePipLine("Downloading torch-2.5.0-cp312-win_amd64.whl (2.5 GB)").file, "torch-2.5.0-cp312-win_amd64.whl");
+  assert.strictEqual(parsePipLine("random"), null);
+  assert.strictEqual(fmtEta(10), "less than a minute");
+  assert.strictEqual(fmtEta(600), "about 10 minutes");
+  assert.strictEqual(fmtBytes(2.5 * 1024 ** 3), "2.5 GB");
+});
+
+test("a new file in the same step keeps the speed counter moving forward", () => {
+  const { SetupProgress } = require("../progress");
+  let t = 0;
+  const p = new SetupProgress([{ id: "a", label: "A", weight: 1 }], () => t);
+  p.begin("a"); p.file(8e6, 8e6); t = 4000; p.file(1e6, 5e6); t = 8000; p.file(5e6, 5e6);
+  assert.ok(p.cum >= 13e6 - 1);
 });

@@ -4,7 +4,7 @@ const path = require("path");
 
 const PRODUCTS = {
   studio: {
-    id: "studio", title: "LTX Portable Studio", mode: "studio", engineName: "video engine",
+    id: "studio", title: "VK Editor", mode: "studio", engineName: "video engine",
     dataFolder: "LTXPortableStudio", portableFolder: "LTXStudioData",
     requirements: "requirements.txt", needTorch: true, minFreeGb: 8,
     splash: "splash.html", background: "#FFFFFF", minWidth: 1000, minHeight: 640,

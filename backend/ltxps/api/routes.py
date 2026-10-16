@@ -14,18 +14,20 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..catalog import AUX, BASE_ID, MODELS
 from ..db import Asset, new_id
-from ..editor import ai, audiofx, effects, fonts, ops
+from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, ops
 from ..editor.media import FfmpegError, run_ffmpeg
 from ..editor.project import TEXT_ANIM_IN, TEXT_ANIM_OUT, ExportOptions, Project
 from ..editor.render import AssetRef, PlanError, build_plan
+from .. import updates
 from ..engine.base import GenRequest
 from ..jobs import JobContext, UserFacingError
+from ..assistant import llm
 from ..library import SUPPORTED, safe_name
 from ..profiles import PROFILES, LimitError, pick_profile, validate_request
 from ..state import AppState
 
 
-def make_router(state: AppState) -> APIRouter:
+def make_router(state: AppState, assistant: Any = None) -> APIRouter:
     def auth(request: Request) -> None:
         supplied = request.headers.get("authorization", "").removeprefix("Bearer ").strip() or request.query_params.get("t", "")
         if supplied != state.token:
@@ -520,6 +522,85 @@ def make_router(state: AppState) -> APIRouter:
             return {"asset_id": made.id}
 
         return ai_job("ai", "Voice-over", run)
+
+    # ------------------------------------------------------------------ editor: chat
+    class ChatMsg(BaseModel):
+        role: Literal["user", "assistant"]
+        content: str = Field(max_length=6000)
+        image_ids: list[str] = Field(default_factory=list, max_length=4)
+
+    class ChatBody(BaseModel):
+        messages: list[ChatMsg] = Field(min_length=1, max_length=30)
+        project: Project
+
+    @router.post("/editor/chat")
+    def editor_chat_turn(body: ChatBody) -> dict[str, Any]:
+        if assistant is None:
+            raise HTTPException(503, "The chat helper is not available in this build.")
+        cfg = assistant.llm_config()
+        assets = {a.id: a for a in state.db.list_assets()}
+        names = {i: a.name for i, a in assets.items()}
+        durations = {i: a.duration for i, a in assets.items()}
+        library = [a.name for a in assets.values() if a.kind in ("video", "audio", "image")]
+        msgs: list[dict[str, Any]] = []
+        n_img = 0
+        last = len(body.messages) - 1
+        for k, m in enumerate(body.messages):
+            row: dict[str, Any] = {"role": m.role, "content": m.content}
+            if m.role == "user" and k >= last - 1:  # pictures only travel with the newest messages
+                imgs = []
+                for iid in m.image_ids:
+                    a = assets.get(iid)
+                    if a and a.kind == "image" and Path(a.path).exists():
+                        imgs.append(editor_chat.encode_image(Path(a.path)))
+                if imgs:
+                    row["images"] = imgs
+                    n_img += len(imgs)
+            msgs.append(row)
+        system = editor_chat.system_prompt(editor_chat.describe(body.project, names, durations), library, n_img > 0)
+        try:
+            text = llm.complete(llm.LLMConfig(**{**cfg.__dict__, "temperature": 0.2, "max_tokens": 2048}), msgs, system)
+        except llm.LLMError as exc:
+            raise HTTPException(502, str(exc)) from exc
+        parsed = editor_chat.parse_answer(text)
+        out = editor_chat.apply_actions(body.project, parsed["actions"], names)
+        return {"reply": parsed["reply"], "project": out["project"].model_dump(), "applied": out["applied"], "skipped": out["skipped"], "tasks": out["tasks"],
+                "changed": bool(out["applied"]) and out["project"].model_dump() != body.project.model_dump()}
+
+    @router.get("/editor/chat/status")
+    def editor_chat_status() -> dict[str, Any]:
+        if assistant is None:
+            return {"ready": False, "why": "unavailable"}
+        cfg = assistant.llm_config()
+        p = llm.PRESETS.get(cfg.provider, {})
+        needs = bool(p.get("needs_key")) and not cfg.api_key
+        return {"ready": bool(cfg.base_url and cfg.model) and not needs, "provider": cfg.provider, "name": p.get("name", cfg.provider), "model": cfg.model,
+                "why": "key" if needs else ("model" if not cfg.model else "")}
+
+    # ------------------------------------------------------------------ updates
+    @router.get("/updates")
+    def updates_check() -> dict[str, Any]:
+        try:
+            return updates.check()
+        except updates.UpdateError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @router.post("/updates/modules")
+    def updates_install() -> dict[str, Any]:
+        def run(ctx: JobContext) -> dict[str, Any]:
+            ctx.update(0.05, "Checking what is new")
+            seen = {"n": 0}
+
+            def on_line(line: str) -> None:
+                seen["n"] += 1
+                ctx.update(min(0.9, 0.1 + seen["n"] / 400), line[:90])
+
+            try:
+                return updates.update_modules(on_line=on_line, cancel=ctx.cancel)
+            except updates.UpdateError as exc:
+                raise UserFacingError(str(exc)) from exc
+
+        return state.jobs.submit("update", "Update AI modules", run, lane="media").to_json()
 
     # ------------------------------------------------------------------ projects
     @router.get("/projects")

@@ -7,6 +7,7 @@ import Editor from "./views/Editor";
 import Settings from "./views/Settings";
 import Setup from "./views/Setup";
 import { JobCard } from "./views/shared";
+import { useUpdateCheck } from "./views/Updates";
 import type { Asset } from "./lib/types";
 import { token } from "./lib/api";
 
@@ -22,22 +23,24 @@ function Shell() {
   const [visited, setVisited] = useState<Set<View>>(new Set(["generate"]));
   const [skipSetup, setSkipSetup] = useState(false);
   const [queue, setQueue] = useState<Asset[]>([]);
+  const upd = useUpdateCheck(ready);
+  const hasUpdate = !!upd.info && (upd.info.app_update || upd.info.modules_update);
 
   const go = (v: View) => { setView(v); setVisited((s) => new Set(s).add(v)); };
   const shownJobs = jobs.filter((j) => j.status === "queued" || j.status === "running").slice(0, 4);
 
   if (!ready) {
-    return <div className="center-screen" role="status">{connectionLost ? <div className="stack gap center-text"><Icon d={I.alert} size={24} /><h2>Can’t reach the app</h2><p>Close this window and open LTX Portable Studio again.</p></div> : <><span className="spinner" /><span>Starting…</span></>}</div>;
+    return <div className="center-screen" role="status">{connectionLost ? <div className="stack gap center-text"><Icon d={I.alert} size={24} /><h2>Can’t reach the app</h2><p>Close this window and open VK Editor again.</p></div> : <><span className="spinner" /><span>Starting…</span></>}</div>;
   }
   if (needsSetup && !skipSetup && system) return <Setup onSkip={() => setSkipSetup(true)} />;
 
   return (
     <div className="shell">
       <nav className="nav" aria-label="Main">
-        <div className="brand"><Icon d={I.film} size={20} /><span className="w-semibold">LTX Studio</span></div>
+        <div className="brand"><Icon d={I.film} size={20} /><span className="w-semibold">VK Editor</span></div>
         <ul>
           {NAV.map((n) => (
-            <li key={n.id}><button type="button" className="nav-item" aria-current={view === n.id ? "page" : undefined} onClick={() => go(n.id)}><Icon d={n.icon} />{n.label}</button></li>
+            <li key={n.id}><button type="button" className="nav-item" aria-current={view === n.id ? "page" : undefined} onClick={() => go(n.id)}><Icon d={n.icon} />{n.label}{n.id === "settings" && hasUpdate ? <span className="upd-dot" title="An update is available" aria-label="update available" /> : null}</button></li>
           ))}
           <li><button type="button" className="nav-item" title="Chat, create PDF/PPT/Word/CSV/Excel, compare files, resume ATS check, images, analytics (opens in its own window)"
             onClick={() => window.open(`/assistant-app/?t=${encodeURIComponent(token)}`, "_blank")}><Icon d={I.sparkle} />AI Assistant</button></li>

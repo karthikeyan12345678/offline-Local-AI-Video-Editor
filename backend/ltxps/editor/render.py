@@ -16,7 +16,8 @@ from pathlib import Path
 from .audiofx import fx_filters
 from .effects import PRESET_FILTERS, XFADE_NAMES, Fragment, effect_filter, motion_filters, pick_random_transition
 from .media import NO_WINDOW, require_ffmpeg
-from .project import AudioClip, Clip, ExportOptions, Project, TextOverlay
+from .drawimage import render_drawing_png
+from .project import AudioClip, Clip, Drawing, ExportOptions, Project, TextOverlay
 from .textimage import render_text_png
 
 SAMPLE_RATE = 48000
@@ -397,7 +398,7 @@ def _music_chain(ac: AudioClip, idx: int, span: float, total: float) -> str:
     return f"[{idx}:a]" + ",".join(f) + f"[ax{idx}]"
 
 
-def _text_animation(t: TextOverlay, W: int, H: int) -> tuple[list[str], str, str]:
+def _text_animation(t: TextOverlay | Drawing, W: int, H: int) -> tuple[list[str], str, str]:
     """Filters for the text picture plus the overlay x / y expressions that move it in and out."""
     st, end = t.start, t.start + t.duration
     di = min(t.fade_in, t.duration / 2) if t.anim_in != "none" else 0.0
@@ -443,8 +444,8 @@ def _text_animation(t: TextOverlay, W: int, H: int) -> tuple[list[str], str, str
         chain.append(f"scale=w='max(2,trunc(iw*{s}/2)*2)':h='max(2,trunc(ih*{s}/2)*2)':eval=frame:flags=bicubic")
     if di > 0 and t.anim_in == "reveal":
         chain.append(f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(X,W*clip((T-{_f(st)})/{_f(di)},0,1)),alpha(X,Y),0)'")
-    x = f"(W-w)*{_f(t.x)}+{dx}"
-    y = f"(H-h)*{_f(t.y)}+{dy}"
+    x = f"(W-w)*{_f(getattr(t, 'x', 0.5))}+{dx}"
+    y = f"(H-h)*{_f(getattr(t, 'y', 0.5))}+{dy}"
     return chain, x, y
 
 
@@ -533,9 +534,24 @@ def build_plan(project: Project, assets: dict[str, AssetRef], opts: ExportOption
             v_run = nv
         v_last = v_run
 
-    # ---- text overlays: Pillow PNG per overlay, composited with `overlay`
+    # ---- drawings (pen, arrows, circles): one canvas-sized transparent PNG each, under the text
     cur = v_last
     next_input = n
+    for k, d in enumerate(project.drawings):
+        if not d.shapes:
+            continue
+        png = workdir / f"draw{k}.png"
+        render_drawing_png(d, canvas.width, canvas.height, png)
+        args += ["-loop", "1", "-framerate", str(fps), "-t", _f(total), "-i", str(png)]
+        idx = next_input
+        next_input += 1
+        chain, x_expr, y_expr = _text_animation(d, canvas.width, canvas.height)
+        graph.append(f"[{idx}:v]" + ",".join(chain) + f"[dx{k}]")
+        nxt = f"vd{k}"
+        graph.append(f"[{cur}][dx{k}]overlay=x='{x_expr}':y='{y_expr}':enable='between(t,{_f(d.start)},{_f(d.start + d.duration)})':format=auto[{nxt}]")
+        cur = nxt
+
+    # ---- text overlays: Pillow PNG per overlay, composited with `overlay`
     for k, t in enumerate(project.texts):
         png = workdir / f"text{k}.png"
         render_text_png(t, canvas.height, canvas.width, png)

@@ -45,12 +45,12 @@ def find_assistant_ui_dir(explicit: str | None = None) -> Path | None:
 
 
 def create_app(state: AppState | None, ui_dir: Path | None = None, assistant: AssistantState | None = None, assistant_ui_dir: Path | None = None) -> FastAPI:
-    title = "LTX Portable Studio" if state is not None else "AI Assistant"
+    title = "VK Editor" if state is not None else "AI Assistant"
     app = FastAPI(title=title, version=__version__, docs_url=None, redoc_url=None, openapi_url=None)
     # Only ever reachable from this PC; also blocks DNS-rebinding attempts from web pages.
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
     if state is not None:
-        app.include_router(make_router(state))
+        app.include_router(make_router(state, assistant))
     if assistant is not None:
         app.include_router(make_assistant_router(assistant))
         if state is None:
@@ -114,7 +114,7 @@ def _exit_with_parent(pid: int) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ltxps", description="LTX Portable Studio backend")
+    parser = argparse.ArgumentParser(prog="ltxps", description="VK Editor backend")
     parser.add_argument("--port", type=int, default=0, help="0 picks a free port")
     parser.add_argument("--token", default=os.environ.get("LTXPS_TOKEN"), help="API token (random if omitted)")
     parser.add_argument("--ui-dir", default=None)

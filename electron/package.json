@@ -1,10 +1,10 @@
 {
   "name": "ltx-portable-studio",
-  "productName": "LTX Portable Studio",
-  "version": "1.0.0",
+  "productName": "VK Editor",
+  "version": "1.1.0",
   "description": "Local AI video generator and editor that runs on a 4 GB graphics card.",
   "main": "main.js",
-  "author": "LTX Portable Studio",
+  "author": "VK Editor",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {

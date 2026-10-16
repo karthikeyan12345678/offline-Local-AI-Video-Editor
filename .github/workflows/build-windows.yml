@@ -1,10 +1,12 @@
 name: Build Windows apps
 
 # Produces two separate apps from this repository:
-#   LTX Portable Studio  (video generator and editor, includes the assistant as a second window)
+#   VK Editor  (video generator and editor, includes the assistant as a second window)
 #   AI Assistant         (stand-alone: chat, PDF/PPT/Word/CSV/Excel, compare, resume ATS, images, analytics)
 on:
-  push: { branches: [main] }
+  push:
+    branches: [main]
+    tags: ["v*"]   # pushing a tag like v1.1.0 also publishes a Release with the downloadable apps
   pull_request:
   workflow_dispatch:
 
@@ -34,19 +36,19 @@ jobs:
       - name: Video studio interface type-check and build
         working-directory: frontend
         run: |
-          npm ci
+          npm install
           npm run build
       - name: Assistant interface type-check and build
         working-directory: assistant-ui
         run: |
-          npm ci
+          npm install
           npm run build
       - name: Desktop shell tests
         working-directory: electron
         env:
           LTXPS_PYTHON: python
         run: |
-          npm ci
+          npm install
           node --test test/runtime.test.js
 
   windows:
@@ -58,13 +60,13 @@ jobs:
         with: { node-version: "22" }
       - name: Build interfaces
         run: |
-          cd frontend; npm ci; npm run build; cd ..
-          cd assistant-ui; npm ci; npm run build; cd ..
+          cd frontend; npm install; npm run build; cd ..
+          cd assistant-ui; npm install; npm run build; cd ..
         shell: bash
       - name: Install shell dependencies
         working-directory: electron
-        run: npm ci
-      - name: Package LTX Portable Studio
+        run: npm install
+      - name: Package VK Editor
         run: |
           node scripts/stage-electron.mjs studio
           cd electron
@@ -78,11 +80,36 @@ jobs:
         shell: bash
       - uses: actions/upload-artifact@v4
         with:
-          name: LTXPortableStudio-windows
-          path: dist-installer/LTXPortableStudio*.exe
+          name: VKEditor-windows
+          path: dist-installer/VKEditor*.exe
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: AIAssistant-windows
           path: dist-installer/AIAssistant*.exe
           if-no-files-found: error
+
+  release:
+    # Only when you push a tag that starts with "v" (see docs/SHARE-GUIDE.md). Creates the public download page.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+      - name: List files
+        run: ls -lh release-files
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release-files/*.exe
+          generate_release_notes: true
+          body: |
+            ## How to install (no technical knowledge needed)
+            1. Download **VKEditor-Setup-...exe** below (normal install) or **VKEditor-...-portable.exe** (no install, runs from any folder).
+            2. Double-click it. If Windows says "Windows protected your PC", click **More info → Run anyway**.
+            3. The first start downloads and installs everything by itself and shows the time left. Needs internet once; about 5–10 GB for the AI video models.
+            4. Later: **Settings → Updates** shows a button when new AI parts are available.

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "../lib/store";
 import { Button, Field } from "../ds";
 import { ModelList } from "./Models";
+import UpdatesCard from "./Updates";
 
 const MEMORY = [
   ["auto", "Automatic (recommended)"], ["none", "Keep everything on the GPU (fastest, needs lots of VRAM)"], ["model", "Move whole parts to the GPU as needed"],
@@ -19,6 +20,8 @@ export default function Settings() {
   return (
     <main className="page narrow stack gap-lg">
       <h1>Settings</h1>
+
+      <UpdatesCard />
 
       <section className="card stack gap" aria-labelledby="sys">
         <h2 id="sys">This PC</h2>

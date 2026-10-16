@@ -20,6 +20,7 @@ const GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
 const SETUP_FORMAT = 1; // bump to force every PC to reinstall its runtime
 
 const pythonExe = (dir) => (IS_WIN ? path.join(dir, "python.exe") : path.join(dir, "bin", "python3"));
+const { SetupProgress, parsePipLine } = require("./progress");
 const sha = (buf) => crypto.createHash("sha256").update(buf).digest("hex").slice(0, 16);
 
 /** PyTorch wheel indexes to try, best first, for a GPU of this compute capability. */
@@ -110,6 +111,17 @@ function run(cmd, args, { onLine, cwd, env } = {}) {
   });
 }
 
+/** pip with raw progress: feeds bytes into the tracker and keeps the plain lines for the log. */
+function pipLine(tracker, report, stage, extra) {
+  return (line) => {
+    const p = parsePipLine(line);
+    if (p && p.total) { tracker.file(p.done, p.total); report(stage, tracker.fraction, tracker.detail(), tracker.snapshot()); return; }
+    if (p && p.file) { report(stage, tracker.fraction, `Getting ${p.file.split("-")[0]} (${(p.size / 1048576).toFixed(0)} MB)`, tracker.snapshot()); return; }
+    if (p && p.installing) { tracker.set(0.9); report(stage, tracker.fraction, "Installing…", tracker.snapshot()); return; }
+    if (extra) extra(line);
+  };
+}
+
 function readyInfo(runtimeDir) {
   try { return JSON.parse(fs.readFileSync(path.join(runtimeDir, "ready.json"), "utf8")); } catch (_) { return null; }
 }
@@ -131,26 +143,35 @@ function findPython({ resourcesDir, dataDir, requirementsFile, env = process.env
   return null;
 }
 
-/** First-run install. `report(stage, fraction|null, detail)` feeds the splash screen. */
-async function setupRuntime({ dataDir, backendDir, requirementsFile, report, signal = { cancelled: false }, needTorch = true, minFreeGb = 8 }) {
+/** First-run install. `report(stage, fraction|null, detail, extra)` feeds the splash screen; fraction is for the whole setup. */
+async function setupRuntime({ dataDir, backendDir, requirementsFile, report: rawReport, signal = { cancelled: false }, needTorch = true, minFreeGb = 8 }) {
   if (!IS_WIN) throw new Error("Automatic runtime setup is only available on Windows. Use LTXPS_PYTHON to point at a Python with the requirements installed.");
   const runtimeDir = path.join(dataDir, "runtime");
   const pyDir = path.join(runtimeDir, "python");
   const tmp = path.join(runtimeDir, "tmp");
   fs.mkdirSync(tmp, { recursive: true });
   const check = () => { if (signal.cancelled) throw new Error("Setup cancelled."); };
-  const mb = (n) => (n / 1048576).toFixed(0);
+  const tracker = new SetupProgress([
+    { id: "check", label: "Checking your computer", weight: 2 },
+    { id: "python", label: "Getting the engine (Python)", weight: 6 },
+    { id: "pip", label: "Getting the installer tool", weight: 2 },
+    ...(needTorch ? [{ id: "torch", label: "Getting the AI brain (PyTorch)", weight: 50 }] : []),
+    { id: "libs", label: "Getting the helper libraries", weight: needTorch ? 40 : 90 },
+  ]);
+  const report = (stage, fraction, detail, extra) => rawReport(stage, tracker.fraction, detail, extra || tracker.snapshot());
 
+  tracker.begin("check");
   report("Checking this PC", null, "");
   const gpu = needTorch ? detectGpu() : null;
   const free = (() => { try { const s = fs.statfsSync(runtimeDir); return s.bavail * s.bsize; } catch (_) { return Infinity; } })();
   if (free < minFreeGb * 1024 ** 3) throw new Error(`Not enough free disk space for setup: about ${minFreeGb} GB are needed, ${(free / 1024 ** 3).toFixed(1)} GB are free.`);
 
   // 1. Python
+  tracker.begin("python");
   if (!fs.existsSync(pythonExe(pyDir))) {
     const zip = path.join(tmp, "python-embed.zip");
     report("Downloading Python", 0, "");
-    await download(PY_EMBED_URL, zip, (g, t) => report("Downloading Python", t ? g / t : null, `${mb(g)} MB`));
+    await download(PY_EMBED_URL, zip, (g, t) => { tracker.file(g, t); report("Downloading Python", null, tracker.detail()); });
     check();
     report("Unpacking Python", null, "");
     fs.rmSync(pyDir, { recursive: true, force: true });
@@ -160,6 +181,7 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report, sig
   const py = pythonExe(pyDir);
 
   // 2. pip
+  tracker.begin("pip");
   const hasPip = spawnSync(py, ["-m", "pip", "--version"], { windowsHide: true }).status === 0;
   if (!hasPip) {
     check();
@@ -167,25 +189,27 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report, sig
     report("Downloading the package installer", null, "");
     await download(GET_PIP_URL, getPip);
     report("Installing the package installer", null, "");
-    await run(py, [getPip, "--no-warn-script-location"], { onLine: (l) => report("Installing the package installer", null, l) });
+    await run(py, [getPip, "--no-warn-script-location"], { onLine: (l) => report("Installing the package installer", null, l.slice(0, 100)) });
   }
 
   // 3. PyTorch: try builds until one can really use this GPU (the AI Assistant does not need it)
   let chosen = needTorch ? null : "none";
+  if (needTorch) tracker.begin("torch");
   // An app update that only adds libraries must not download PyTorch again: keep the working one.
   const previous = readyInfo(runtimeDir);
   if (needTorch && previous && previous.format === SETUP_FORMAT && previous.torch && previous.torch !== "none" && fs.existsSync(py) && hasPip) {
     const probe = spawnSync(py, ["-c", "import torch"], { windowsHide: true, timeout: 120000 });
-    if (probe.status === 0) { chosen = previous.torch; report("Keeping your existing PyTorch", null, ""); }
+    if (probe.status === 0) { chosen = previous.torch; tracker.skip("torch"); report("Keeping your existing PyTorch", null, ""); }
   }
   const candidates = needTorch && !chosen ? torchCandidates(gpu) : [];
   let lastError = "";
+  const torchArgs = (tag) => ["-m", "pip", "install", "--upgrade", "--force-reinstall", "--no-warn-script-location", "--progress-bar", "raw", "torch", "--index-url", `https://download.pytorch.org/whl/${tag}`];
   for (const tag of candidates) {
     check();
-    const label = tag === "cpu" ? "Installing PyTorch (processor only)" : `Installing PyTorch for your graphics card (${tag})`;
-    report(label, null, "This is a large download (2–3 GB) and can take a while.");
+    const label = tag === "cpu" ? "Downloading PyTorch (processor only)" : `Downloading PyTorch for your graphics card (${tag})`;
+    report(label, null, "This is the biggest download (2–3 GB). Please keep the window open.");
     try {
-      await run(py, ["-m", "pip", "install", "--upgrade", "--force-reinstall", "--no-warn-script-location", "torch", "--index-url", `https://download.pytorch.org/whl/${tag}`], { onLine: (l) => report(label, null, l.slice(0, 120)) });
+      await run(py, torchArgs(tag), { onLine: pipLine(tracker, report, label) });
     } catch (e) { lastError = e.message; continue; }
     report("Testing the graphics card", null, "");
     const r = spawnSync(py, ["-m", "ltxps.selfcheck"], { encoding: "utf8", windowsHide: true, timeout: 180000 });
@@ -195,14 +219,18 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report, sig
     lastError = `PyTorch ${tag} cannot run on this graphics card.`;
   }
   if (!chosen) {
-    if (gpu) { chosen = "cpu"; report("Installing PyTorch (processor only)", null, "No GPU build worked; falling back to the processor."); await run(py, ["-m", "pip", "install", "--upgrade", "--force-reinstall", "--no-warn-script-location", "torch", "--index-url", "https://download.pytorch.org/whl/cpu"], { onLine: (l) => report("Installing PyTorch (processor only)", null, l.slice(0, 120)) }); }
+    if (gpu) { chosen = "cpu"; const label = "Downloading PyTorch (processor only)"; report(label, null, "No GPU build worked; falling back to the processor."); await run(py, torchArgs("cpu"), { onLine: pipLine(tracker, report, label) }); }
     else throw new Error(lastError || "Could not install PyTorch.");
   }
 
   // 4. everything else
   check();
-  report("Installing the app’s libraries", null, "");
-  await run(py, ["-m", "pip", "install", "--no-warn-script-location", "-r", requirementsFile], { onLine: (l) => report("Installing the app’s libraries", null, l.slice(0, 120)) });
+  tracker.begin("libs");
+  const libsLabel = "Downloading the helper libraries";
+  report(libsLabel, null, "");
+  await run(py, ["-m", "pip", "install", "--no-warn-script-location", "--progress-bar", "raw", "-r", requirementsFile], { onLine: pipLine(tracker, report, libsLabel) });
+  tracker.finish("libs");
+  report("All done", null, "Starting the app…");
 
   fs.writeFileSync(path.join(runtimeDir, "ready.json"), JSON.stringify({ format: SETUP_FORMAT, torch: chosen, requirements: sha(fs.readFileSync(requirementsFile)), when: new Date().toISOString(), gpu }, null, 2));
   fs.rmSync(tmp, { recursive: true, force: true });
@@ -249,4 +277,4 @@ function killTree(child) {
   } catch (_) { /* already gone */ }
 }
 
-module.exports = { IS_WIN, SETUP_FORMAT, pythonExe, sha, torchCandidates, parseNvidiaSmi, detectGpu, writePth, findPython, setupRuntime, startBackend, killTree, readyInfo };
+module.exports = { SetupProgress, IS_WIN, SETUP_FORMAT, pythonExe, sha, torchCandidates, parseNvidiaSmi, detectGpu, writePth, findPython, setupRuntime, startBackend, killTree, readyInfo };

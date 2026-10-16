@@ -31,7 +31,7 @@ Separate app, own `.exe`, own data folder (`AIAssistantData` next to the portabl
 | Image generation | Free Pollinations service, any OpenAI-compatible images API, or Stable Diffusion Turbo on this PC (only in the Studio, which includes PyTorch) | the engine you choose |
 | File analytics | Column statistics, outliers, missing values, duplicates, correlations, date ranges, text readability | this PC |
 
-Build it with `scripts\build-assistant.bat` or the GitHub workflow (artifact *AIAssistant-windows*: `AIAssistant-Setup-1.0.0.exe` and `AIAssistant-1.0.0-portable.exe`). Develop it with `cd assistant-ui && npm ci && npm run dev` and `python -m ltxps --mode assistant --port 8766`.
+Build it with `scripts\build-assistant.bat` or the GitHub workflow (artifact *AIAssistant-windows*: `AIAssistant-Setup-1.0.0.exe` and `AIAssistant-1.0.0-portable.exe`). Develop it with `cd assistant-ui && npm install && npm run dev` and `python -m ltxps --mode assistant --port 8766`.
 
 **Limits to know about**
 - The ATS score is an estimate from common ATS checks, not any vendor's real system.
@@ -83,8 +83,8 @@ cd backend && pip install torch --index-url https://download.pytorch.org/whl/cpu
 python -m pytest tests            # 149 tests, uses tiny fake weights and a fake model server, no GPU needed
 LTXPS_ENGINE=fake python -m ltxps --ui-dir ../frontend/dist   # prints the URL; fake engine makes test clips
 
-cd frontend && npm ci && npm run dev      # UI on :5173, proxy to a backend started with --port 8765
-cd electron && npm ci && npm start        # desktop shell (set LTXPS_PYTHON to a Python with the requirements)
+cd frontend && npm install && npm run dev      # UI on :5173, proxy to a backend started with --port 8765
+cd electron && npm install && npm start        # desktop shell (set LTXPS_PYTHON to a Python with the requirements)
 ```
 
 Environment variables: `LTXPS_DATA_DIR` (where data lives), `LTXPS_ENGINE=fake` (no model needed), `LTXPS_FAKE_VRAM_MB=4096` (pretend to have 4 GB), `LTXPS_FFMPEG`, `LTXPS_PYTHON`.
@@ -109,3 +109,10 @@ The app code is yours. The model files are not part of it: check the licence ter
 - **Text:** 68 bundled fonts (Latin, display, script, plus Tamil, Hindi, Telugu, Kannada, Malayalam, Bengali), outline, shadow, glow, gradient, box, spacing, tilt, 14 one-click styles, in/out animations (fade, slide, zoom, pop, wipe reveal). Fonts are OFL/Apache licensed (see `backend/ltxps/editor/fonts/README.txt`).
 - **Sound:** 25 sound effects (voice clean-up, telephone, robot, reverb, echo, lo-fi, …), pitch, bass/treble, noise removal, loudness, music loop, automatic music ducking under speech.
 - **AI (all on this PC):** follow a person with a moving crop (YuNet face model bundled, falls back to movement), auto captions (Whisper via faster-whisper; models are downloaded from the Models page), cut silences, split at scene changes, auto-enhance colour, cut clips to the music beat, text-to-speech voice-over using the PC's own voices.
+
+
+## New in 1.1
+- **Draw** on the frame (pen, highlighter, line, arrow, circle, box) — `editor/Draw.tsx`, `editor/drawimage.py`.
+- **AI chat editor** with reference pictures — `editor/ChatPanel.tsx`, `backend/ltxps/editor/chat.py`, `POST /api/editor/chat`. Uses the AI provider set in the chat's *AI settings*.
+- **First-run setup** with speed and time left, and **Settings → Updates** for AI modules.
+- Sharing guide for beginners: [`docs/SHARE-GUIDE.md`](docs/SHARE-GUIDE.md).

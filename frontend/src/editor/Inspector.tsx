@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { Button, Field, Slider, Tabs, I } from "../ds";
 import { api } from "../lib/api";
 import { uid } from "../lib/format";
-import type { Asset, AudioClip, Clip, Effect, Project, TextOverlay } from "../lib/types";
+import type { Asset, AudioClip, Clip, Drawing, Effect, Project, TextOverlay } from "../lib/types";
 import { animLabel, groupBy, useCatalog } from "./catalog";
 import FontPicker from "./FontPicker";
 import { CANVAS_PRESETS, TEXT_STYLES, layout, newAudio, newText, sourceEnd } from "./model";
 import { useAI } from "./useAI";
 
-export type Selection = { type: "clip" | "text" | "audio"; id: string } | null;
+export type Selection = { type: "clip" | "text" | "audio" | "draw"; id: string } | null;
 type Commit = (fn: (p: Project) => Project, key?: string) => void;
 
 function GroupSelect({ id, label, value, items, onChange }: { id: string; label: string; value: string; items: { id: string; label: string; group?: string }[]; onChange: (v: string) => void }) {
@@ -28,6 +28,7 @@ export default function Inspector({ project, sel, asset, commit, onDelete, time 
   if (sel?.type === "clip") { const c = project.clips.find((x) => x.id === sel.id); if (c) return <ClipPanel key={c.id} clip={c} index={project.clips.findIndex((x) => x.id === c.id)} count={project.clips.length} a={asset(c.asset_id)} project={project} asset={asset} commit={commit} onDelete={onDelete} />; }
   if (sel?.type === "text") { const t = project.texts.find((x) => x.id === sel.id); if (t) return <TextPanel key={t.id} t={t} commit={commit} onDelete={onDelete} />; }
   if (sel?.type === "audio") { const t = project.audio.find((x) => x.id === sel.id); if (t) return <AudioPanel key={t.id} ac={t} a={asset(t.asset_id)} commit={commit} onDelete={onDelete} />; }
+  if (sel?.type === "draw") { const d = project.drawings.find((x) => x.id === sel.id); if (d) return <DrawPanel key={d.id} d={d} commit={commit} onDelete={onDelete} />; }
   return <ProjectPanel project={project} asset={asset} commit={commit} time={time} />;
 }
 
@@ -448,6 +449,30 @@ function AudioPanel({ ac, a, commit, onDelete }: { ac: AudioClip; a: Asset | und
       <Slider label="Treble" value={ac.treble} min={-12} max={12} step={1} onChange={(v) => set({ treble: v }, "tr")} format={(v) => `${v > 0 ? "+" : ""}${v} dB`} />
       <label className="check"><input type="checkbox" checked={ac.denoise} onChange={(e) => set({ denoise: e.target.checked })} />Remove background noise</label>
       <label className="check"><input type="checkbox" checked={ac.normalize} onChange={(e) => set({ normalize: e.target.checked })} />Even out the loudness</label>
+    </div>
+  );
+}
+
+function DrawPanel({ d, commit, onDelete }: { d: Drawing; commit: Commit; onDelete: () => void }) {
+  const cat = useCatalog();
+  const set = (patch: Partial<Drawing>, key?: string) => commit((p) => ({ ...p, drawings: p.drawings.map((x) => (x.id === d.id ? { ...x, ...patch } : x)) }), key ? `${d.id}:${key}` : undefined);
+  return (
+    <div className="stack gap">
+      <div className="row between"><h3>Drawing</h3><Button variant="ghost" small icon={I.trash} label="Delete drawing" onClick={onDelete} /></div>
+      <p className="text-sm">{d.shapes.length} shape{d.shapes.length === 1 ? "" : "s"}. Press <b>Draw</b> in the toolbar to add more while this is selected.</p>
+      <div className="row gap wrap">
+        <Button variant="secondary" small disabled={d.shapes.length === 0} onClick={() => set({ shapes: d.shapes.slice(0, -1) })}>Undo last shape</Button>
+        <Button variant="secondary" small disabled={d.shapes.length === 0} onClick={() => set({ shapes: [] })}>Clear all</Button>
+      </div>
+      <div className="grid-2">
+        <Field label="Appears at (s)" htmlFor="ds"><input id="ds" className="input" type="number" min={0} step={0.1} value={Number(d.start.toFixed(2))} onChange={(e) => set({ start: Math.max(0, Number(e.target.value) || 0) }, "s")} /></Field>
+        <Field label="Stays for (s)" htmlFor="dd"><input id="dd" className="input" type="number" min={0.2} step={0.1} value={Number(d.duration.toFixed(2))} onChange={(e) => set({ duration: Math.max(0.2, Number(e.target.value) || 0.2) }, "d")} /></Field>
+      </div>
+      <Slider label="See-through" value={1 - d.opacity} min={0} max={0.9} step={0.05} onChange={(v) => set({ opacity: 1 - v }, "op")} format={(v) => `${Math.round(v * 100)}%`} />
+      <Field label="Comes in" htmlFor="dain"><select id="dain" className="select" value={d.anim_in} onChange={(e) => set({ anim_in: e.target.value })}>{cat.text_anim_in.map((a) => <option key={a} value={a}>{animLabel(a)}</option>)}</select></Field>
+      <Slider label="Coming-in time" value={d.fade_in} min={0} max={3} step={0.1} disabled={d.anim_in === "none"} onChange={(v) => set({ fade_in: v }, "fi")} format={sec} />
+      <Field label="Goes out" htmlFor="daout"><select id="daout" className="select" value={d.anim_out} onChange={(e) => set({ anim_out: e.target.value })}>{cat.text_anim_out.map((a) => <option key={a} value={a}>{animLabel(a)}</option>)}</select></Field>
+      <Slider label="Going-out time" value={d.fade_out} min={0} max={3} step={0.1} disabled={d.anim_out === "none"} onChange={(v) => set({ fade_out: v }, "fo")} format={sec} />
     </div>
   );
 }

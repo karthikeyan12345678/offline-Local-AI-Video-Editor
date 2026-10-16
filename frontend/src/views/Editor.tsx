@@ -7,10 +7,12 @@ import Preview from "../editor/Preview";
 import Timeline from "../editor/Timeline";
 import Inspector, { type Selection } from "../editor/Inspector";
 import ExportDialog from "../editor/ExportDialog";
-import { layout, newAudio, newClip, newProject, newText, splitAt, upgradeProject } from "../editor/model";
+import { layout, newAudio, newClip, newDrawing, newProject, newText, splitAt, upgradeProject } from "../editor/model";
+import { COLORS, TOOLS, type PenSettings } from "../editor/Draw";
 import { useHistory } from "../editor/useHistory";
+import ChatPanel from "../editor/ChatPanel";
 import { Thumb, JobCard } from "./shared";
-import type { Asset, Project } from "../lib/types";
+import type { Asset, Project, Shape } from "../lib/types";
 
 const KEY = "ltxps_project";
 const remembered = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
@@ -32,6 +34,9 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
   const [previewJob, setPreviewJob] = useState<string | null>(null);
   const [bin, setBin] = useState<"all" | "video" | "image" | "audio">("all");
   const dirty = useRef(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const [pen, setPen] = useState<PenSettings>({ tool: "pen", color: "#FF3B30", width: 0.8, filled: false });
 
   const { total } = layout(project, asset);
   useEffect(() => { if (!visible) setPlaying(false); }, [visible]);
@@ -75,10 +80,19 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
 
   const addText = () => { const t = newText(clamp(time, 0, Math.max(0, total))); commit((p) => ({ ...p, texts: [...p.texts, t] })); setSel({ type: "text", id: t.id }); };
 
+  // ---- drawing: strokes go into the selected drawing, or start a new one at the playhead
+  const addShape = useCallback((shape: Shape) => {
+    const cur = sel?.type === "draw" ? project.drawings.find((d) => d.id === sel.id) : undefined;
+    if (cur) { commit((p) => ({ ...p, drawings: p.drawings.map((d) => (d.id === cur.id ? { ...d, shapes: [...d.shapes, shape] } : d)) })); return; }
+    const d = { ...newDrawing(clamp(time, 0, Math.max(0, total)), Math.min(4, Math.max(1.5, total - time || 3))), shapes: [shape] };
+    commit((p) => ({ ...p, drawings: [...p.drawings, d] }));
+    setSel({ type: "draw", id: d.id });
+  }, [sel, project.drawings, commit, time, total]);
+
   // ---- actions on the selection
   const remove = useCallback(() => {
     if (!sel) return;
-    commit((p) => ({ ...p, clips: sel.type === "clip" ? p.clips.filter((c) => c.id !== sel.id) : p.clips, texts: sel.type === "text" ? p.texts.filter((c) => c.id !== sel.id) : p.texts, audio: sel.type === "audio" ? p.audio.filter((c) => c.id !== sel.id) : p.audio }));
+    commit((p) => ({ ...p, clips: sel.type === "clip" ? p.clips.filter((c) => c.id !== sel.id) : p.clips, texts: sel.type === "text" ? p.texts.filter((c) => c.id !== sel.id) : p.texts, audio: sel.type === "audio" ? p.audio.filter((c) => c.id !== sel.id) : p.audio, drawings: sel.type === "draw" ? p.drawings.filter((c) => c.id !== sel.id) : p.drawings }));
     setSel(null);
   }, [sel, commit]);
   const duplicate = () => {
@@ -86,6 +100,7 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
     commit((p) => {
       if (sel.type === "clip") { const i = p.clips.findIndex((c) => c.id === sel.id); if (i < 0) return p; const copy = { ...p.clips[i], id: Math.random().toString(36).slice(2, 10) }; const clips = [...p.clips]; clips.splice(i + 1, 0, copy); return { ...p, clips }; }
       if (sel.type === "text") { const t = p.texts.find((x) => x.id === sel.id); return t ? { ...p, texts: [...p.texts, { ...t, id: Math.random().toString(36).slice(2, 10), start: t.start + t.duration }] } : p; }
+      if (sel.type === "draw") { const d = p.drawings.find((x) => x.id === sel.id); return d ? { ...p, drawings: [...p.drawings, { ...d, id: Math.random().toString(36).slice(2, 10), start: d.start + d.duration }] } : p; }
       const a = p.audio.find((x) => x.id === sel.id);
       return a ? { ...p, audio: [...p.audio, { ...a, id: Math.random().toString(36).slice(2, 10), start: a.start + 1 }] } : p;
     });
@@ -153,6 +168,8 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
         <Button variant="ghost" small icon={I.dup} onClick={duplicate} disabled={!sel}>Duplicate</Button>
         <Button variant="ghost" small icon={I.trash} onClick={remove} disabled={!sel}>Delete</Button>
         <Button variant="ghost" small icon={I.text} onClick={addText}>Add text</Button>
+        <Button variant="secondary" small icon={I.sparkle} active={chatOpen} onClick={() => setChatOpen((c) => !c)}>AI chat</Button>
+        <Button variant="ghost" small icon={I.wand} active={drawing} onClick={() => { setDrawing((d) => !d); setPlaying(false); }}>Draw</Button>
         <span className="vr" />
         <Button variant="ghost" small icon={I.zoomOut} label="Zoom timeline out" onClick={() => setZoom((z) => clamp(z / 1.5, 8, 300))} />
         <Button variant="ghost" small icon={I.zoomIn} label="Zoom timeline in" onClick={() => setZoom((z) => clamp(z * 1.5, 8, 300))} />
@@ -193,7 +210,18 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
             </div>
           ) : (
             <>
-              <Preview project={project} asset={asset} time={time} playing={playing} onTick={onTick} onEnd={onEnd} />
+              {drawing && (
+                <div className="drawbar" role="toolbar" aria-label="Drawing tools">
+                  {TOOLS.map((t) => <Button key={t.id} variant="secondary" small active={pen.tool === t.id} onClick={() => setPen({ ...pen, tool: t.id })}>{t.label}</Button>)}
+                  <span className="vr" />
+                  {COLORS.map((c) => <button key={c} type="button" className="swatch" style={{ background: c }} aria-label={`Colour ${c}`} aria-pressed={pen.color === c} onClick={() => setPen({ ...pen, color: c })} />)}
+                  <input type="color" aria-label="Custom colour" value={pen.color} onChange={(e) => setPen({ ...pen, color: e.target.value.toUpperCase() })} />
+                  <label className="text-xs row gap center-v">Thickness<input type="range" min={0.2} max={4} step={0.1} value={pen.width} onChange={(e) => setPen({ ...pen, width: Number(e.target.value) })} /></label>
+                  {(pen.tool === "rect" || pen.tool === "ellipse") && <label className="check"><input type="checkbox" checked={pen.filled} onChange={(e) => setPen({ ...pen, filled: e.target.checked })} />Fill</label>}
+                  <Button small variant="ghost" onClick={() => setDrawing(false)}>Done</Button>
+                </div>
+              )}
+              <Preview project={project} asset={asset} time={time} playing={playing} onTick={onTick} onEnd={onEnd} pen={drawing ? pen : null} editingId={drawing && sel?.type === "draw" ? sel.id : null} onShape={addShape} />
               <div className="row gap center-v">
                 <Button variant="ghost" icon={I.skipBack} label="Back to start" onClick={() => { setPlaying(false); setTime(0); }} />
                 <Button icon={playing ? I.pause : I.play} label={playing ? "Pause (Space)" : "Play (Space)"} onClick={togglePlay} disabled={total <= 0} />
@@ -211,6 +239,8 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
       </div>
 
       <Timeline project={project} asset={asset} time={time} onSeek={(t) => { setTime(t); }} sel={sel} onSelect={setSel} commit={mutate} zoom={zoom} total={total} />
+
+      {chatOpen && <ChatPanel project={project} commit={mutate} asset={asset} onClose={() => setChatOpen(false)} onOpenAsset={addAsset} />}
 
       {exporting && <ExportDialog project={project} onClose={() => setExporting(false)} />}
       {projects && (

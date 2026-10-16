@@ -1,5 +1,5 @@
 import { clamp, uid } from "../lib/format";
-import type { Asset, AudioClip, Clip, Project, TextOverlay } from "../lib/types";
+import type { Asset, AudioClip, Clip, Drawing, Project, Shape, TextOverlay } from "../lib/types";
 
 export const TEXT_SAMPLE = "Aa வணக்கம் नमस्ते";
 
@@ -10,7 +10,7 @@ export const CANVAS_PRESETS: { label: string; width: number; height: number }[] 
 ];
 
 export const newProject = (): Project => ({
-  id: uid() + uid(), name: "Untitled project", canvas: { width: 1280, height: 720, fps: 24, background: "#000000" }, clips: [], texts: [], audio: [], master_volume: 1,
+  id: uid() + uid(), name: "Untitled project", canvas: { width: 1280, height: 720, fps: 24, background: "#000000" }, clips: [], texts: [], audio: [], drawings: [], master_volume: 1,
   duck_music: false, duck_amount: 0.6, master_normalize: false,
 });
 
@@ -35,6 +35,9 @@ const audioDefaults = (): Omit<AudioClip, "id" | "asset_id" | "start"> => ({
 });
 export const newAudio = (a: Asset, start: number, extra: Partial<AudioClip> = {}): AudioClip => ({ id: uid(), asset_id: a.id, start, ...audioDefaults(), ...extra });
 
+export const newDrawing = (start: number, duration = 4): Drawing => ({ id: uid(), start, duration, shapes: [], opacity: 1, fade_in: 0.3, fade_out: 0.3, anim_in: "fade", anim_out: "fade" });
+export const newShape = (s: Partial<Shape> & Pick<Shape, "type" | "points">): Shape => ({ color: "#FF3B30", width: 0.8, opacity: 1, filled: false, fill_color: null, fill_opacity: 0.25, ...s });
+
 /** Fill in fields that projects saved by an older version don't have. */
 export function upgradeProject(p: Partial<Project>): Project {
   const base = newProject();
@@ -43,6 +46,7 @@ export function upgradeProject(p: Partial<Project>): Project {
     clips: (p.clips ?? []).map((c) => ({ ...clipDefaults(), ...c, adjust: { ...clipDefaults().adjust, ...c.adjust }, transition: { ...clipDefaults().transition, ...c.transition } })) as Clip[],
     texts: (p.texts ?? []).map((t) => ({ ...textDefaults(), ...t })) as TextOverlay[],
     audio: (p.audio ?? []).map((a) => ({ ...audioDefaults(), ...a })) as AudioClip[],
+    drawings: (p.drawings ?? []) as Drawing[],
   };
 }
 

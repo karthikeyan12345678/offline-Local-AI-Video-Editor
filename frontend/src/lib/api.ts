@@ -1,4 +1,4 @@
-import type { Adjust, Asset, Catalog, ExportOptions, Job, Limits, ModelRow, Project, Settings, SystemInfo, ToolInfo } from "./types";
+import type { UpdateInfo, Adjust, Asset, Catalog, ExportOptions, Job, Limits, ModelRow, Project, Settings, SystemInfo, ToolInfo } from "./types";
 
 function readToken(): string {
   try {
@@ -61,7 +61,25 @@ export const fontFileUrl = (font: string, bold = false) => `/api/editor/fonts/${
 
 export interface AIRequest { asset_id: string; trim_in?: number; trim_out?: number; options?: Record<string, unknown> }
 
+export interface ChatMsg { role: "user" | "assistant"; content: string; image_ids?: string[] }
+export interface ChatTask { name: string; clips?: string[]; language?: string; every?: number; text?: string; prompt?: string; use_reference?: boolean }
+export interface ChatResult { reply: string; project: Project; applied: string[]; skipped: string[]; tasks: ChatTask[]; changed: boolean }
+export interface ChatStatus { ready: boolean; provider?: string; name?: string; model?: string; why?: string }
+export interface LLMPreset { name: string; style: string; base_url: string; needs_key: boolean; model: string; help: string }
+export interface AssistantInfo { providers: Record<string, LLMPreset> }
+export interface AssistantSettings { provider: string; providers: Record<string, { base_url?: string; model?: string; api_key_hint?: string }> }
+
 export const api = {
+  chat: (messages: ChatMsg[], project: Project) => call<ChatResult>("POST", "/editor/chat", { messages, project }),
+  chatStatus: () => call<ChatStatus>("GET", "/editor/chat/status"),
+  llmInfo: () => call<AssistantInfo>("GET", "/assistant/info"),
+  llmSettings: () => call<AssistantSettings>("GET", "/assistant/settings"),
+  saveLlm: (patch: unknown) => call<AssistantSettings>("PUT", "/assistant/settings", patch),
+  llmModels: () => call<{ models: string[] }>("GET", "/assistant/models"),
+  llmTest: () => call<{ ok?: boolean; reply?: string }>("POST", "/assistant/settings/test", {}),
+
+  updates: () => call<UpdateInfo>("GET", "/updates"),
+  updateModules: () => call<Job>("POST", "/updates/modules"),
   catalog: () => call<Catalog>("GET", "/editor/catalog"),
   ai: (what: "follow" | "silence" | "scenes" | "beats" | "captions", b: AIRequest) => call<Job>("POST", `/editor/ai/${what}`, b),
   enhance: (b: AIRequest) => call<Adjust>("POST", "/editor/ai/enhance", b),

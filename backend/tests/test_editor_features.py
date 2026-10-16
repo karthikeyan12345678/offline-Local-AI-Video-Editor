@@ -87,3 +87,34 @@ def test_music_loop_duck_normalize(assets, tmp_path):
                 audio=[AudioClip(id="m", asset_id="audio", loop=True, fade_out=1, fx="warm", pitch=2, normalize=True)])
     plan, info = render(p, assets, tmp_path)
     assert info.has_audio and info.duration == pytest.approx(3, abs=0.3)
+
+
+def test_drawings_render_over_the_video(assets, tmp_path):
+    from ltxps.editor.project import Drawing, Shape
+
+    shapes = [
+        Shape(type="pen", points=[(0.1, 0.1), (0.3, 0.5), (0.5, 0.2)], color="#00FF00", width=1.5),
+        Shape(type="arrow", points=[(0.2, 0.8), (0.8, 0.8)], color="#FF0000"),
+        Shape(type="ellipse", points=[(0.4, 0.3), (0.7, 0.7)], color="#FFFF00", filled=True, fill_opacity=0.3),
+        Shape(type="rect", points=[(0.05, 0.05), (0.95, 0.95)], color="#FFFFFF"),
+        Shape(type="highlight", points=[(0.2, 0.4), (0.8, 0.4)], color="#FFEB3B"),
+        Shape(type="line", points=[(0, 0), (1, 1)]),
+    ]
+    for anim in ("none", "fade", "pop", "reveal", "slide_up"):
+        d = Drawing(id="d", start=0.2, duration=1.5, shapes=shapes, anim_in=anim, fade_in=0.4)
+        p = Project(canvas=cv(), clips=[Clip(id="1", asset_id="av", trim_out=2)], drawings=[d])
+        _, info = render(p, assets, tmp_path / anim)
+        assert info.duration == pytest.approx(2, abs=0.3)
+
+
+def test_drawing_png_has_ink_where_drawn(tmp_path):
+    from PIL import Image
+
+    from ltxps.editor.drawimage import render_drawing_png
+    from ltxps.editor.project import Drawing, Shape
+
+    out = tmp_path / "d.png"
+    render_drawing_png(Drawing(id="d", shapes=[Shape(type="line", points=[(0.1, 0.5), (0.9, 0.5)], color="#FF0000", width=2)]), 200, 100, out)
+    im = Image.open(out).convert("RGBA")
+    assert im.size == (200, 100)
+    assert im.getpixel((100, 50))[3] > 200 and im.getpixel((100, 5))[3] == 0
