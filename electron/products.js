@@ -7,7 +7,7 @@ const PRODUCTS = {
     id: "studio", title: "VK Editor", mode: "studio", engineName: "video engine",
     dataFolder: "LTXPortableStudio", portableFolder: "LTXStudioData",
     requirements: "requirements.txt", needTorch: true, minFreeGb: 8,
-    splash: "splash.html", background: "#FFFFFF", minWidth: 1000, minHeight: 640,
+    icon: "logo-256.png", splash: "splash.html", background: "#FFFFFF", minWidth: 1000, minHeight: 640,
     devUi: ["frontend", "dist"], resourceUi: "ui", outputFolder: "outputs", outputLabel: "Open videos folder",
     setupNote: "First start only: the app is downloading its runtime. Next time it opens in seconds.",
   },

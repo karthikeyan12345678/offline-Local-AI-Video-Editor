@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, mediaUrl } from "../lib/api";
-import { clamp, fmtTime } from "../lib/format";
+import { clamp, fmtTime, uid } from "../lib/format";
 import { useApp } from "../lib/store";
 import { Button, Dialog, Icon, I } from "../ds";
 import Preview from "../editor/Preview";
@@ -16,10 +16,12 @@ import type { Asset, Project, Shape } from "../lib/types";
 
 const KEY = "ltxps_project";
 const remembered = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
+const TOUR = "ltxps_tour_done";
+const tourDone = () => { try { return localStorage.getItem(TOUR) === "1"; } catch { return false; } };
 const remember = (id: string) => { try { localStorage.setItem(KEY, id); } catch { /* private mode */ } };
 
 export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]; onQueueDone: () => void; visible: boolean }) {
-  const { asset, assets, jobs, watchJob, toast } = useApp();
+  const { asset, assets, jobs, watchJob, toast, refreshAssets } = useApp();
   const h = useHistory<Project>(useMemo(newProject, []));
   const project = h.value;
   const [sel, setSel] = useState<Selection>(null);
@@ -35,6 +37,9 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
   const [bin, setBin] = useState<"all" | "video" | "image" | "audio">("all");
   const dirty = useRef(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [tourOff, setTourOff] = useState(tourDone);
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(0);
   const [drawing, setDrawing] = useState(false);
   const [pen, setPen] = useState<PenSettings>({ tool: "pen", color: "#FF3B30", width: 0.8, filled: false });
 
@@ -154,12 +159,30 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
   };
   const startNew = () => { first.current = true; const p = newProject(); h.reset(p); remember(p.id); setSel(null); setTime(0); setRendered(null); setProjects(null); };
 
+  const dropFiles = async (files: FileList | File[]) => {
+    const list = Array.from(files);
+    if (!list.length) return;
+    setUploading(list.length);
+    const added: Asset[] = [];
+    for (const f of list) {
+      try { added.push(await api.upload(f)); } catch (e) { toast(`${f.name}: ${(e as Error).message}`, true); }
+      setUploading((n) => Math.max(0, n - 1));
+    }
+    await refreshAssets();
+    added.forEach((a) => addAsset(a));
+    if (added.length) toast(`Added ${added.length} file${added.length > 1 ? "s" : ""} to the timeline.`);
+  };
+
   const binItems = assets.filter((a) => bin === "all" || a.kind === bin);
   const missing = project.clips.filter((c) => !asset(c.asset_id)).length + project.audio.filter((c) => !asset(c.asset_id)).length;
   const selectedTextClip = sel?.type === "clip";
 
   return (
-    <div className="editor">
+    <div className="editor"
+      onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragging(true); } }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
+      onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); setDragging(false); void dropFiles(e.dataTransfer.files); } }}>
+      {(dragging || uploading > 0) && <div className="drop-veil" role="status">{uploading > 0 ? `Adding your files… ${uploading} left` : "Drop videos, pictures or music here"}</div>}
       <div className="ed-bar row gap wrap" role="toolbar" aria-label="Editor tools">
         <Button variant="ghost" small icon={I.undo} label="Undo (Ctrl+Z)" disabled={!h.canUndo} onClick={h.undo} />
         <Button variant="ghost" small icon={I.redo} label="Redo (Ctrl+Y)" disabled={!h.canRedo} onClick={h.redo} />
@@ -203,6 +226,18 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
         </aside>
 
         <section className="ed-center stack gap" aria-label="Preview">
+          {project.clips.length === 0 && !tourOff && (
+            <div className="card tour stack gap" role="note">
+              <b>New here? Four easy steps</b>
+              <ol className="text-sm">
+                <li><b>Add</b> a video, picture or song: drag it into this window, or press the <b>+</b> next to a file on the left.</li>
+                <li><b>Change</b> it: click a block on the timeline at the bottom, then use the settings on the right.</li>
+                <li><b>Ask the AI</b>: press <b>AI chat</b> and say what you want, like “make it vertical” or “add the title Hello”.</li>
+                <li><b>Save it</b>: press <b>Export</b>. Your work is saved automatically all the time.</li>
+              </ol>
+              <div className="row"><Button small variant="secondary" onClick={() => { setTourOff(true); try { localStorage.setItem(TOUR, "1"); } catch { /* ignore */ } }}>Got it, hide this</Button></div>
+            </div>
+          )}
           {rendered ? (
             <div className="stage-wrap">
               <video className="player" src={mediaUrl(rendered)} controls autoPlay playsInline style={{ aspectRatio: `${project.canvas.width} / ${project.canvas.height}`, maxHeight: "100%" }} />
@@ -244,13 +279,18 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
 
       {exporting && <ExportDialog project={project} onClose={() => setExporting(false)} />}
       {projects && (
-        <Dialog title="Projects" onClose={() => setProjects(null)} footer={<Button onClick={startNew} icon={I.plus}>New project</Button>}>
-          {projects.length === 0 ? <p className="text-sm">No saved projects yet. Your work is saved automatically.</p> : (
+        <Dialog title="Projects and drafts" onClose={() => setProjects(null)} footer={<Button onClick={startNew} icon={I.plus}>New project</Button>}>
+          <p className="text-sm">Every project is saved by itself as a draft. Open one to carry on, or make a copy before you try something risky.</p>
+          {projects.length === 0 ? <p className="text-sm">No saved projects yet.</p> : (
             <ul className="plist">
               {projects.map((p) => (
-                <li key={p.id} className="row between gap">
-                  <button type="button" className="linklike" onClick={() => loadProject(p.id)}>{p.name}{p.id === project.id ? " (open)" : ""}</button>
-                  <Button variant="ghost" small icon={I.trash} label={`Delete ${p.name}`} disabled={p.id === project.id} onClick={async () => { await api.deleteProject(p.id).catch((e) => toast(e.message, true)); setProjects(await api.projects()); }} />
+                <li key={p.id} className="row between gap wrap">
+                  <button type="button" className="linklike" onClick={() => loadProject(p.id)}>{p.name || "Untitled"}{p.id === project.id ? " (open now)" : ""}</button>
+                  <span className="row gap">
+                    <Button variant="ghost" small onClick={async () => { const n = prompt("New name", p.name); if (!n?.trim()) return; try { const d = await api.loadProject(p.id); await api.saveProject(p.id, { ...d, name: n.trim() }); if (p.id === project.id) commit((x) => ({ ...x, name: n.trim() })); setProjects(await api.projects()); } catch (e) { toast((e as Error).message, true); } }}>Rename</Button>
+                    <Button variant="ghost" small onClick={async () => { try { const d = await api.loadProject(p.id); const id = uid() + uid(); await api.saveProject(id, { ...d, id, name: `${p.name || "Untitled"} (copy)` }); setProjects(await api.projects()); toast("Copy saved."); } catch (e) { toast((e as Error).message, true); } }}>Make a copy</Button>
+                    <Button variant="ghost" small icon={I.trash} label={`Delete ${p.name}`} disabled={p.id === project.id} onClick={async () => { if (!confirm(`Delete “${p.name || "Untitled"}” for good?`)) return; await api.deleteProject(p.id).catch((e) => toast(e.message, true)); setProjects(await api.projects()); }}>Delete</Button>
+                  </span>
                 </li>
               ))}
             </ul>

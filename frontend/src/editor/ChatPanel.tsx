@@ -14,7 +14,7 @@ const IDEAS = ["Make it vertical for a phone", "Add a fade between all clips", "
 /** The "Setup" mini form: pick an AI provider, paste a key if it needs one. */
 function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => void }) {
   const [info, setInfo] = useState<AssistantInfo | null>(null);
-  const [provider, setProvider] = useState("ollama");
+  const [providerState, setProvider] = useState("ollama");
   const [model, setModel] = useState("");
   const [key, setKey] = useState("");
   const [msg, setMsg] = useState("");
@@ -23,13 +23,20 @@ function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => 
     api.llmInfo().then(setInfo).catch(() => {});
     api.llmSettings().then((s) => { setProvider(s.provider || "ollama"); setModel(s.providers?.[s.provider]?.model ?? ""); }).catch(() => {});
   }, []);
-  const preset = info?.providers[provider];
-  const save = async () => {
+  const preset = info?.providers[providerState];
+  const provider = providerState;
+  const save = async (force?: string) => {
+    const provider = force ?? providerState;
     setBusy(true); setMsg("");
     try {
-      const patch: Record<string, string> = { model: model || preset?.model || "" };
+      const patch: Record<string, string> = { model: (force ? "" : model) || info?.providers[provider]?.model || "" };
       if (key) patch.api_key = key;
       await api.saveLlm({ provider, providers: { [provider]: patch } });
+      if (provider === "ollama" || provider === "lmstudio") {  // use a model that is really installed
+        const found = (await api.llmModels().catch(() => ({ models: [] as string[] }))).models;
+        if (found.length && !found.includes(patch.model)) { await api.saveLlm({ provider, providers: { [provider]: { model: found[0] } } }); setModel(found[0]); }
+        else if (!found.length) throw new Error(provider === "ollama" ? "Ollama is not running or has no model yet. Install Ollama, run “ollama pull llama3.2”, or choose the free online AI above." : "No model is loaded in LM Studio yet.");
+      }
       const t = await api.llmTest();
       if (t && (t as { ok?: boolean }).ok === false) throw new Error("The AI did not answer.");
       onReady();
@@ -38,6 +45,7 @@ function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => 
   return (
     <div className="chat-setup stack gap">
       <b>Connect an AI helper</b>
+      <Button variant="secondary" onClick={() => { setProvider("pollinations"); setModel(""); setKey(""); setTimeout(() => void save("pollinations"), 0); }}>Use the free online AI (easiest)</Button>
       <p className="text-sm">{status?.why === "key" ? "This AI needs a key (a password for the service)." : "The chat needs an AI brain. Pick one — free choices are marked."}</p>
       <label className="field"><span>Which AI?</span>
         <select className="select" value={provider} onChange={(e) => { setProvider(e.target.value); setModel(""); setMsg(""); }}>
@@ -48,7 +56,7 @@ function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => 
       <label className="field"><span>Model name (optional)</span><input className="input" value={model} onChange={(e) => setModel(e.target.value)} placeholder={preset?.model || ""} /></label>
       <p className="text-xs">To understand your reference pictures, choose a model that can see images (for example Gemini, GPT-4o or Claude). Others still work with words only.</p>
       {msg && <p className="error text-sm" role="alert">{msg}</p>}
-      <Button busy={busy} onClick={save}>Save and test</Button>
+      <Button busy={busy} onClick={() => save()}>Save and test</Button>
     </div>
   );
 }
@@ -59,7 +67,9 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
   const { refreshAssets, toast } = useApp();
   const ai = useAI();
   const [status, setStatus] = useState<ChatStatus | null>(null);
-  const [bubbles, setBubbles] = useState<Bubble[]>([]);
+  const storeKey = `vk_chat_${project.id}`;
+  const [bubbles, setBubbles] = useState<Bubble[]>(() => { try { return JSON.parse(localStorage.getItem(storeKey) ?? "[]") as Bubble[]; } catch { return []; } });
+  useEffect(() => { try { localStorage.setItem(storeKey, JSON.stringify(bubbles.slice(-60))); } catch { /* private mode */ } }, [bubbles, storeKey]);
   const [text, setText] = useState("");
   const [pics, setPics] = useState<Asset[]>([]);
   const [busy, setBusy] = useState("");
@@ -171,6 +181,7 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
       <header className="chat-head row between center-v">
         <b><Icon d={I.sparkle} /> Chat editor</b>
         <span className="row gap">
+          <Button variant="ghost" small icon={I.trash} label="Delete this chat" disabled={bubbles.length === 0} onClick={() => { if (confirm("Delete this whole chat? Your video is not changed.")) { setBubbles([]); try { localStorage.removeItem(storeKey); } catch { /* ignore */ } } }} />
           <Button variant="ghost" small onClick={() => setSetup((s) => !s)}>AI settings</Button>
           <Button variant="ghost" small icon={I.x} label="Close chat" onClick={onClose} />
         </span>
@@ -188,6 +199,7 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
               <div key={b.id} className={`bubble bubble--${b.role}${b.error ? " bubble--error" : ""}`}>
                 {b.images && <div className="row gap wrap">{b.images.map((id) => <img key={id} className="bubble-img" alt="Reference" src={mediaUrl(id, "thumb")} />)}</div>}
                 <p>{b.text}</p>
+                {b.error && <Button small variant="secondary" onClick={() => setSetup(true)}>Fix AI settings</Button>}
                 {b.notes && b.notes.length > 0 && <ul className="bubble-notes">{b.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
               </div>
             ))}

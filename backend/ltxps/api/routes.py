@@ -24,6 +24,7 @@ from ..jobs import JobContext, UserFacingError
 from ..assistant import llm
 from ..library import SUPPORTED, safe_name
 from ..profiles import PROFILES, LimitError, pick_profile, validate_request
+from ..setup_plan import build_plan as build_setup_plan
 from ..state import AppState
 
 
@@ -129,8 +130,27 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
     def list_models() -> dict[str, Any]:
         rows = [model_row(BASE_ID, "Text encoder and tokenizer", "Shared by all LTX-Video models. Required.", "base")]
         rows += [model_row(m.id, m.label, m.note, "model") for m in MODELS.values()]
-        rows += [model_row(a.id, a.label, a.note, "captions") for a in AUX.values()]
+        rows += [model_row(a.id, a.label, a.note, a.kind) for a in AUX.values()]
         return {"items": rows, "endpoint": state.settings.get().hf_endpoint}
+
+    def setup_plan() -> dict[str, Any]:
+        info = state.system()
+        g = info.gpu
+        gpu_ok = bool(g.available and g.arch_supported is not False)
+        return build_setup_plan(ram_gb=round(info.ram_mb / 1024, 1), vram_gb=round(g.vram_mb / 1024, 1) if g.available else 0, gpu_ok=gpu_ok,
+                                disk_free_gb=state.disk_free_gb(), default_model=state.settings.get().default_model, is_installed=state.downloads.is_installed)
+
+    @router.get("/setup/plan")
+    def get_setup_plan() -> dict[str, Any]:
+        return setup_plan()
+
+    @router.post("/setup/install")
+    def run_setup_install() -> dict[str, Any]:
+        plan = setup_plan()
+        for it in plan["items"]:
+            if not it["installed"] and state.downloads.state(it["id"]).status not in ("running", "queued"):
+                state.downloads.start(it["id"])
+        return plan
 
     def known_item(item_id: str) -> str:
         if item_id != BASE_ID and item_id not in MODELS and item_id not in AUX:
@@ -585,10 +605,11 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         except updates.UpdateError as exc:
             raise HTTPException(502, str(exc)) from exc
 
-    @router.post("/updates/modules")
-    def updates_install() -> dict[str, Any]:
+    history_file = state.paths.root / "module-history.json"
+
+    def install_job(title: str, specs_fn) -> dict[str, Any]:
         def run(ctx: JobContext) -> dict[str, Any]:
-            ctx.update(0.05, "Checking what is new")
+            ctx.update(0.05, "Getting ready")
             seen = {"n": 0}
 
             def on_line(line: str) -> None:
@@ -596,11 +617,62 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
                 ctx.update(min(0.9, 0.1 + seen["n"] / 400), line[:90])
 
             try:
-                return updates.update_modules(on_line=on_line, cancel=ctx.cancel)
+                return specs_fn(ctx, on_line)
             except updates.UpdateError as exc:
                 raise UserFacingError(str(exc)) from exc
 
-        return state.jobs.submit("update", "Update AI modules", run, lane="media").to_json()
+        return state.jobs.submit("update", title, run, lane="media").to_json()
+
+    @router.post("/updates/modules")
+    def updates_install() -> dict[str, Any]:
+        def go(ctx: JobContext, on_line) -> dict[str, Any]:
+            before = {n: updates.installed_version(n) for n in updates.UPDATABLE}
+            out = updates.update_modules(on_line=on_line, cancel=ctx.cancel)
+            for n, v in before.items():
+                if n in out.get("updated", []):
+                    updates.remember_version(history_file, n, v)
+            return out
+
+        return install_job("Update AI modules", go)
+
+    @router.get("/updates/modules")
+    def updates_table() -> dict[str, Any]:
+        rec: dict[str, str] = {}
+        online = True
+        try:
+            for m in updates.fetch_manifest(updates.manifest_url()).get("modules", []):
+                if isinstance(m, dict) and "name" in m and "version" in m:
+                    rec[updates._norm(str(m["name"]))] = str(m["version"])
+        except updates.UpdateError:
+            online = False
+        return {"online": online, "modules": updates.module_table(updates.read_history(history_file), recommended=rec)}
+
+    @router.get("/updates/modules/{name}/versions")
+    def updates_versions(name: str) -> dict[str, Any]:
+        try:
+            updates.valid_install(name, "1.0")
+            return {"versions": updates.pypi_versions(name)}
+        except updates.UpdateError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    class PickBody(BaseModel):
+        name: str = Field(max_length=60)
+        version: str = Field(max_length=20)
+
+    @router.post("/updates/modules/install")
+    def updates_pick(body: PickBody) -> dict[str, Any]:
+        try:
+            spec = updates.valid_install(body.name, body.version)
+        except updates.UpdateError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+        def go(ctx: JobContext, on_line) -> dict[str, Any]:
+            before = updates.installed_version(body.name)
+            updates.pip_install([spec], on_line, ctx.cancel)
+            updates.remember_version(history_file, body.name, before)
+            return {"updated": [body.name], "restart": True}
+
+        return install_job(f"Install {body.name} {body.version}", go)
 
     # ------------------------------------------------------------------ projects
     @router.get("/projects")

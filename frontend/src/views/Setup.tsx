@@ -1,9 +1,7 @@
-import { api } from "../lib/api";
 import { useApp } from "../lib/store";
 import { Button, Icon, I } from "../ds";
-import { ModelList, fmtEta } from "./Models";
-import { Progress } from "../ds";
-import { fmtBytes } from "../lib/format";
+import { ModelList } from "./Models";
+import SmartInstall from "./SmartInstall";
 
 function Check({ ok, title, detail }: { ok: boolean; title: string; detail: string }) {
   return (
@@ -16,54 +14,40 @@ function Check({ ok, title, detail }: { ok: boolean; title: string; detail: stri
 }
 
 export default function Setup({ onSkip }: { onSkip: () => void }) {
-  const { system, limits, models, toast, refreshModels } = useApp();
+  const { system, limits } = useApp();
   if (!system || !limits) return null;
   const g = system.gpu;
-  const base = models.find((m) => m.kind === "base");
-  const chosen = models.find((m) => m.id === limits.default_model);
-
-  const startAll = async () => {
-    try {
-      for (const m of [base, chosen, models.find((x) => x.id === "whisper-base")]) if (m && !m.installed && !["running", "queued"].includes(m.download.status)) await api.download(m.id);
-      await refreshModels();
-    } catch (e) { toast((e as Error).message, true); }
-  };
-
-  const wanted = [base, chosen, models.find((x) => x.id === "whisper-base")].filter((m): m is NonNullable<typeof m> => !!m && !m.installed);
-  const active = wanted.filter((m) => ["running", "queued"].includes(m.download.status));
-  const total = active.reduce((a, m) => a + m.download.total, 0), done = active.reduce((a, m) => a + m.download.done, 0), speed = active.reduce((a, m) => a + m.download.speed, 0);
 
   return (
     <main className="page narrow stack gap-lg">
-      <div className="stack">
-        <h1>Welcome to VK Editor</h1>
-        <p>Make short videos from text or pictures on this PC, then edit them. Nothing is uploaded; everything runs here.</p>
+      <div className="row gap center-v">
+        <img src="/logo.png" alt="" width={56} height={56} style={{ borderRadius: 14 }} />
+        <div className="stack">
+          <h1>Welcome to VK Editor</h1>
+          <p>Make videos from words or pictures, then edit them. Everything runs on this PC. Nothing is uploaded.</p>
+        </div>
       </div>
+
+      <SmartInstall />
+
       <section className="card stack gap" aria-labelledby="chk">
-        <h2 id="chk">This PC</h2>
-        <Check ok={g.available && g.arch_supported} title={g.available ? `${g.name} · ${g.vram_gb} GB video memory` : "No NVIDIA graphics card found"}
+        <h2 id="chk">Your PC</h2>
+        <Check ok={g.available && g.arch_supported !== false} title={g.available ? `${g.name} · ${g.vram_gb} GB video memory` : "No NVIDIA graphics card found"}
           detail={g.available ? (g.problem ?? `Using the “${limits.profile.label}” settings: up to ${limits.profile.max_frames} frames at ${limits.profile.max_side}px.`) : "Videos can still be made on the processor, but very slowly. Editing works normally."} />
         <Check ok={system.ffmpeg} title="Video tools" detail={system.ffmpeg ? "Ready." : "ffmpeg was not found. Editing and exporting will not work."} />
-        <Check ok={system.disk_free_gb >= 15} title={`${system.disk_free_gb} GB free on this drive`} detail="The model files are large; press “Check size” on each below to see exactly how much. Videos you make need space too." />
+        <Check ok={system.disk_free_gb >= 15} title={`${system.disk_free_gb} GB free on this drive`} detail="The AI parts are large. Videos you make need space too." />
         <Check ok={!system.low_ram} title={`${system.ram_gb} GB of memory`} detail={system.low_ram ? "Less than 12 GB. Generation may be slow or fail; close other programs first." : "Enough for the lowest-memory mode."} />
         {system.warnings.map((w) => <Check key={w} ok={false} title="Note" detail={w} />)}
       </section>
-      <section className="stack gap" aria-labelledby="mdl">
-        <div className="stack"><h2 id="mdl">Download the model files</h2><p className="text-sm">One time only. They are saved in the app’s data folder; copy that folder to another PC to skip the download there.</p></div>
-        {active.length > 0 && (
-          <div className="card stack gap" role="status" aria-live="polite">
-            <b>Downloading {active.length} item{active.length > 1 ? "s" : ""}… keep this window open</b>
-            <Progress value={total ? done / total : 0} indeterminate={!total} />
-            <span className="text-sm">{fmtBytes(done)} of {total ? fmtBytes(total) : "?"}{speed ? ` · ${fmtBytes(speed)}/s` : ""}{speed > 0 && total ? ` · ${fmtEta((total - done) / speed)}` : ""}</span>
-            <span className="text-xs">You can pause and resume at any time; nothing is lost.</span>
-          </div>
-        )}
-        <ModelList />
-        <div className="row gap">
-          <Button icon={I.download} onClick={startAll}>Download everything needed</Button>
-          <Button variant="ghost" onClick={onSkip}>Skip — I only want to edit</Button>
+
+      <details className="card">
+        <summary className="w-medium">Advanced: choose each model yourself</summary>
+        <div className="stack gap" style={{ marginTop: "var(--space-6)" }}>
+          <p className="text-sm">Most people never need this. You can also copy the app’s data folder to another PC to skip the download there.</p>
+          <ModelList />
         </div>
-      </section>
+      </details>
+      <div className="row"><Button variant="ghost" onClick={onSkip}>Skip for now — I only want to edit</Button></div>
     </main>
   );
 }

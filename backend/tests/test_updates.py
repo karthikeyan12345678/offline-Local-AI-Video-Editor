@@ -55,3 +55,21 @@ def test_endpoint_reports_friendly_error_when_offline(monkeypatch):
     monkeypatch.setenv("LTXPS_UPDATE_URL", "http://127.0.0.1:9/none.json")
     with pytest.raises(updates.UpdateError):
         updates.check()
+
+
+def test_history_and_table(tmp_path):
+    h = tmp_path / "h.json"
+    updates.remember_version(h, "pillow", "10.0.0")
+    updates.remember_version(h, "pillow", "11.0.0")
+    updates.remember_version(h, "pillow", "10.0.0")
+    assert updates.read_history(h)["pillow"] == ["10.0.0", "11.0.0"]
+    rows = {r["name"]: r for r in updates.module_table(updates.read_history(h), installed=lambda n: "11.0.0" if n == "pillow" else None, recommended={"pillow": "12.0.0"})}
+    assert rows["pillow"]["previous"] == ["10.0.0"] and rows["pillow"]["recommended"] == "12.0.0" and rows["pillow"]["installed"] == "11.0.0"
+    assert rows["httpx"]["installed"] is None
+
+
+def test_only_known_modules_and_clean_versions_can_be_installed():
+    assert updates.valid_install("pillow", "11.0.1") == "pillow==11.0.1"
+    for bad in (("pillow", "1.0; rm -rf"), ("pillow", "1.0 --index-url x"), ("torch", "2.0"), ("evil-pkg", "1.0")):
+        with pytest.raises(updates.UpdateError):
+            updates.valid_install(*bad)

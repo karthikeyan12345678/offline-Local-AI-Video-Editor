@@ -89,7 +89,9 @@ def make_assistant_router(a: AssistantState) -> APIRouter:
     # ---------------------------------------------------------------- settings
     @r.get("/settings")
     def get_settings() -> dict[str, Any]:
-        return a.settings.public()
+        d = a.settings.public()
+        d["image"]["provider"] = a.image_config().provider  # what will really be used (the on-this-PC model once it is installed)
+        return d
 
     @r.put("/settings")
     def put_settings(patch: dict[str, Any]) -> dict[str, Any]:

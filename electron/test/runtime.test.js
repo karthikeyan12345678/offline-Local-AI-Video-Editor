@@ -166,3 +166,26 @@ test("a new file in the same step keeps the speed counter moving forward", () =>
   p.begin("a"); p.file(8e6, 8e6); t = 4000; p.file(1e6, 5e6); t = 8000; p.file(5e6, 5e6);
   assert.ok(p.cum >= 13e6 - 1);
 });
+
+test("every local file the shell requires is packaged by both builders", () => {
+  const root = path.join(__dirname, "..");
+  for (const cfg of ["electron-builder.yml", "electron-builder.assistant.yml"]) {
+    const listed = fs.readFileSync(path.join(root, cfg), "utf8");
+    for (const f of ["main.js", "runtime.js", "progress.js", "products.js", "preload.js"]) {
+      const src = fs.readFileSync(path.join(root, f), "utf8");
+      for (const m of src.matchAll(/require\("\.\/([\w-]+)"\)/g)) {
+        assert.ok(listed.includes(`- ${m[1]}.js`), `${cfg} does not package ${m[1]}.js (needed by ${f})`);
+      }
+    }
+  }
+});
+
+test("a fresh install moves pinned libraries to the manifest's newest tested versions", () => {
+  const out = rt.liveRequirements("fastapi==0.1.0\nfaster-whisper==1.0.0 ; python_version>'3'\n# note\nopencv_python.headless==1.0\n", {
+    modules: [{ name: "faster-whisper", version: "1.2.1" }, { name: "opencv-python-headless", version: "5.0.0.93" }, { name: "evil name", version: "1" }, { name: "fastapi", version: "1; rm" }],
+  });
+  assert.match(out, /^fastapi==0\.1\.0$/m);                       // unlisted or malformed entries are left alone
+  assert.match(out, /^faster-whisper==1\.2\.1 ; python_version>'3'$/m);
+  assert.match(out, /^opencv_python\.headless==5\.0\.0\.93$/m);
+  assert.strictEqual(rt.liveRequirements("a==1\n", null), "a==1\n");
+});

@@ -69,7 +69,17 @@ export interface LLMPreset { name: string; style: string; base_url: string; need
 export interface AssistantInfo { providers: Record<string, LLMPreset> }
 export interface AssistantSettings { provider: string; providers: Record<string, { base_url?: string; model?: string; api_key_hint?: string }> }
 
+export interface SetupItem { id: string; label: string; why: string; approx_bytes: number; installed: boolean }
+export interface SetupPlan { items: SetupItem[]; missing_bytes: number; disk_free_gb: number; enough_disk: boolean; need_gb: number; summary: string }
+export interface ModuleRow { name: string; label: string; installed: string | null; recommended: string | null; previous: string[] }
+
 export const api = {
+  setupPlan: () => call<SetupPlan>("GET", "/setup/plan"),
+  setupInstall: () => call<SetupPlan>("POST", "/setup/install"),
+  moduleTable: () => call<{ online: boolean; modules: ModuleRow[] }>("GET", "/updates/modules"),
+  moduleVersions: (name: string) => call<{ versions: string[] }>("GET", `/updates/modules/${encodeURIComponent(name)}/versions`),
+  installModule: (name: string, version: string) => call<Job>("POST", "/updates/modules/install", { name, version }),
+
   chat: (messages: ChatMsg[], project: Project) => call<ChatResult>("POST", "/editor/chat", { messages, project }),
   chatStatus: () => call<ChatStatus>("GET", "/editor/chat/status"),
   llmInfo: () => call<AssistantInfo>("GET", "/assistant/info"),

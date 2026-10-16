@@ -127,5 +127,64 @@ def manifest_from_requirements(requirements_text: str, app_version: str, notes: 
 UPDATABLE = ("faster-whisper", "opencv-python-headless", "imageio-ffmpeg", "pillow", "httpx", "pypdf", "python-docx", "python-pptx", "openpyxl", "reportlab")
 
 
+# ---- version list: what is installed, what was installed before, and what else exists
+LABELS = {"faster-whisper": "Captions engine", "opencv-python-headless": "Person tracking (OpenCV)", "imageio-ffmpeg": "Video tools", "pillow": "Pictures",
+          "httpx": "Internet access", "pypdf": "PDF reading", "python-docx": "Word files", "python-pptx": "PowerPoint files", "openpyxl": "Excel files", "reportlab": "PDF making"}
+STABLE = re.compile(r"^\d+(\.\d+){0,3}$")
+
+
+def read_history(path: Any) -> dict[str, list[str]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return {k: [str(v) for v in vs] for k, vs in data.items() if isinstance(vs, list)}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def remember_version(path: Any, name: str, version: str | None) -> None:
+    """Keeps the versions that were installed before, newest first, so the person can go back to one."""
+    if not version:
+        return
+    h = read_history(path)
+    key = _norm(name)
+    h[key] = [version] + [v for v in h.get(key, []) if v != version][:9]
+    try:
+        path.write_text(json.dumps(h, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def pypi_versions(name: str, limit: int = 20) -> list[str]:
+    try:
+        r = httpx.get(f"https://pypi.org/pypi/{name}/json", timeout=httpx.Timeout(12.0, connect=6.0), headers={"User-Agent": "vk-editor"})
+        r.raise_for_status()
+        rel = r.json().get("releases", {})
+    except (httpx.HTTPError, ValueError) as exc:
+        raise UpdateError("Could not get the list of versions. Check your internet connection.") from exc
+    ok = [v for v, files in rel.items() if STABLE.match(v) and files and not all(f.get("yanked") for f in files)]
+    return sorted(ok, key=vtuple, reverse=True)[:limit]
+
+
+def module_table(history: dict[str, list[str]], installed: Callable[[str], str | None] = installed_version, recommended: dict[str, str] | None = None) -> list[dict[str, Any]]:
+    rec = recommended or {}
+    rows = []
+    for name in UPDATABLE:
+        have = installed(name)
+        rows.append({"name": name, "label": LABELS.get(name, name), "installed": have, "recommended": rec.get(_norm(name)),
+                     "previous": [v for v in history.get(_norm(name), []) if v != have]})
+    return rows
+
+
+def valid_install(name: str, version: str) -> str:
+    if _norm(name) not in UPDATABLE_NORM:
+        raise UpdateError("That module cannot be changed from here.")
+    if not STABLE.match(version):
+        raise UpdateError("That version number is not valid.")
+    return f"{name}=={version}"
+
+
+UPDATABLE_NORM = tuple(_norm(x) for x in UPDATABLE)
+
+
 def json_text(m: dict[str, Any]) -> str:
     return json.dumps(m, indent=2, ensure_ascii=False) + "\n"

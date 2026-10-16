@@ -79,6 +79,7 @@ class AssistantState:
     store: AssistantStore
     settings: AssistantSettings
     token: str
+    models_root: Path | None = None  # set by the studio so the downloaded picture model can be found
 
     @property
     def uploads(self) -> Path:
@@ -97,7 +98,15 @@ class AssistantState:
         return llm.config_from(raw.get("provider", "ollama"), raw.get("providers", {}))
 
     def image_config(self) -> images.ImageConfig:
-        return images.image_config_from(self.settings.raw().get("image", {}))
+        saved = self.settings.raw().get("image", {})
+        cfg = images.image_config_from(saved)
+        mdir = self.models_root / "image-sd-turbo" if self.models_root else None
+        ready = bool(mdir and (mdir / ".complete.json").exists()) if mdir else False
+        if ready:
+            cfg.local_dir = str(mdir)
+            if not saved.get("chosen"):  # nobody picked an engine by hand: use the one that is now on this PC
+                cfg.provider = "local"
+        return cfg
 
 
 def build_assistant_state(root: Path, token: str) -> AssistantState:

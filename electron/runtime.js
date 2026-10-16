@@ -122,6 +122,38 @@ function pipLine(tracker, report, stage, extra) {
   };
 }
 
+const MANIFEST_URL = process.env.LTXPS_UPDATE_URL || "https://raw.githubusercontent.com/karthikeyan12345678/ai-assistant-studio/main/update-manifest.json";
+
+/** Newest tested module versions from the project's update manifest, or null when offline (the bundled list is then used). */
+function fetchManifest(url = MANIFEST_URL, timeoutMs = 6000) {
+  return new Promise((resolve) => {
+    try {
+      const req = https.get(url, { headers: { "User-Agent": "VKEditor" }, timeout: timeoutMs }, (res) => {
+        if (res.statusCode !== 200) { res.resume(); return resolve(null); }
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (c) => { body += c; if (body.length > 200000) req.destroy(); });
+        res.on("end", () => { try { resolve(JSON.parse(body)); } catch { resolve(null); } });
+      });
+      req.on("timeout", () => req.destroy());
+      req.on("error", () => resolve(null));
+    } catch { resolve(null); }
+  });
+}
+
+/** Same requirements, but every package the manifest lists is moved to the manifest's tested version. */
+function liveRequirements(text, manifest) {
+  const want = new Map();
+  for (const m of (manifest && Array.isArray(manifest.modules)) ? manifest.modules : []) {
+    if (m && /^[A-Za-z0-9_.-]+$/.test(m.name || "") && /^\d+(\.\d+){0,3}$/.test(m.version || "")) want.set(String(m.name).toLowerCase().replace(/[-_.]+/g, "-"), m.version);
+  }
+  return text.split(/\r?\n/).map((line) => {
+    const m = line.match(/^([A-Za-z0-9_.-]+)==([\w.+-]+)(.*)$/);
+    const v = m && want.get(m[1].toLowerCase().replace(/[-_.]+/g, "-"));
+    return v ? `${m[1]}==${v}${m[3]}` : line;
+  }).join("\n");
+}
+
 function readyInfo(runtimeDir) {
   try { return JSON.parse(fs.readFileSync(path.join(runtimeDir, "ready.json"), "utf8")); } catch (_) { return null; }
 }
@@ -228,7 +260,13 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report: raw
   tracker.begin("libs");
   const libsLabel = "Downloading the helper libraries";
   report(libsLabel, null, "");
-  await run(py, ["-m", "pip", "install", "--no-warn-script-location", "--progress-bar", "raw", "-r", requirementsFile], { onLine: pipLine(tracker, report, libsLabel) });
+  // Re-installing later always gets the newest tested versions, not the ones frozen into this download.
+  let reqFile = requirementsFile;
+  const live = await fetchManifest();
+  if (live) {
+    try { reqFile = path.join(runtimeDir, "requirements.live.txt"); fs.writeFileSync(reqFile, liveRequirements(fs.readFileSync(requirementsFile, "utf8"), live)); } catch { reqFile = requirementsFile; }
+  }
+  await run(py, ["-m", "pip", "install", "--no-warn-script-location", "--progress-bar", "raw", "-r", reqFile], { onLine: pipLine(tracker, report, libsLabel) });
   tracker.finish("libs");
   report("All done", null, "Starting the app…");
 
@@ -277,4 +315,4 @@ function killTree(child) {
   } catch (_) { /* already gone */ }
 }
 
-module.exports = { SetupProgress, IS_WIN, SETUP_FORMAT, pythonExe, sha, torchCandidates, parseNvidiaSmi, detectGpu, writePth, findPython, setupRuntime, startBackend, killTree, readyInfo };
+module.exports = { fetchManifest, liveRequirements, SetupProgress, IS_WIN, SETUP_FORMAT, pythonExe, sha, torchCandidates, parseNvidiaSmi, detectGpu, writePth, findPython, setupRuntime, startBackend, killTree, readyInfo };

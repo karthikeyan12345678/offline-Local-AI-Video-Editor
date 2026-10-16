@@ -1,6 +1,6 @@
 {
-  "app_version": "1.1.0",
-  "notes": "VK Editor 1.1: drawing, AI chat editor, automatic setup, updates",
+  "app_version": "1.2.0",
+  "notes": "VK Editor 1.2: one-click install, picture maker, module versions, drag and drop",
   "download_url": "https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest",
   "modules": [
     {

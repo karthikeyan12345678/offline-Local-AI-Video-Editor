@@ -34,6 +34,7 @@ class ImageConfig:
     base_url: str = ""
     api_key: str = ""
     model: str = ""
+    local_dir: str = ""  # folder of the downloaded picture model, when the studio has installed it
 
 
 def image_config_from(saved: dict[str, Any]) -> ImageConfig:
@@ -151,8 +152,11 @@ def _local(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: int | Non
         if hf_endpoint:
             os.environ.setdefault("HF_ENDPOINT", hf_endpoint)
         try:
-            pipe = AutoPipelineForText2Image.from_pretrained(cfg.model or "stabilityai/sd-turbo", torch_dtype=torch.float16 if cuda else torch.float32,
-                                                             variant="fp16" if cuda else None)
+            if cfg.local_dir and Path(cfg.local_dir).exists():
+                pipe = AutoPipelineForText2Image.from_pretrained(cfg.local_dir, torch_dtype=torch.float16 if cuda else torch.float32, variant="fp16", local_files_only=True)
+            else:
+                pipe = AutoPipelineForText2Image.from_pretrained(cfg.model or "stabilityai/sd-turbo", torch_dtype=torch.float16 if cuda else torch.float32,
+                                                                 variant="fp16" if cuda else None)
         except Exception as exc:  # noqa: BLE001
             raise ImageError("The local image model could not be loaded. If this is the first use it needs a one-time download: check your internet connection and free disk space (about 3 GB).") from exc
         if cuda:

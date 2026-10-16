@@ -165,6 +165,7 @@ class AssistantSettings:
             if isinstance(img, dict):
                 if isinstance(img.get("provider"), str):
                     d["image"]["provider"] = img["provider"]
+                    d["image"]["chosen"] = True  # the person picked an engine on purpose
                 for pid, vals in img.items():
                     if isinstance(vals, dict):
                         cur = d["image"].setdefault(pid, {})

@@ -86,6 +86,7 @@ class AuxSpec:
     note: str
     repo: str
     patterns: tuple[str, ...]
+    kind: str = "captions"
 
 
 WHISPER_PATTERNS = ("config.json", "model.bin", "tokenizer.json", "vocabulary.*", "preprocessor_config.json")
@@ -97,3 +98,15 @@ AUX: dict[str, AuxSpec] = {
         ("small", "Best accuracy for Tamil, Hindi and other languages; slower (about 480 MB)."),
     )
 }
+
+
+# Picture-making model used by the AI Assistant's "Images" page (runs on this PC, no account, works offline afterwards).
+# Only the fp16 files are fetched, about 2.6 GB in total.
+IMAGE_PATTERNS = ("model_index.json", "scheduler/*.json", "tokenizer/*", "unet/config.json", "unet/diffusion_pytorch_model.fp16.safetensors",
+                  "vae/config.json", "vae/diffusion_pytorch_model.fp16.safetensors", "text_encoder/config.json", "text_encoder/model.fp16.safetensors")
+AUX["image-sd-turbo"] = AuxSpec("image-sd-turbo", "Picture maker: Stable Diffusion Turbo", "Makes pictures on this PC in a few seconds. Used by the AI Assistant's Images page (about 2.6 GB).",
+                                "stabilityai/sd-turbo", IMAGE_PATTERNS, kind="image")
+
+# Rough download sizes, shown before the real size is known.
+APPROX_BYTES = {"ltxv-base": 9_500_000_000, "ltxv-2b-distilled": 4_300_000_000, "ltxv-2b-091": 4_700_000_000, "whisper-tiny": 75_000_000,
+                "whisper-base": 145_000_000, "whisper-small": 480_000_000, "image-sd-turbo": 2_600_000_000}

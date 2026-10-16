@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useApp } from "../lib/store";
 import { Button, Field } from "../ds";
 import { ModelList } from "./Models";
-import UpdatesCard from "./Updates";
+import UpdatesCard, { ModulesCard } from "./Updates";
+import SmartInstall from "./SmartInstall";
 
 const MEMORY = [
   ["auto", "Automatic (recommended)"], ["none", "Keep everything on the GPU (fastest, needs lots of VRAM)"], ["model", "Move whole parts to the GPU as needed"],
@@ -22,6 +23,8 @@ export default function Settings() {
       <h1>Settings</h1>
 
       <UpdatesCard />
+      <ModulesCard />
+      <SmartInstall compact />
 
       <section className="card stack gap" aria-labelledby="sys">
         <h2 id="sys">This PC</h2>

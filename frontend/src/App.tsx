@@ -37,7 +37,7 @@ function Shell() {
   return (
     <div className="shell">
       <nav className="nav" aria-label="Main">
-        <div className="brand"><Icon d={I.film} size={20} /><span className="w-semibold">VK Editor</span></div>
+        <div className="brand"><img src="/logo.png" alt="" width={28} height={28} style={{ borderRadius: 7 }} /><span className="w-semibold">VK Editor</span></div>
         <ul>
           {NAV.map((n) => (
             <li key={n.id}><button type="button" className="nav-item" aria-current={view === n.id ? "page" : undefined} onClick={() => go(n.id)}><Icon d={n.icon} />{n.label}{n.id === "settings" && hasUpdate ? <span className="upd-dot" title="An update is available" aria-label="update available" /> : null}</button></li>

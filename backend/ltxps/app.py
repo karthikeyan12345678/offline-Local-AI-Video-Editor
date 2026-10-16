@@ -135,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         state = build_state(token)
         assistant = build_assistant_state(state.paths.root / "assistant", token)
+        assistant.models_root = state.paths.models
         _setup_logging(state.paths.logs)
 
     import uvicorn

@@ -13,6 +13,8 @@ PRESETS: dict[str, dict[str, Any]] = {
                "help": "Free and private. Install Ollama, then run “ollama pull llama3.2”."},
     "lmstudio": {"name": "LM Studio (on this PC)", "style": "openai", "base_url": "http://127.0.0.1:1234/v1", "needs_key": False, "model": "",
                  "help": "Free and private. Start the local server in LM Studio."},
+    "pollinations": {"name": "Free online AI (no sign-up)", "style": "openai", "base_url": "https://text.pollinations.ai/openai", "needs_key": False, "model": "openai",
+                     "help": "Nothing to install and no key. Needs internet; can be slow or busy at times. What you type is sent to a public service."},
     "openrouter": {"name": "OpenRouter", "style": "openai", "base_url": "https://openrouter.ai/api/v1", "needs_key": True, "model": "meta-llama/llama-3.3-70b-instruct:free",
                    "help": "Has free models. Get a key at openrouter.ai/keys."},
     "nvidia": {"name": "NVIDIA NIM", "style": "openai", "base_url": "https://integrate.api.nvidia.com/v1", "needs_key": True, "model": "meta/llama-3.3-70b-instruct",

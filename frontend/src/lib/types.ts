@@ -38,7 +38,7 @@ export interface Limits {
 }
 
 export interface ModelRow {
-  id: string; label: string; note: string; kind: "base" | "model" | "captions"; installed: boolean; installed_bytes: number;
+  id: string; label: string; note: string; kind: "base" | "model" | "captions" | "image"; installed: boolean; installed_bytes: number;
   download: { status: string; total: number; done: number; speed: number; current: string; error: string | null };
 }
 

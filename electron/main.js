@@ -42,7 +42,7 @@ function setStatus(patch) {
 function showSplash() {
   if (splash && !splash.isDestroyed()) return;
   splash = new BrowserWindow({
-    width: 600, height: 420, resizable: false, minimizable: true, maximizable: false, show: false, autoHideMenuBar: true, title: TITLE, backgroundColor: product.background,
+    width: 600, height: 420, resizable: false, minimizable: true, maximizable: false, show: false, autoHideMenuBar: true, title: TITLE, backgroundColor: product.background, ...(product.icon ? { icon: path.join(__dirname, product.icon) } : {}),
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   splash.removeMenu();
@@ -56,7 +56,7 @@ function showSplash() {
 function openMain(info) {
   const origin = new URL(info.url).origin;
   win = new BrowserWindow({
-    width: 1440, height: 900, minWidth: product.minWidth, minHeight: product.minHeight, show: false, title: TITLE, backgroundColor: product.background,
+    width: 1440, height: 900, minWidth: product.minWidth, minHeight: product.minHeight, show: false, title: TITLE, backgroundColor: product.background, ...(product.icon ? { icon: path.join(__dirname, product.icon) } : {}),
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true },
   });
   // The only extra window ever allowed is the assistant, served by our own backend.

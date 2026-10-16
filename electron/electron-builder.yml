@@ -7,6 +7,8 @@ directories:
 files:
   - main.js
   - runtime.js
+  - progress.js
+  - logo-256.png
   - preload.js
   - products.js
   - splash.html
@@ -30,7 +32,7 @@ extraResources:
     filter: ["tokens.css", "components.css", "DESIGN.md"]
 asar: true
 win:
-  icon: build/icon.png
+  icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64]

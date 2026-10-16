@@ -161,3 +161,17 @@
 .chat-input{padding:8px 10px;border-top:1px solid var(--border,#d0d5dd);align-items:flex-end}
 .chat-input textarea{resize:none}
 .chat-setup{padding:12px;overflow:auto}
+
+/* ---- one-click install */
+.smart-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.smart-row{display:flex;gap:12px;align-items:flex-start}
+.smart-row .dot{flex:none;margin-top:2px;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px}
+.smart-size{flex:none;text-align:right;max-width:160px}
+.mod-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.mod-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mod-select{max-width:190px}
+
+/* ---- drag and drop, tour */
+.editor{position:relative}
+.drop-veil{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(37,99,235,.14);border:3px dashed #2563eb;border-radius:12px;font-size:1.3rem;font-weight:600;color:#1d4ed8;pointer-events:none}
+.tour ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
