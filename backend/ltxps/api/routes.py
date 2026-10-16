@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..catalog import AUX, BASE_ID, MODELS
 from ..db import Asset, new_id
-from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, ops
+from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, inpaint, ops
 from ..editor.media import FfmpegError, run_ffmpeg
 from ..editor.project import TEXT_ANIM_IN, TEXT_ANIM_OUT, ExportOptions, Project
 from ..editor.render import AssetRef, PlanError, build_plan
@@ -539,6 +539,28 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
             raise HTTPException(409, f"Download the captions model 'Whisper {size}' first (Models page).")
         lang = str(body.options.get("language", "")) or None
         return ai_job("ai", f"Captions: {a.name}", lambda ctx: ai.transcribe(str(a.path), mdir, lang, lambda p: ctx.update(p, f"Listening {int(p * 100)}%"), ctx.cancel, start, dur))
+
+    class InpaintBody(AIBody):
+        prompt: str = Field(min_length=3, max_length=400)
+        mode: Literal["patch", "track"] = "patch"
+        part: Literal["", "head", "face"] = ""
+        shapes: list[dict[str, Any]] = Field(default_factory=list, max_length=40)
+
+    @router.post("/editor/ai/inpaint")
+    def ai_inpaint(body: InpaintBody) -> dict[str, Any]:
+        a, start, dur = ai_asset(body, ("video",))
+        mdir = state.paths.models / "image-inpaint"
+        if not state.downloads.is_installed("image-inpaint"):
+            raise HTTPException(409, "Install the object editor first: open the Models page and download “Object editor: AI inpainting” (about 2.2 GB, one time).")
+
+        def run(ctx: JobContext) -> dict[str, Any]:
+            dest = state.paths.renders / f"{new_id()}_aiedit.mp4"
+            r = inpaint.edit_video(str(a.path), start, dur, dest, prompt=body.prompt, shapes=body.shapes, part=body.part, mode=body.mode, model_dir=mdir,
+                                   on_progress=lambda p, m: ctx.update(p, m), cancel=ctx.cancel)
+            made = state.library.register(dest, "edit", f"{a.name} · AI edit", {"tool": "inpaint", "from": a.id, "prompt": body.prompt})
+            return {"asset_id": made.id, **r}
+
+        return ai_job("ai", f"AI edit: {a.name}", run)
 
     @router.get("/editor/ai/voices")
     def ai_voices() -> dict[str, Any]:

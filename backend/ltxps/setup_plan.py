@@ -23,6 +23,8 @@ def build_plan(*, ram_gb: float, vram_gb: float, gpu_ok: bool, disk_free_gb: flo
     ]
     if want_images:
         rows.append(("image-sd-turbo", AUX["image-sd-turbo"].label, "Draws pictures from words (AI Assistant → Images)." + ("" if gpu_ok else " Slower on this PC because it has no graphics card.")))
+    if want_images and gpu_ok:
+        rows.append(("image-inpaint", AUX["image-inpaint"].label, "Lets the chat editor remove, change or add things inside your video (a hill, a person, a cap, shoes)."))
     real = sizes or {}
     items = [{"id": i, "label": label, "why": why, "approx_bytes": real.get(i) or APPROX_BYTES.get(i, 0), "size_known": i in real, "installed": bool(is_installed(i))} for i, label, why in rows]
     missing = sum(x["approx_bytes"] for x in items if not x["installed"])

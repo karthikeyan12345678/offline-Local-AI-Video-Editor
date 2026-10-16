@@ -116,6 +116,13 @@ Long jobs (the app runs them with progress bars):
 {{"do":"task","name":"scene_split","target":T}}   {{"do":"task","name":"auto_enhance","target":T}}   {{"do":"task","name":"beat_cut","every":1|2|4}}   {{"do":"task","name":"voiceover","text":"words to speak"}}
 {{"do":"task","name":"generate_video","prompt":"<rich visual description: subject, setting, camera movement, light, mood, style; English; 1-3 sentences>","use_reference":true|false}}
    use_reference=true makes the attached picture the first frame (picture-to-video). Without a picture write a full text-to-video prompt.
+{{"do":"task","name":"ai_edit","target":T,"region":"drawing"|"head"|"face","prompt":"<what the marked place should look like AFTER the edit>","mode":"patch"|"track"}}
+   CHANGES THE VIDEO PICTURE ITSELF with AI (repaints the frames). Use it for: remove / hide / delete / replace / change something that is IN the video (a hill, a person, a sign, a car),
+   or put something onto a person or object (a cap, a hat, shoes, glasses, a jacket, a logo). region "drawing" = the place the person marked with a drawing (use when there is a drawing);
+   "head" = the person's head/hair (caps, hats); "face" = the face. prompt = a short English picture description of the RESULT, e.g. remove a hill -> "flat green grass field and clear sky, nothing else";
+   remove a person -> "empty street, same background, nobody there"; cap -> "a white baseball cap on the head"; shoes -> "pair of black sneakers on the feet".
+   mode "patch" for a still camera and things that do not move (default); "track" when the person or camera moves (slower).
+   NEVER use add_image for these. add_image is only for putting a picture file the person attached or named (a logo, sticker, photo) on top of the video.
 
 VALUES
 transitions: none, random, {', '.join(sorted(t for t in TRANSITIONS if t not in ('none', 'random')))}
@@ -505,9 +512,70 @@ class Applier:
         self.validated(lambda: self.p.update({k: v for k, v in (a.get("set") or {}).items() if k in ok}))
         self.applied.append("Changed the sound settings")
 
+    def _canvas_to_source(self, c: dict[str, Any], pts: list[list[float]]) -> list[list[float]]:
+        """Drawings are 0-1 of the video canvas; the repaint works on the source frame, which may be letter-boxed or cropped on the canvas."""
+        asset = (self.ctx.get("assets") or {}).get(c["asset_id"])
+        cw, ch = self.p["canvas"]["width"], self.p["canvas"]["height"]
+        if asset is None or not asset.width or not asset.height:
+            return pts
+        if c["fit"] == "fill":
+            sc = max(cw / asset.width, ch / asset.height)
+            sx = sy = sc
+        elif c["fit"] == "stretch":
+            sx, sy = cw / asset.width, ch / asset.height
+        else:
+            sx = sy = min(cw / asset.width, ch / asset.height)
+        dw, dh = asset.width * sx, asset.height * sy
+        ox, oy = (cw - dw) / 2, (ch - dh) / 2
+        return [[min(1.0, max(0.0, (p[0] * cw - ox) / dw)), min(1.0, max(0.0, (p[1] * ch - oy) / dh))] for p in pts]
+
+    def _ai_edit_task(self, a: dict[str, Any]) -> dict[str, Any]:
+        prompt = str(a.get("prompt") or "").strip()[:400]
+        if len(prompt) < 3:
+            raise ValueError("I need a short description of what should be there after the change")
+        region = str(a.get("region") or "").lower()
+        region = {"hair": "head", "cap": "head", "hat": "head", "marked": "drawing", "mark": "drawing", "box": "drawing"}.get(region, region)
+        drawings = [d for d in self.p["drawings"] if d.get("shapes")]
+        if region not in ("drawing", "head", "face"):
+            region = "drawing" if drawings else "head"
+        if region == "drawing" and not drawings:
+            raise ValueError("draw a box or circle on the video where the change should happen (use the Draw tool), then ask again")
+        clips = self.p["clips"]
+        if not clips:
+            raise ValueError("there is no clip to edit")
+        idx = None
+        if a.get("target") not in (None, "", "all"):
+            got = _targets(a.get("target"), len(clips), [self.names.get(c["asset_id"], "") for c in clips])
+            idx = got[0] if got else None
+        d = drawings[-1] if region == "drawing" else None
+        if idx is None:  # the clip that is playing when the person drew
+            at = float(d["start"]) if d else float(a.get("start") or 0)
+            pos = 0.0
+            idx = len(clips) - 1
+            for i, c in enumerate(clips):
+                span = self._clip_span(c)
+                if pos <= at < pos + span:
+                    idx = i
+                    break
+                pos += span
+        c = clips[idx]
+        asset = (self.ctx.get("assets") or {}).get(c["asset_id"])
+        if asset is None or asset.kind != "video":
+            raise ValueError("this works on video clips")
+        out: dict[str, Any] = {"clips": [c["id"]], "prompt": prompt, "part": region if region in ("head", "face") else "", "mode": "track" if str(a.get("mode")) == "track" or region != "drawing" else "patch", "shapes": []}
+        if d:
+            out["shapes"] = [{**sh, "points": self._canvas_to_source(c, sh.get("points", []))} for sh in d["shapes"]]
+            out["drawing_ids"] = [d["id"]]
+        return out
+
+    def a_ai_edit(self, a):
+        self.a_task({**a, "name": "ai_edit"})
+
     def a_task(self, a):
         name = str(a.get("name", ""))
-        allowed = {"captions", "follow_person", "cut_silence", "scene_split", "auto_enhance", "beat_cut", "voiceover", "generate_video"}
+        if name in ("remove_object", "erase", "inpaint"):
+            name = "ai_edit"
+        allowed = {"captions", "follow_person", "cut_silence", "scene_split", "auto_enhance", "beat_cut", "voiceover", "generate_video", "ai_edit"}
         if name not in allowed:
             raise ValueError(f"unknown task '{name}'")
         task: dict[str, Any] = {"name": name}
@@ -527,12 +595,14 @@ class Applier:
             task["use_reference"] = bool(a.get("use_reference"))
             if not task["prompt"].strip():
                 raise ValueError("the video description is empty")
+        if name == "ai_edit":
+            task.update(self._ai_edit_task(a))
         self.tasks.append(task)
-        self.applied.append({"captions": "Will add captions", "follow_person": "Will track the person", "cut_silence": "Will cut the silences", "scene_split": "Will split at scene changes",
+        self.applied.append({"ai_edit": "Will repaint the video with AI (" + str(task.get("prompt", ""))[:40] + ")", "captions": "Will add captions", "follow_person": "Will track the person", "cut_silence": "Will cut the silences", "scene_split": "Will split at scene changes",
                              "auto_enhance": "Will improve the colours", "beat_cut": "Will cut to the beat", "voiceover": "Will create the voice-over", "generate_video": "Will generate a new AI video"}[name])
 
 
-ALIASES = {"add_picture": "add_image", "add_sticker": "add_image", "overlay_image": "add_image", "add_overlay": "add_image", "place_image": "add_image", "add_drawings": "add_drawing",
+ALIASES = {"remove_object": "ai_edit", "erase": "ai_edit", "inpaint": "ai_edit", "remove": "ai_edit", "add_picture": "add_image", "add_sticker": "add_image", "overlay_image": "add_image", "add_overlay": "add_image", "place_image": "add_image", "add_drawings": "add_drawing",
            "draw": "add_drawing", "set_clips": "set_clip", "add_title": "add_text", "text": "add_text", "remove_clip": "delete_clip", "cut": "trim_clip", "trim": "trim_clip"}
 
 

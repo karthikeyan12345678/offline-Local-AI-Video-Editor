@@ -19,7 +19,7 @@ export default function Settings() {
   const prov = s.provider;
   const preset = info.providers[prov];
   const cur = s.providers[prov] ?? {};
-  const img = (s.image.provider as string) ?? "pollinations";
+  const img = (s.image.provider as string) ?? "horde";
   const imgPreset = info.image_providers[img];
   const imgCur = (s.image[img] ?? {}) as { base_url?: string; model?: string; api_key_hint?: string };
   const patchProv = (p: Partial<{ base_url: string; model: string }>) => setS({ ...s, providers: { ...s.providers, [prov]: { ...cur, ...p } } });

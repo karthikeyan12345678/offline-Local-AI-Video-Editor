@@ -107,6 +107,12 @@ IMAGE_PATTERNS = ("model_index.json", "scheduler/*.json", "tokenizer/*", "unet/c
 AUX["image-sd-turbo"] = AuxSpec("image-sd-turbo", "Picture maker: Stable Diffusion Turbo", "Makes pictures on this PC in a few seconds. Used by the AI Assistant's Images page (about 2.6 GB).",
                                 "stabilityai/sd-turbo", IMAGE_PATTERNS, kind="image")
 
+# Object editor used by the chat editor ("remove the hill", "put a cap on him"): Stable Diffusion 1.5 inpainting, fp16 files only (about 2.2 GB).
+INPAINT_PATTERNS = ("model_index.json", "scheduler/*.json", "tokenizer/*", "feature_extractor/*", "unet/config.json", "unet/diffusion_pytorch_model.fp16.safetensors",
+                    "vae/config.json", "vae/diffusion_pytorch_model.fp16.safetensors", "text_encoder/config.json", "text_encoder/model.fp16.safetensors")
+AUX["image-inpaint"] = AuxSpec("image-inpaint", "Object editor: AI inpainting", "Lets the chat editor remove, change or add things inside your video (a hill, a person, a cap, shoes). About 2.2 GB.",
+                               "benjamin-paine/stable-diffusion-v1-5-inpainting", INPAINT_PATTERNS, kind="image")
+
 # Rough download sizes, shown before the real size is known.
 APPROX_BYTES = {"ltxv-base": 9_500_000_000, "ltxv-2b-distilled": 4_300_000_000, "ltxv-2b-091": 4_700_000_000, "whisper-tiny": 75_000_000,
-                "whisper-base": 145_000_000, "whisper-small": 480_000_000, "image-sd-turbo": 2_600_000_000}
+                "whisper-base": 145_000_000, "whisper-small": 480_000_000, "image-sd-turbo": 2_600_000_000, "image-inpaint": 2_200_000_000}

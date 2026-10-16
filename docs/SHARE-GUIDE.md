@@ -63,3 +63,10 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 
 
 **Reinstalling?** A fresh install always fetches the newest tested module versions from the internet first, and your models and projects stay in the data folder.
+
+## What is new in 1.2.4
+
+- **Pictures without a logo.** The AI Assistant now uses the free AI Horde service by default (no watermark, no account; it may queue for a minute or two). If you installed "Install everything", the model on your PC is used instead: private, no limits, no logo. The old Pollinations service is only a last-resort backup and the reply tells you when it was used (it adds a small logo and has quotas).
+- **Documents that copy your file.** Attach a PDF, Word or PowerPoint file and ask `/pdf`, `/doc` or `/ppt` for something new. The AI follows that file's section order, length and tone, and the document uses its main colour and font.
+- **AI object edits in the chat editor.** Mark a place with the Draw tool (box, circle or scribble) and say "remove this hill", "remove the person", "change the hill to a snowy mountain". Or say "put a white cap on his head" (it finds the face). It repaints the video frames with an inpainting model (Models page → "Object editor: AI inpainting", about 2.2 GB, graphics card needed). Up to 8 seconds per clip per request. Still camera: fast "patch" mode. Moving person or camera: slower "track" mode, which may flicker a little. Undo restores the original.
+- Not included: Kling-style "Motion Control" (a character picture driven by a motion video). It needs a model far bigger than a 6 GB card can run.

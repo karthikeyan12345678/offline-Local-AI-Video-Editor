@@ -62,7 +62,8 @@ export const fontFileUrl = (font: string, bold = false) => `/api/editor/fonts/${
 export interface AIRequest { asset_id: string; trim_in?: number; trim_out?: number; options?: Record<string, unknown> }
 
 export interface ChatMsg { role: "user" | "assistant"; content: string; image_ids?: string[] }
-export interface ChatTask { name: string; clips?: string[]; language?: string; every?: number; text?: string; prompt?: string; use_reference?: boolean }
+export interface ChatTask { name: string; clips?: string[]; language?: string; every?: number; text?: string; prompt?: string; use_reference?: boolean; mode?: "patch" | "track"; part?: "" | "head" | "face"; shapes?: unknown[]; drawing_ids?: string[] }
+export interface InpaintRequest extends AIRequest { prompt: string; mode: "patch" | "track"; part: "" | "head" | "face"; shapes: unknown[] }
 export interface ChatResult { reply: string; project: Project; applied: string[]; skipped: string[]; tasks: ChatTask[]; changed: boolean; focus?: number | null; understood?: boolean }
 export interface ChatStatus { ready: boolean; provider?: string; name?: string; model?: string; why?: string }
 export interface LLMPreset { name: string; style: string; base_url: string; needs_key: boolean; model: string; help: string }
@@ -92,6 +93,7 @@ export const api = {
   updateModules: () => call<Job>("POST", "/updates/modules"),
   catalog: () => call<Catalog>("GET", "/editor/catalog"),
   ai: (what: "follow" | "silence" | "scenes" | "beats" | "captions", b: AIRequest) => call<Job>("POST", `/editor/ai/${what}`, b),
+  inpaint: (b: InpaintRequest) => call<Job>("POST", "/editor/ai/inpaint", b),
   enhance: (b: AIRequest) => call<Adjust>("POST", "/editor/ai/enhance", b),
   voices: () => call<{ voices: string[] }>("GET", "/editor/ai/voices"),
   speak: (text: string, voice: string, rate: number) => call<Job>("POST", "/editor/ai/speak", { text, voice, rate }),

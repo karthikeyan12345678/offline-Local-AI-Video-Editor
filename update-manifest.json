@@ -1,6 +1,6 @@
 {
-  "app_version": "1.2.3",
-  "notes": "Fixed first-time setup on the portable app (files vanishing from the temp folder) and the graphics card test.",
+  "app_version": "1.2.4",
+  "notes": "1.2.4: logo-free pictures, files as style references, AI object edits in the chat editor",
   "download_url": "https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest",
   "modules": [
     {

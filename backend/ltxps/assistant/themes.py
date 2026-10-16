@@ -84,7 +84,17 @@ def catalog() -> dict[str, Theme]:
     return {t["id"]: Theme(t["id"], t["name"], t["category"], t["description"], t["colors"], t["fonts"]) for t in data["themes"]}
 
 
+_EXTRA: dict[str, Theme] = {}
+
+
+def register_theme(theme: Theme) -> None:
+    """Adds a one-off theme (for example one copied from a reference file) so build_file can use it by id."""
+    _EXTRA[theme.id] = theme
+
+
 def get_theme(theme_id: str | None) -> Theme:
+    if theme_id and theme_id in _EXTRA:
+        return _EXTRA[theme_id]
     cat = catalog()
     if theme_id and theme_id in cat:
         return cat[theme_id]

@@ -14,8 +14,10 @@ from typing import Any, Callable
 import httpx
 
 IMAGE_PROVIDERS: dict[str, dict[str, Any]] = {
-    "pollinations": {"name": "Pollinations (free, online)", "needs_key": False, "base_url": "https://image.pollinations.ai", "model": "flux",
-                     "help": "No account needed. Needs internet. Your prompt is sent to a public service."},
+    "horde": {"name": "AI Horde (free, online, no logo)", "needs_key": False, "base_url": "https://aihorde.net/api/v2", "model": "",
+              "help": "Free community service. No account, no watermark. Pictures can take from 20 seconds to a few minutes when it is busy."},
+    "pollinations": {"name": "Pollinations (free, online, adds a small logo)", "needs_key": False, "base_url": "https://image.pollinations.ai", "model": "flux",
+                     "help": "Quick, but the free tier stamps a pollinations.ai logo and limits how many pictures you can make."},
     "openai": {"name": "OpenAI-compatible API", "needs_key": True, "base_url": "https://api.openai.com/v1", "model": "gpt-image-1",
                "help": "OpenAI or any server with /images/generations (set the address, key and model)."},
     "local": {"name": "On this PC (Stable Diffusion Turbo)", "needs_key": False, "base_url": "", "model": "stabilityai/sd-turbo",
@@ -30,7 +32,7 @@ class ImageError(RuntimeError):
 
 @dataclass
 class ImageConfig:
-    provider: str = "pollinations"
+    provider: str = "horde"
     base_url: str = ""
     api_key: str = ""
     model: str = ""
@@ -38,8 +40,12 @@ class ImageConfig:
 
 
 def image_config_from(saved: dict[str, Any]) -> ImageConfig:
-    prov = saved.get("provider", "pollinations")
-    p = IMAGE_PROVIDERS.get(prov, IMAGE_PROVIDERS["pollinations"])
+    prov = saved.get("provider", "horde")
+    if prov == "pollinations" and not saved.get("chosen"):
+        prov = "horde"  # old default: the free tier adds a logo and often runs out, so nobody gets it unless they pick it on purpose
+    if prov not in IMAGE_PROVIDERS:
+        prov = "horde"
+    p = IMAGE_PROVIDERS[prov]
     mine = saved.get(prov, {}) if isinstance(saved.get(prov), dict) else {}
     return ImageConfig(prov, (mine.get("base_url") or p["base_url"]).rstrip("/"), mine.get("api_key", ""), mine.get("model") or p["model"])
 
@@ -108,11 +114,11 @@ def _pollinations(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: in
         q["seed"] = seed
     url = f"{cfg.base_url or 'https://image.pollinations.ai'}/prompt/{urllib.parse.quote(prompt, safe='')}?{urllib.parse.urlencode(q)}"
     last: Exception | None = None
-    for attempt in range(2):
+    for attempt in range(4):
         try:
             r = httpx.get(url, timeout=httpx.Timeout(120.0, connect=8.0), follow_redirects=True)
             if r.status_code == 429 or r.status_code >= 500:
-                time.sleep(2 + attempt * 3)
+                time.sleep(3 + attempt * 5)
                 last = ImageError(f"The free service is busy ({r.status_code}).")
                 continue
             if r.status_code >= 400:
@@ -123,6 +129,73 @@ def _pollinations(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: in
     if isinstance(last, ImageError):
         raise ImageError(str(last) + " Try again in a minute, or switch to another image engine in Settings.")
     raise ImageError("Cannot reach the free image service. Check your internet connection, or use the on-this-PC engine in Settings.") from last
+
+
+HORDE_KEY = "0000000000"  # the public anonymous key
+HORDE_WAIT_SECONDS = 420
+
+
+def _horde(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: int | None, on_status: Callable[[str], None] | None = None) -> bytes:
+    """AI Horde: volunteers' GPUs make the picture. No logo is added. Anonymous users are queued behind others."""
+    base = (cfg.base_url or "https://aihorde.net/api/v2").rstrip("/")
+    head = {"apikey": cfg.api_key or HORDE_KEY, "Client-Agent": "VKEditor:1:vkeditor-app", "content-type": "application/json"}
+    w = max(256, min(768, size[0] // 64 * 64 // (2 if size[0] > 768 else 1)))
+    h = max(256, min(768, size[1] // 64 * 64 // (2 if size[1] > 768 else 1)))
+    body: dict[str, Any] = {"prompt": prompt + " ### blurry, watermark, text, logo, deformed, low quality", "nsfw": False, "censor_nsfw": True, "r2": True, "shared": False,
+                            "params": {"width": w, "height": h, "steps": 25, "n": 1, "sampler_name": "k_euler_a", "cfg_scale": 7}}
+    if seed is not None:
+        body["params"]["seed"] = str(seed)
+    if cfg.model:
+        body["models"] = [cfg.model]
+    try:
+        r = httpx.post(base + "/generate/async", headers=head, json=body, timeout=httpx.Timeout(30.0, connect=8.0))
+    except httpx.HTTPError as exc:
+        raise ImageError("Cannot reach the free image service (AI Horde). Check your internet connection.") from exc
+    if r.status_code == 429:
+        raise ImageError("The free image service says too many requests are waiting from your network. Wait a minute and retry.")
+    if r.status_code >= 400:
+        try:
+            msg = str(r.json().get("message", ""))
+        except (ValueError, AttributeError):
+            msg = r.text[:160]
+        raise ImageError(f"The free image service refused the request ({r.status_code}). {msg}".strip())
+    try:
+        job = r.json()["id"]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ImageError("The free image service sent an answer this app does not understand.") from exc
+    started = time.time()
+    try:
+        while time.time() - started < HORDE_WAIT_SECONDS:
+            time.sleep(3)
+            c = httpx.get(f"{base}/generate/check/{job}", headers=head, timeout=20.0)
+            if c.status_code >= 400:
+                continue
+            info = c.json()
+            if info.get("faulted"):
+                raise ImageError("The free image service could not make that picture. Reword it and try again.")
+            if on_status:
+                on_status(f"Waiting in the free queue… position {info.get('queue_position', '?')}, about {info.get('wait_time', '?')} s")
+            if info.get("done"):
+                break
+        else:
+            raise ImageError("The free image service is very busy right now. Try again in a few minutes, or install the on-this-PC picture model.")
+        st = httpx.get(f"{base}/generate/status/{job}", headers=head, timeout=30.0).json()
+        gens = st.get("generations") or []
+        if not gens:
+            raise ImageError("The free image service finished without a picture. Try again.")
+        if gens[0].get("censored"):
+            raise ImageError("The free image service blocked that prompt. Reword it.")
+        img = gens[0].get("img", "")
+        if img.startswith("http"):
+            return httpx.get(img, timeout=60.0, follow_redirects=True).content
+        return base64.b64decode(img)
+    except httpx.HTTPError as exc:
+        raise ImageError("The connection to the free image service broke while waiting. Try again.") from exc
+    finally:
+        try:
+            httpx.delete(f"{base}/generate/status/{job}", headers=head, timeout=5.0)  # frees the queue slot if we gave up
+        except httpx.HTTPError:
+            pass
 
 
 _local_pipe: Any = None
@@ -177,22 +250,40 @@ def _local(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: int | Non
     return buf.getvalue()
 
 
-def generate_image(cfg: ImageConfig, prompt: str, out_dir: Path, shape: str = "square", seed: int | None = None, hf_endpoint: str = "") -> dict[str, Any]:
+def generate_image(cfg: ImageConfig, prompt: str, out_dir: Path, shape: str = "square", seed: int | None = None, hf_endpoint: str = "",
+                   on_status: Callable[[str], None] | None = None) -> dict[str, Any]:
     prompt = prompt.strip()
     if len(prompt) < 3:
         raise ImageError("Describe the picture you want, for example “a lighthouse at sunset, watercolor”.")
     if len(prompt) > 1500:
         raise ImageError("That description is too long. Keep it under about 1,500 characters.")
     size = SIZES.get(shape, SIZES["square"])
-    fn: Callable[..., bytes]
-    if cfg.provider == "openai":
-        if not cfg.base_url:
-            raise ImageError("No image server address is set. Open Settings.")
-        raw = _remote_openai(cfg, prompt, size, seed)
-    elif cfg.provider == "local":
-        raw = _local(cfg, prompt, size, seed, hf_endpoint)
-    else:
-        raw = _pollinations(cfg, prompt, size, seed)
+    order = [cfg.provider]
+    if cfg.provider in ("horde", "pollinations"):  # online engines back each other up; the logo-free one always goes first
+        order += [p for p in ("horde", "pollinations") if p != cfg.provider]
+    if cfg.local_dir and cfg.provider != "local" and local_available()[0]:
+        order.append("local")  # installed on this PC: the last resort when the online services are busy
+    used, errors, raw = "", [], b""
+    for prov in dict.fromkeys(order):
+        try:
+            if prov == "openai":
+                if not cfg.base_url:
+                    raise ImageError("No image server address is set. Open Settings.")
+                raw = _remote_openai(cfg, prompt, size, seed)
+            elif prov == "local":
+                raw = _local(cfg, prompt, size, seed, hf_endpoint)
+            elif prov == "horde":
+                raw = _horde(cfg if cfg.provider == "horde" else ImageConfig("horde"), prompt, size, seed, on_status)
+            else:
+                raw = _pollinations(cfg if cfg.provider == "pollinations" else ImageConfig("pollinations", "https://image.pollinations.ai", "", "flux"), prompt, size, seed)
+            used = prov
+            break
+        except ImageError as exc:
+            errors.append(str(exc))
+            if prov == cfg.provider and cfg.provider in ("openai", "local"):
+                break  # you chose this engine on purpose: tell you why it failed instead of quietly switching
+    if not used:
+        raise ImageError(errors[0] if len(errors) == 1 else errors[0] + " (The backup engine also failed: " + errors[-1] + ")")
     png, real = _check_image(raw)
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{time.strftime('%Y%m%d-%H%M%S')}-{slug(prompt)}.png"
@@ -201,4 +292,4 @@ def generate_image(cfg: ImageConfig, prompt: str, out_dir: Path, shape: str = "s
         path = out_dir / f"{path.stem.rsplit('~', 1)[0]}~{n}.png"
         n += 1
     path.write_bytes(png)
-    return {"path": str(path), "name": path.name, "width": real[0], "height": real[1], "prompt": prompt, "provider": cfg.provider, "bytes": len(png)}
+    return {"path": str(path), "name": path.name, "width": real[0], "height": real[1], "prompt": prompt, "provider": used, "watermark": used == "pollinations", "bytes": len(png)}

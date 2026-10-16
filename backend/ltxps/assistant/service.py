@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator
 
-from . import analytics, ats, compare, images, llm
+from . import analytics, ats, compare, images, llm, reference
 from .documents import FORMATS, build_file, parse_markdown
 from .extract import ExtractError, extract
 from .store import AssistantSettings, AssistantStore
@@ -22,8 +22,8 @@ COMMANDS = {"pdf": "pdf", "ppt": "pptx", "pptx": "pptx", "slides": "pptx", "doc"
             "analytics": "analyze", "design": "design", "theme": "design"}
 
 DOC_PROMPTS = {
-    "pdf": "Write a well-structured document in Markdown. Use one # title, then ## sections, short paragraphs, bullet lists and a table when it helps.",
-    "docx": "Write a well-structured document in Markdown. Use one # title, then ## sections, short paragraphs, bullet lists and a table when it helps.",
+    "pdf": "Write a professional, well-structured document in Markdown. Use one # title and a one-line subtitle, then a short '## Summary' (3 to 5 lines), then clear ## sections in a logical order with short paragraphs, bullet lists and a table where numbers or comparisons help, and finish with '## Next steps' or '## Conclusion'. Be specific and concrete, no filler.",
+    "docx": "Write a professional, well-structured document in Markdown. Use one # title and a one-line subtitle, then a short '## Summary' (3 to 5 lines), then clear ## sections in a logical order with short paragraphs, bullet lists and a table where numbers or comparisons help, and finish with '## Next steps' or '## Conclusion'. Be specific and concrete, no filler.",
     "pptx": ("Write a slide deck in Markdown. Start with '# Title' then a line of subtitle text. Each slide is a '## Slide title' followed by 3 to 5 short bullets "
              "(max 12 words each) or one small table. Add a line 'Notes: ...' with speaker notes under each slide. Use 6 to 12 slides. Use '# Section' alone for a section divider."),
     "csv": "Produce ONLY one Markdown table with a header row and realistic data rows. No prose before or after the table.",
@@ -257,6 +257,13 @@ def _do_chat(state: AssistantState, cid: str, text: str, files: list[dict]) -> I
 def _do_document(state: AssistantState, cid: str, intent: Intent, text: str, files: list[dict], options: dict[str, Any]) -> Iterator[str]:
     fmt = intent.kind
     request = intent.text or text
+    ref_files = [f for f in files if Path(f["name"]).suffix.lower() in (".pdf", ".docx", ".pptx", ".md", ".txt")]
+    ref_prof: dict[str, Any] | None = None
+    if ref_files and fmt in ("pdf", "docx", "pptx"):
+        try:
+            ref_prof = reference.profile(ref_files[0]["path"])
+        except ExtractError as e:
+            yield sse("delta", {"text": f"_{e} I will use the standard professional style instead._\n\n"})
     ctx, _ = attachment_context(state, [f["id"] for f in files], 10000)
     if looks_like_markdown(request):
         md = request
@@ -266,13 +273,23 @@ def _do_document(state: AssistantState, cid: str, intent: Intent, text: str, fil
             raise ValueError(f"Say what the {fmt.upper()} should contain, for example “/{fmt} a one-page project status report”.")
         cfg = state.llm_config()
         yield sse("status", {"text": "Writing the content…"})
-        prompt = f"{DOC_PROMPTS[fmt]}\nOutput only the Markdown, with no commentary.\n\nRequest: {request}" + (f"\n\nUse this material:\n{ctx}" if ctx else "")
+        prompt = f"{DOC_PROMPTS[fmt]}\nOutput only the Markdown, with no commentary.\n\nRequest: {request}"
+        if ref_prof:
+            yield sse("status", {"text": f"Studying “{ref_prof['name']}” for its structure and style…"})
+            prompt += "\n\n" + reference.instructions(ref_prof, fmt)
+            ctx = ""  # the reference teaches the form, not the content
+        if ctx:
+            prompt += f"\n\nUse this material:\n{ctx}"
         md = strip_fence(llm.complete(cfg, [{"role": "user", "content": prompt}], SYSTEM_BASE))
         if not md.strip():
             raise llm.LLMError("The model returned no content. Try again or choose another model.")
     yield sse("status", {"text": "Building the file…"})
-    f, meta = make_document(state, fmt, md, request, options.get("theme"))
-    reply = f"Your {fmt.upper()} is ready: **{f['name']}**."
+    theme_id = options.get("theme")
+    if ref_prof and not theme_id:
+        th = reference.theme_from(ref_prof)
+        theme_id = th.id if th else None
+    f, meta = make_document(state, fmt, md, request, theme_id)
+    reply = f"Your {fmt.upper()} is ready: **{f['name']}**." + (f" It follows the structure{' and colours' if theme_id == 'reference' else ''} of {ref_prof['name']}." if ref_prof else "")
     if meta["warnings"]:
         reply += " Note: " + " ".join(meta["warnings"])
     yield sse("delta", {"text": reply})
@@ -313,7 +330,8 @@ def _do_image(state: AssistantState, prompt: str, options: dict[str, Any]) -> tu
     cfg = state.image_config()
     out = images.generate_image(cfg, prompt, state.pictures, options.get("shape", "square"), options.get("seed"), hf_endpoint=options.get("hf_endpoint", ""))
     f = state.store.add_file("generated", out["name"], Path(out["path"]), "png")
-    return f"Here is your image ({out['width']}×{out['height']}).", [{"type": "image", "file": f, "prompt": prompt, "width": out["width"], "height": out["height"], "provider": out["provider"]}]
+    note = " The free fallback service adds a small logo; install the on-this-PC picture model (Install everything) for logo-free pictures with no limits." if out.get("watermark") else ""
+    return f"Here is your image ({out['width']}×{out['height']}).{note}", [{"type": "image", "file": f, "prompt": prompt, "width": out["width"], "height": out["height"], "provider": out["provider"]}]
 
 
 def _do_design(text: str, options: dict[str, Any]) -> tuple[str, list[dict]]:

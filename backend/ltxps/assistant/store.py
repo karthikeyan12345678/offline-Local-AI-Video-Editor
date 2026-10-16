@@ -113,7 +113,7 @@ class AssistantSettings:
     def __init__(self, path: Path):
         self.path = path
         self._lock = threading.Lock()
-        self.data: dict[str, Any] = {"provider": "ollama", "providers": {}, "image": {"provider": "pollinations"}, "default_theme": "claude", "system_prompt": ""}
+        self.data: dict[str, Any] = {"provider": "ollama", "providers": {}, "image": {"provider": "horde"}, "default_theme": "claude", "system_prompt": ""}
         if path.exists():
             try:
                 self.data.update(json.loads(path.read_text(encoding="utf-8")))

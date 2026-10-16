@@ -20,7 +20,7 @@ function Working({ label, pics }: { label: string; pics: boolean }) {
   );
 }
 
-const IDEAS = ["Make it vertical for a phone", "Add a fade between all clips", "Make it look cinematic", "Add the title “My Trip” at the start", "Slow everything down a little"];
+const IDEAS = ["Draw a circle on something, then: “remove this”", "Put a cap on the person’s head", "Make it vertical for a phone", "Add a fade between all clips", "Make it look cinematic", "Add the title “My Trip” at the start", "Slow everything down a little"];
 
 /** The "Setup" mini form: pick an AI provider, paste a key if it needs one. */
 function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => void }) {
@@ -126,6 +126,26 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
       }
       return "Your new AI video is ready in the Library.";
     }
+    if (t.name === "ai_edit") {
+      const clip = clips[0];
+      const a = clip && asset(clip.asset_id);
+      if (!clip || !a) throw new Error("I could not find the clip to edit.");
+      const span = (clip.trim_out || a.duration) - clip.trim_in;
+      const len = Math.min(span, 8);
+      const job = await api.inpaint({ asset_id: a.id, trim_in: clip.trim_in, trim_out: clip.trim_in + len, prompt: t.prompt ?? "", mode: t.mode ?? "patch", part: t.part ?? "", shapes: t.shapes ?? [] });
+      const r = await ai.wait(job);
+      await refreshAssets();
+      const made = r.asset_id as string | undefined;
+      if (!made) throw new Error("The edited video was not created.");
+      const cut = span > len + 0.2;
+      commit((p) => ({
+        ...p,
+        clips: p.clips.flatMap((c) => c.id !== clip.id ? [c] : [{ ...c, asset_id: made, trim_in: 0, trim_out: 0, transition: cut ? { type: "none", duration: c.transition.duration } : c.transition },
+          ...(cut ? [{ ...c, id: uid(), trim_in: c.trim_in + len, effects: [...c.effects] }] : [])]),
+        drawings: p.drawings.filter((d) => !(t.drawing_ids ?? []).includes(d.id)),
+      }));
+      return `Done. The marked place was repainted with AI${cut ? ` for the first ${len.toFixed(0)} seconds of the clip (the rest is a separate clip)` : ""}. Use Undo if you do not like it.`;
+    }
     if (t.name === "voiceover") { const voice = (await api.voices().catch(() => ({ voices: [] as string[] }))).voices[0] ?? "";
       const r = await ai.speak(t.text ?? "", voice, 1); await refreshAssets(); return r.asset_id ? "The voice-over is in your Library — drag it to the sound track." : "Voice-over created."; }
     if (t.name === "beat_cut") return "Cutting to the beat needs a music track: add music, select it and use “Cut to the beat” in the Sound tab.";
@@ -183,7 +203,7 @@ export default function ChatPanel({ project, commit, asset, onClose, onOpenAsset
       add({ role: "assistant", text: r.reply || fallback, notes: [...r.applied, ...skipped], result, focus: r.focus ?? null });
       if (r.changed && r.focus != null) onSeek(r.focus);
       for (const t of r.tasks) {
-        setBusy("x"); setWaiting({ label: t.name === "generate_video" ? "Making your AI video… this can take a few minutes" : "Working on it…", pics: false });
+        setBusy("x"); setWaiting({ label: t.name === "generate_video" ? "Making your AI video… this can take a few minutes" : t.name === "ai_edit" ? "Repainting your video with AI… about a minute per second of video on a graphics card" : "Working on it…", pics: false });
         try { add({ role: "assistant", text: await runTask(t, sentPics[0]?.id) }); }
         catch (e) { add({ role: "assistant", text: e instanceof Error ? e.message : "That did not work.", error: true }); }
       }
