@@ -9,7 +9,8 @@ export interface Asset {
 export interface Job {
   id: string; kind: string; title: string; lane: string;
   status: "queued" | "running" | "done" | "error" | "cancelled";
-  progress: number; phase: string; result: { asset_id?: string; warnings?: string[] } | null;
+  progress: number; phase: string; // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result: Record<string, any> | null;
   error: string | null; created: number; elapsed: number; eta: number | null;
 }
 
@@ -37,7 +38,7 @@ export interface Limits {
 }
 
 export interface ModelRow {
-  id: string; label: string; note: string; kind: "base" | "model"; installed: boolean; installed_bytes: number;
+  id: string; label: string; note: string; kind: "base" | "model" | "captions"; installed: boolean; installed_bytes: number;
   download: { status: string; total: number; done: number; speed: number; current: string; error: string | null };
 }
 
@@ -46,19 +47,40 @@ export interface ToolInfo { id: string; label: string; description: string; acce
 // ---- editor document (mirrors backend/ltxps/editor/project.py) ----
 export interface Adjust { brightness: number; contrast: number; saturation: number; gamma: number; hue: number }
 export interface Transition { type: string; duration: number }
+export interface Effect { type: string; amount: number }
+export interface Follow { keys: [number, number, number][]; zoom: number }
 export interface Clip {
   id: string; asset_id: string; trim_in: number; trim_out: number; image_duration: number; speed: number; reverse: boolean;
   volume: number; muted: boolean; fade_in: number; fade_out: number; fit: "fit" | "fill" | "stretch"; zoom: number; pan_x: number; pan_y: number;
   rotate: 0 | 90 | 180 | 270; flip_h: boolean; flip_v: boolean; adjust: Adjust; preset: string; blur: number; sharpen: number;
   vignette: boolean; denoise: boolean; transition: Transition;
+  motion: string; motion_strength: number; effects: Effect[]; follow: Follow | null;
+  audio_fx: string; pitch: number; bass: number; treble: number; denoise_audio: boolean; normalize_audio: boolean;
 }
 export interface TextOverlay {
   id: string; text: string; start: number; duration: number; x: number; y: number; size: number; color: string;
   bold: boolean; box: boolean; box_opacity: number; fade_in: number; fade_out: number;
+  font: string; italic: boolean; uppercase: boolean; align: "left" | "center" | "right"; letter_spacing: number; line_spacing: number;
+  color2: string | null; stroke: number; stroke_color: string; shadow: number; shadow_color: string; glow: number; glow_color: string;
+  box_color: string; rotation: number; opacity: number; anim_in: string; anim_out: string;
 }
-export interface AudioClip { id: string; asset_id: string; start: number; trim_in: number; trim_out: number; volume: number; fade_in: number; fade_out: number }
+export interface AudioClip {
+  id: string; asset_id: string; start: number; trim_in: number; trim_out: number; volume: number; fade_in: number; fade_out: number;
+  fx: string; pitch: number; bass: number; treble: number; denoise: boolean; normalize: boolean; loop: boolean; is_music: boolean;
+}
 export interface Project {
   id: string; name: string; canvas: { width: number; height: number; fps: number; background: string };
   clips: Clip[]; texts: TextOverlay[]; audio: AudioClip[]; master_volume: number;
+  duck_music: boolean; duck_amount: number; master_normalize: boolean;
+}
+export interface Catalog {
+  transitions: { id: string; label: string; group: string }[];
+  looks: { id: string; label: string }[];
+  effects: { id: string; label: string }[];
+  motions: { id: string; label: string }[];
+  audio_fx: { id: string; label: string; group: string }[];
+  fonts: { id: string; label: string; category: string; scripts: string[]; bold: boolean }[];
+  text_anim_in: string[]; text_anim_out: string[];
+  whisper: { id: string; label: string; installed: boolean }[];
 }
 export interface ExportOptions { format: "mp4" | "webm" | "gif"; width?: number; height?: number; fps?: number; quality: "low" | "medium" | "high"; include_audio: boolean; preview: boolean }

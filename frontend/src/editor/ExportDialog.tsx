@@ -52,7 +52,7 @@ export default function ExportDialog({ project, onClose }: { project: Project; o
           <div className="row gap"><a className="btn" href={mediaUrl(outId, "download")} download>Save to my computer</a><span className="text-sm">Also in your Library.</span></div>
         </div>
       )}
-      {job?.result?.warnings?.map((w) => <p key={w} className="text-sm">Note: {w}</p>)}
+      {(job?.result?.warnings as string[] | undefined)?.map((w) => <p key={w} className="text-sm">Note: {w}</p>)}
     </Dialog>
   );
 }

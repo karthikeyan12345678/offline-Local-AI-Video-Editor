@@ -1,11 +1,80 @@
 import { useEffect, useRef } from "react";
-import { mediaUrl } from "../lib/api";
-import type { Asset, Project } from "../lib/types";
+import { fontFileUrl, mediaUrl } from "../lib/api";
+import type { Asset, Clip, Project, TextOverlay } from "../lib/types";
 import { cssFilter, cssTransform, layout, objectFit, type Placed } from "./model";
 
 interface Props {
   project: Project; asset: (id: string) => Asset | undefined; time: number; playing: boolean;
   onTick: (t: number) => void; onEnd: () => void;
+}
+
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const easeOut = (p: number) => 1 - Math.pow(1 - p, 3);
+
+/** Where to place the video so a window that follows a person fills the frame (same maths as the renderer). */
+function followBox(c: Clip, a: Asset, canvas: { width: number; height: number }, srcTime: number): { w: number; h: number; x0: number; y0: number } | null {
+  const f = c.follow;
+  if (!f || f.keys.length === 0 || c.rotate !== 0 || !a.width || !a.height) return null;
+  const keys = f.keys;
+  let cx = keys[0][1], cy = keys[0][2];
+  if (srcTime >= keys[keys.length - 1][0]) { cx = keys[keys.length - 1][1]; cy = keys[keys.length - 1][2]; }
+  else if (srcTime > keys[0][0]) {
+    let lo = 0, hi = keys.length - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (keys[m][0] <= srcTime) lo = m; else hi = m; }
+    const k = (srcTime - keys[lo][0]) / Math.max(1e-6, keys[hi][0] - keys[lo][0]);
+    cx = keys[lo][1] + (keys[hi][1] - keys[lo][1]) * k; cy = keys[lo][2] + (keys[hi][2] - keys[lo][2]) * k;
+  }
+  if (c.flip_h) cx = 1 - cx;
+  if (c.flip_v) cy = 1 - cy;
+  const A = canvas.width / canvas.height, S = a.width / a.height;
+  let w = S > A ? A / S : 1, h = S > A ? 1 : S / A;
+  w /= f.zoom; h /= f.zoom;
+  return { w, h, x0: Math.min(1 - w, Math.max(0, cx - w / 2)), y0: Math.min(1 - h, Math.max(0, cy - h / 2)) };
+}
+
+const fontCss = (fonts: string[]) => fonts.map((id) =>
+  `@font-face{font-family:"ltx-${id}";font-weight:400;src:url("${fontFileUrl(id, false)}")}@font-face{font-family:"ltx-${id}";font-weight:700;src:url("${fontFileUrl(id, true)}")}`).join("");
+
+function textNode(t: TextOverlay, time: number) {
+  const inP = t.anim_in !== "none" && t.fade_in > 0 ? clamp01((time - t.start) / t.fade_in) : 1;
+  const outP = t.anim_out !== "none" && t.fade_out > 0 ? clamp01((time - (t.start + t.duration - t.fade_out)) / t.fade_out) : 0;
+  const ei = easeOut(inP), eo = outP * outP * outP;
+  let dx = 0, dy = 0, scale = 1, alpha = 1, clip: string | undefined;
+  const fadeIn = ["fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom"].includes(t.anim_in);
+  const fadeOut = ["fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom"].includes(t.anim_out);
+  if (fadeIn) alpha *= inP;
+  if (fadeOut) alpha *= 1 - outP;
+  if (t.anim_in === "slide_up") dy += 9 * (1 - ei); else if (t.anim_in === "slide_down") dy -= 9 * (1 - ei);
+  else if (t.anim_in === "slide_left") dx += 12 * (1 - ei); else if (t.anim_in === "slide_right") dx -= 12 * (1 - ei);
+  else if (t.anim_in === "zoom") scale *= 0.6 + 0.4 * ei;
+  else if (t.anim_in === "pop") scale *= 1 + 2.70158 * Math.pow(inP - 1, 3) + 1.70158 * Math.pow(inP - 1, 2);
+  else if (t.anim_in === "reveal") clip = `inset(0 ${(1 - inP) * 100}% 0 0)`;
+  if (t.anim_out === "slide_up") dy -= 9 * eo; else if (t.anim_out === "slide_down") dy += 9 * eo;
+  else if (t.anim_out === "slide_left") dx -= 12 * eo; else if (t.anim_out === "slide_right") dx += 12 * eo;
+  else if (t.anim_out === "zoom") scale *= 1 + 0.35 * eo;
+
+  const fam = t.font ? `"ltx-${t.font}", ` : "";
+  const em = (v: number) => `${v}em`;
+  const shadows: string[] = [];
+  if (t.glow > 0) { const r = 0.12 + 0.3 * t.glow; shadows.push(`0 0 ${em(r)} ${t.glow_color}`, `0 0 ${em(r * 2)} ${t.glow_color}`); }
+  if (t.shadow > 0) { const o = 0.04 + 0.06 * t.shadow; shadows.push(`${em(o)} ${em(o)} ${em(0.03 + 0.08 * t.shadow)} ${t.shadow_color}`); }
+  const grad = t.color2 ? { backgroundImage: `linear-gradient(${t.color}, ${t.color2})`, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", WebkitTextFillColor: "transparent" } : { color: t.color };
+  const inner: React.CSSProperties = {
+    fontFamily: `${fam}"Noto Sans Tamil", "Nirmala UI", system-ui, sans-serif`, fontWeight: t.bold ? 700 : 400, fontStyle: t.italic ? "italic" : "normal",
+    textTransform: t.uppercase ? "uppercase" : "none", letterSpacing: `${t.letter_spacing}em`, lineHeight: t.line_spacing / 1.25 * 1.2, textAlign: t.align,
+    textShadow: shadows.join(", ") || undefined, ...grad,
+    ...(t.stroke > 0 && !t.color2 ? { WebkitTextStroke: `${(t.stroke / 100) * 2}em ${t.stroke_color}`, paintOrder: "stroke fill" as const } : {}),
+  };
+  const box = t.box && t.box_opacity > 0;
+  const hex = t.box_color.replace("#", "");
+  const boxBg = box ? `rgba(${parseInt(hex.slice(0, 2), 16)},${parseInt(hex.slice(2, 4), 16)},${parseInt(hex.slice(4, 6), 16)},${t.box_opacity})` : "transparent";
+  return (
+    <div key={t.id} className="stage-text" style={{
+      left: `${t.x * 100}%`, top: `${t.y * 100}%`, fontSize: `${t.size}cqh`, background: boxBg, opacity: alpha * t.opacity, clipPath: clip,
+      transform: `translate(calc(-50% + ${dx}cqw), calc(-50% + ${dy}cqh)) rotate(${t.rotation}deg) scale(${Math.max(0, scale)})`,
+    }}>{t.color2 && t.stroke > 0 ? <span style={{ position: "relative", display: "inline-block" }}><span aria-hidden style={{ ...inner, position: "absolute", inset: 0, backgroundImage: "none", WebkitTextFillColor: t.stroke_color, color: t.stroke_color, WebkitTextStroke: `${(t.stroke / 100) * 2}em ${t.stroke_color}` }}>{t.text}</span><span style={{ ...inner, position: "relative" }}>{t.text}</span></span> : <span style={inner}>{t.text}</span>}</div>
+  );
 }
 
 /**
@@ -65,13 +134,14 @@ export default function Preview({ project, asset, time, playing, onTick, onEnd }
       const as = asset(ac.asset_id);
       if (!el || !as) continue;
       const len = Math.max(0.05, (ac.trim_out > 0 ? Math.min(ac.trim_out, as.duration) : as.duration) - ac.trim_in);
-      const inside = time >= ac.start && time < ac.start + len;
+      const inside = time >= ac.start && (ac.loop || time < ac.start + len);
+      el.loop = ac.loop;
       let vol = ac.volume * project.master_volume;
       if (ac.fade_in > 0 && time - ac.start < ac.fade_in) vol *= Math.max(0, (time - ac.start) / ac.fade_in);
       if (ac.fade_out > 0 && ac.start + len - time < ac.fade_out) vol *= Math.max(0, (ac.start + len - time) / ac.fade_out);
       el.volume = Math.min(1, Math.max(0, vol));
       if (playing && inside) {
-        const want = ac.trim_in + (time - ac.start);
+        const want = ac.trim_in + (ac.loop ? (time - ac.start) % len : time - ac.start);
         if (el.paused || Math.abs(el.currentTime - want) > 0.3) { try { el.currentTime = want; } catch { /* ignore */ } }
         if (el.paused) el.play().catch(() => {});
       } else if (!el.paused) el.pause();
@@ -79,6 +149,7 @@ export default function Preview({ project, asset, time, playing, onTick, onEnd }
     }
   }, [time, playing, project.audio, project.master_volume]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const usedFonts = Array.from(new Set(project.texts.map((t) => t.font).filter(Boolean))).sort();
   const { width, height, background } = project.canvas;
   const clip = active?.clip;
   const sc = 1; // blur is px at preview size; close enough for a preview
@@ -93,24 +164,24 @@ export default function Preview({ project, asset, time, playing, onTick, onEnd }
 
   return (
     <div className="stage-wrap">
+      {usedFonts.length > 0 && <style>{fontCss(usedFonts)}</style>}
       <div ref={containerRef} className="stage" style={{ aspectRatio: `${width} / ${height}`, background }}>
-        {clip && a && (
-          <div className="stage-media" style={{ opacity }}>
-            {a.kind === "video" ? (
-              <video ref={videoRef} key={a.id} src={mediaUrl(a.id)} playsInline preload="auto" style={{ objectFit: objectFit(clip), filter: cssFilter(clip, sc), transform: cssTransform(clip) }} />
-            ) : a.kind === "image" ? (
-              <img src={mediaUrl(a.id)} alt="" style={{ objectFit: objectFit(clip), filter: cssFilter(clip, sc), transform: cssTransform(clip) }} />
-            ) : null}
-            {clip.vignette && <div className="vignette" />}
-          </div>
-        )}
-        {project.texts.filter((t) => time >= t.start && time < t.start + t.duration).map((t) => {
-          let o = 1;
-          if (t.fade_in > 0 && time - t.start < t.fade_in) o = (time - t.start) / t.fade_in;
-          if (t.fade_out > 0 && t.start + t.duration - time < t.fade_out) o = Math.min(o, (t.start + t.duration - time) / t.fade_out);
-          const rgb = t.box ? `rgba(0,0,0,${t.box_opacity})` : "transparent";
-          return <div key={t.id} className="stage-text" style={{ left: `${t.x * 100}%`, top: `${t.y * 100}%`, fontSize: `${t.size}cqh`, color: t.color, fontWeight: t.bold ? 700 : 400, background: rgb, opacity: o }}>{t.text}</div>;
-        })}
+        {clip && a && (() => {
+          const local = Math.max(0, time - (active?.start ?? 0));
+          const fb = followBox(clip, a, project.canvas, clip.trim_in + local * clip.speed);
+          const mediaStyle: React.CSSProperties = { objectFit: fb ? ("fill" as const) : objectFit(clip), filter: cssFilter(clip, sc), transform: fb ? "none" : cssTransform(clip) };
+          const frame: React.CSSProperties | undefined = fb ? { position: "absolute", width: `${100 / fb.w}%`, height: `${100 / fb.h}%`, left: `${(-fb.x0 / fb.w) * 100}%`, top: `${(-fb.y0 / fb.h) * 100}%` } : undefined;
+          const el = a.kind === "video"
+            ? <video ref={videoRef} key={a.id} src={mediaUrl(a.id)} playsInline preload="auto" style={mediaStyle} />
+            : a.kind === "image" ? <img src={mediaUrl(a.id)} alt="" style={mediaStyle} /> : null;
+          return (
+            <div className="stage-media" style={{ opacity, overflow: "hidden" }}>
+              {frame ? <div style={frame}>{el}</div> : el}
+              {clip.vignette && <div className="vignette" />}
+            </div>
+          );
+        })()}
+        {project.texts.filter((t) => time >= t.start && time < t.start + t.duration).map((t) => textNode(t, time))}
         {!clip && <div className="stage-empty">Add a clip from the Media panel to start.</div>}
       </div>
       {project.audio.map((ac) => { const as = asset(ac.asset_id); return as ? <audio key={ac.id} preload="auto" src={mediaUrl(as.id)} ref={(el) => { if (el) audioRefs.current.set(ac.id, el); else audioRefs.current.delete(ac.id); }} /> : null; })}

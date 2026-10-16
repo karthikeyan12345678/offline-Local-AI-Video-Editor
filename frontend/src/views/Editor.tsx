@@ -7,7 +7,7 @@ import Preview from "../editor/Preview";
 import Timeline from "../editor/Timeline";
 import Inspector, { type Selection } from "../editor/Inspector";
 import ExportDialog from "../editor/ExportDialog";
-import { layout, newAudio, newClip, newProject, newText, splitAt } from "../editor/model";
+import { layout, newAudio, newClip, newProject, newText, splitAt, upgradeProject } from "../editor/model";
 import { useHistory } from "../editor/useHistory";
 import { Thumb, JobCard } from "./shared";
 import type { Asset, Project } from "../lib/types";
@@ -40,7 +40,7 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
   useEffect(() => {
     const id = remembered();
     if (!id) { setLoaded(true); return; }
-    api.loadProject(id).then((p) => h.reset({ ...newProject(), ...p, canvas: { ...newProject().canvas, ...p.canvas } })).catch(() => {}).finally(() => setLoaded(true));
+    api.loadProject(id).then((p) => h.reset(upgradeProject(p))).catch(() => {}).finally(() => setLoaded(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- autosave (debounced). Skips until the user actually changed something.
@@ -135,7 +135,7 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
 
   const openProjects = async () => { try { setProjects(await api.projects()); } catch (e) { toast((e as Error).message, true); } };
   const loadProject = async (id: string) => {
-    try { const p = await api.loadProject(id); first.current = true; h.reset({ ...newProject(), ...p, canvas: { ...newProject().canvas, ...p.canvas } }); remember(id); setSel(null); setTime(0); setRendered(null); setProjects(null); } catch (e) { toast((e as Error).message, true); }
+    try { const p = await api.loadProject(id); first.current = true; h.reset(upgradeProject(p)); remember(id); setSel(null); setTime(0); setRendered(null); setProjects(null); } catch (e) { toast((e as Error).message, true); }
   };
   const startNew = () => { first.current = true; const p = newProject(); h.reset(p); remember(p.id); setSel(null); setTime(0); setRendered(null); setProjects(null); };
 
@@ -205,7 +205,7 @@ export default function Editor({ queue, onQueueDone, visible }: { queue: Asset[]
         </section>
 
         <aside className="ed-side ed-inspector" aria-label="Settings for the selection">
-          <Inspector project={project} sel={sel} asset={asset} commit={mutate} onDelete={remove} />
+          <Inspector project={project} sel={sel} asset={asset} commit={mutate} onDelete={remove} time={time} />
           {selectedTextClip && <p className="hint">Tip: Press S to split at the playhead, drag the ends of a clip to trim, drag a clip sideways to reorder.</p>}
         </aside>
       </div>

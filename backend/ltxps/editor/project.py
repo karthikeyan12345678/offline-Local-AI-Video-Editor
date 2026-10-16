@@ -1,4 +1,8 @@
-"""Editor project document. This is exactly the JSON the frontend edits and saves."""
+"""Editor project document. This is exactly the JSON the frontend edits and saves.
+
+Every field added after the first release has a default, so projects saved by an
+older version still open and render the same way.
+"""
 
 from __future__ import annotations
 
@@ -6,29 +10,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-TRANSITIONS = (
-    "none",
-    "fade",
-    "fadeblack",
-    "fadewhite",
-    "dissolve",
-    "wipeleft",
-    "wiperight",
-    "wipeup",
-    "wipedown",
-    "slideleft",
-    "slideright",
-    "slideup",
-    "slidedown",
-    "circleopen",
-    "circleclose",
-    "radial",
-    "pixelize",
-)
-
-FILTER_PRESETS = ("none", "bw", "sepia", "vintage", "cool", "warm", "faded", "dramatic", "negative")
+from .audiofx import AUDIO_FX_IDS
+from .effects import EFFECTS, FILTER_PRESETS, MOTIONS, TRANSITIONS
 
 HEX = r"^#[0-9a-fA-F]{6}$"
+
+TEXT_ANIM_IN = ("none", "fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom", "pop", "reveal")
+TEXT_ANIM_OUT = ("none", "fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom")
 
 
 class Canvas(BaseModel):
@@ -63,6 +51,25 @@ class Transition(BaseModel):
         return v
 
 
+class Effect(BaseModel):
+    type: str
+    amount: float = Field(0.5, ge=0, le=1)
+
+    @field_validator("type")
+    @classmethod
+    def known(cls, v: str) -> str:
+        if v not in EFFECTS:
+            raise ValueError(f"Unknown effect '{v}'")
+        return v
+
+
+class Follow(BaseModel):
+    """Keep a person (or face) in frame. `keys` are [source seconds, centre x, centre y] with x and y as 0..1 of the picture."""
+
+    keys: list[tuple[float, float, float]] = Field(default_factory=list, max_length=20000)
+    zoom: float = Field(1, ge=1, le=3)  # 1 = widest window of the project's shape that fits; higher = tighter
+
+
 class Clip(BaseModel):
     id: str
     asset_id: str
@@ -89,12 +96,37 @@ class Clip(BaseModel):
     vignette: bool = False
     denoise: bool = False
     transition: Transition = Field(default_factory=Transition)
+    # ---- added in the editor upgrade
+    motion: str = "none"
+    motion_strength: float = Field(0.5, ge=0, le=1)
+    effects: list[Effect] = Field(default_factory=list, max_length=6)
+    follow: Follow | None = None
+    audio_fx: str = "none"
+    pitch: float = Field(0, ge=-12, le=12)  # semitones
+    bass: float = Field(0, ge=-12, le=12)  # dB
+    treble: float = Field(0, ge=-12, le=12)  # dB
+    denoise_audio: bool = False
+    normalize_audio: bool = False
 
     @field_validator("preset")
     @classmethod
     def known_preset(cls, v: str) -> str:
         if v not in FILTER_PRESETS:
             raise ValueError(f"Unknown filter '{v}'")
+        return v
+
+    @field_validator("motion")
+    @classmethod
+    def known_motion(cls, v: str) -> str:
+        if v not in MOTIONS:
+            raise ValueError(f"Unknown motion '{v}'")
+        return v
+
+    @field_validator("audio_fx")
+    @classmethod
+    def known_audio_fx(cls, v: str) -> str:
+        if v not in AUDIO_FX_IDS:
+            raise ValueError(f"Unknown sound effect '{v}'")
         return v
 
 
@@ -110,8 +142,41 @@ class TextOverlay(BaseModel):
     bold: bool = False
     box: bool = True
     box_opacity: float = Field(0.5, ge=0, le=1)
-    fade_in: float = Field(0, ge=0, le=5)
-    fade_out: float = Field(0, ge=0, le=5)
+    fade_in: float = Field(0, ge=0, le=5)  # length of the "in" animation
+    fade_out: float = Field(0, ge=0, le=5)  # length of the "out" animation
+    # ---- added in the editor upgrade
+    font: str = Field("", max_length=40)  # bundled font id; "" = automatic
+    italic: bool = False
+    uppercase: bool = False
+    align: Literal["left", "center", "right"] = "center"
+    letter_spacing: float = Field(0, ge=-0.1, le=1)  # in ems
+    line_spacing: float = Field(1.25, ge=0.8, le=2.5)
+    color2: str | None = Field(None, pattern=HEX)  # set for a top-to-bottom colour gradient
+    stroke: float = Field(0, ge=0, le=30)  # outline width, percent of the letter height
+    stroke_color: str = Field("#000000", pattern=HEX)
+    shadow: float = Field(0, ge=0, le=1)  # 0 = none
+    shadow_color: str = Field("#000000", pattern=HEX)
+    glow: float = Field(0, ge=0, le=1)  # 0 = none
+    glow_color: str = Field("#FFFFFF", pattern=HEX)
+    box_color: str = Field("#000000", pattern=HEX)
+    rotation: float = Field(0, ge=-180, le=180)
+    opacity: float = Field(1, ge=0, le=1)
+    anim_in: str = "fade"
+    anim_out: str = "fade"
+
+    @field_validator("anim_in")
+    @classmethod
+    def known_in(cls, v: str) -> str:
+        if v not in TEXT_ANIM_IN:
+            raise ValueError(f"Unknown text animation '{v}'")
+        return v
+
+    @field_validator("anim_out")
+    @classmethod
+    def known_out(cls, v: str) -> str:
+        if v not in TEXT_ANIM_OUT:
+            raise ValueError(f"Unknown text animation '{v}'")
+        return v
 
 
 class AudioClip(BaseModel):
@@ -123,6 +188,22 @@ class AudioClip(BaseModel):
     volume: float = Field(1, ge=0, le=2)
     fade_in: float = Field(0, ge=0, le=30)
     fade_out: float = Field(0, ge=0, le=30)
+    # ---- added in the editor upgrade
+    fx: str = "none"
+    pitch: float = Field(0, ge=-12, le=12)
+    bass: float = Field(0, ge=-12, le=12)
+    treble: float = Field(0, ge=-12, le=12)
+    denoise: bool = False
+    normalize: bool = False
+    loop: bool = False  # repeat until the end of the video
+    is_music: bool = True  # music is lowered automatically when "duck music" is on
+
+    @field_validator("fx")
+    @classmethod
+    def known_fx(cls, v: str) -> str:
+        if v not in AUDIO_FX_IDS:
+            raise ValueError(f"Unknown sound effect '{v}'")
+        return v
 
 
 class Project(BaseModel):
@@ -133,6 +214,9 @@ class Project(BaseModel):
     texts: list[TextOverlay] = Field(default_factory=list)
     audio: list[AudioClip] = Field(default_factory=list)
     master_volume: float = Field(1, ge=0, le=2)
+    duck_music: bool = False  # lower the audio track while the clips are speaking
+    duck_amount: float = Field(0.6, ge=0, le=1)
+    master_normalize: bool = False  # even out loudness of the whole export
 
 
 class ExportOptions(BaseModel):

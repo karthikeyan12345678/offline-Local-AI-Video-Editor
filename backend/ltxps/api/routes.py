@@ -8,15 +8,15 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from .. import __version__
-from ..catalog import BASE_ID, MODELS
+from ..catalog import AUX, BASE_ID, MODELS
 from ..db import Asset, new_id
-from ..editor import ops
+from ..editor import ai, audiofx, effects, fonts, ops
 from ..editor.media import FfmpegError, run_ffmpeg
-from ..editor.project import ExportOptions, Project
+from ..editor.project import TEXT_ANIM_IN, TEXT_ANIM_OUT, ExportOptions, Project
 from ..editor.render import AssetRef, PlanError, build_plan
 from ..engine.base import GenRequest
 from ..jobs import JobContext, UserFacingError
@@ -127,10 +127,11 @@ def make_router(state: AppState) -> APIRouter:
     def list_models() -> dict[str, Any]:
         rows = [model_row(BASE_ID, "Text encoder and tokenizer", "Shared by all LTX-Video models. Required.", "base")]
         rows += [model_row(m.id, m.label, m.note, "model") for m in MODELS.values()]
+        rows += [model_row(a.id, a.label, a.note, "captions") for a in AUX.values()]
         return {"items": rows, "endpoint": state.settings.get().hf_endpoint}
 
     def known_item(item_id: str) -> str:
-        if item_id != BASE_ID and item_id not in MODELS:
+        if item_id != BASE_ID and item_id not in MODELS and item_id not in AUX:
             raise HTTPException(404, "Unknown model")
         return item_id
 
@@ -392,6 +393,133 @@ def make_router(state: AppState) -> APIRouter:
             return {"asset_id": made.id, "warnings": plan.warnings}
 
         return state.jobs.submit("export", title, run, lane="media").to_json()
+
+    # ------------------------------------------------------------------ editor: catalog and fonts
+    @router.get("/editor/catalog")
+    def editor_catalog() -> dict[str, Any]:
+        return {
+            "transitions": [{"id": i, "label": l, "group": g} for i, l, g in effects.TRANSITION_INFO],
+            "looks": [{"id": i, "label": effects.PRESET_LABELS.get(i, i)} for i in effects.FILTER_PRESETS],
+            "effects": [{"id": i, "label": l} for i, l in effects.EFFECT_INFO],
+            "motions": [{"id": i, "label": l} for i, l in effects.MOTION_INFO],
+            "audio_fx": [{"id": i, "label": l, "group": g} for i, l, g in audiofx.AUDIO_FX_INFO],
+            "fonts": [{"id": f.id, "label": f.label, "category": f.category, "scripts": list(f.scripts), "bold": bool(f.bold) or f.variable} for f in fonts.catalog().values()],
+            "text_anim_in": list(TEXT_ANIM_IN),
+            "text_anim_out": list(TEXT_ANIM_OUT),
+            "whisper": [{"id": a.id, "label": a.label, "installed": state.downloads.is_installed(a.id)} for a in AUX.values()],
+        }
+
+    @router.get("/editor/fonts/sample")
+    def font_sample(font: str = "", text: str = Query("Aa Abc", max_length=60), bold: bool = False, height: int = Query(44, ge=16, le=120)) -> Response:
+        import io
+
+        buf = io.BytesIO()
+        fonts.sample_png(font, text, bold, height).save(buf, "PNG")
+        return Response(buf.getvalue(), media_type="image/png", headers={"Cache-Control": "max-age=86400"})
+
+    @router.get("/editor/fonts/{font_id}/file")
+    def font_file(font_id: str, bold: bool = False) -> FileResponse:
+        e = fonts.catalog().get(font_id)
+        if e is None:
+            raise HTTPException(404, "Unknown font")
+        return FileResponse(e.path(bold), media_type="font/ttf", headers={"Cache-Control": "max-age=86400"})
+
+    # ------------------------------------------------------------------ editor: AI
+    class AIBody(BaseModel):
+        asset_id: str
+        trim_in: float = Field(0, ge=0)
+        trim_out: float = Field(0, ge=0)  # 0 = to the end
+        options: dict[str, Any] = Field(default_factory=dict)
+
+    def ai_asset(body: AIBody, kinds: tuple[str, ...]) -> tuple[Asset, float, float]:
+        a = asset_or_404(body.asset_id)
+        if a.kind not in kinds:
+            raise HTTPException(422, f"This works on {' or '.join(kinds)} files.")
+        end = body.trim_out if body.trim_out > 0 else a.duration
+        end = min(end, a.duration) if a.duration > 0 else end
+        return a, body.trim_in, max(0.1, end - body.trim_in)
+
+    def ai_job(kind: str, title: str, fn) -> dict[str, Any]:
+        def run(ctx: JobContext) -> dict[str, Any]:
+            try:
+                return fn(ctx)
+            except (ai.AIError, FfmpegError) as exc:
+                if ctx.cancel.is_set():
+                    raise
+                raise UserFacingError(str(exc)) from exc
+
+        return state.jobs.submit(kind, title, run, lane="media").to_json()
+
+    @router.post("/editor/ai/follow")
+    def ai_follow(body: AIBody) -> dict[str, Any]:
+        a, start, dur = ai_asset(body, ("video",))
+        return ai_job("ai", f"Follow person: {a.name}", lambda ctx: ai.follow_person(str(a.path), start, dur, lambda p: ctx.update(p, f"Tracking {int(p * 100)}%"), ctx.cancel))
+
+    @router.post("/editor/ai/silence")
+    def ai_silence(body: AIBody) -> dict[str, Any]:
+        a, start, dur = ai_asset(body, ("video", "audio"))
+        o = body.options
+
+        def run(ctx: JobContext) -> dict[str, Any]:
+            ctx.update(0.1, "Listening")
+            r = ai.silence_cuts(str(a.path), a.duration or dur, float(o.get("noise_db", -35)), float(o.get("min_silence", 0.6)), cancel=ctx.cancel)
+            keep = [[max(s, start), min(e, start + dur)] for s, e in r["keep"] if e > start and s < start + dur]
+            return {**r, "keep": [k for k in keep if k[1] - k[0] > 0.15]}
+
+        return ai_job("ai", f"Find silences: {a.name}", run)
+
+    @router.post("/editor/ai/scenes")
+    def ai_scenes(body: AIBody) -> dict[str, Any]:
+        a, start, dur = ai_asset(body, ("video",))
+        thr = float(body.options.get("threshold", 0.35))
+        return ai_job("ai", f"Find scenes: {a.name}", lambda ctx: ai.scene_cuts(str(a.path), a.duration, thr, cancel=ctx.cancel))
+
+    @router.post("/editor/ai/beats")
+    def ai_beats(body: AIBody) -> dict[str, Any]:
+        a, _, _ = ai_asset(body, ("audio", "video"))
+        return ai_job("ai", f"Find the beat: {a.name}", lambda ctx: ai.beat_times(str(a.path)))
+
+    @router.post("/editor/ai/enhance")
+    def ai_enhance(body: AIBody) -> dict[str, Any]:
+        a, start, dur = ai_asset(body, ("video", "image"))
+        try:
+            if a.kind == "image":
+                return ai.auto_enhance(str(a.path), 0.0, 1.0)
+            return ai.auto_enhance(str(a.path), start + dur / 2, a.duration)
+        except (ai.AIError, FfmpegError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @router.post("/editor/ai/captions")
+    def ai_captions(body: AIBody) -> dict[str, Any]:
+        a, start, dur = ai_asset(body, ("video", "audio"))
+        size = str(body.options.get("model", "base"))
+        if f"whisper-{size}" not in AUX:
+            raise HTTPException(422, "Unknown captions model.")
+        mdir = state.paths.models / f"whisper-{size}"
+        if not state.downloads.is_installed(f"whisper-{size}"):
+            raise HTTPException(409, f"Download the captions model 'Whisper {size}' first (Models page).")
+        lang = str(body.options.get("language", "")) or None
+        return ai_job("ai", f"Captions: {a.name}", lambda ctx: ai.transcribe(str(a.path), mdir, lang, lambda p: ctx.update(p, f"Listening {int(p * 100)}%"), ctx.cancel, start, dur))
+
+    @router.get("/editor/ai/voices")
+    def ai_voices() -> dict[str, Any]:
+        return {"voices": ai.tts_voices()}
+
+    class SpeakBody(BaseModel):
+        text: str = Field(min_length=1, max_length=5000)
+        voice: str = ""
+        rate: int = Field(0, ge=-10, le=10)
+
+    @router.post("/editor/ai/speak")
+    def ai_speak(body: SpeakBody) -> dict[str, Any]:
+        def run(ctx: JobContext) -> dict[str, Any]:
+            dest = state.paths.renders / f"{new_id()}_voice.wav"
+            ctx.update(0.2, "Speaking")
+            ai.speak(body.text, dest, body.voice, body.rate)
+            made = state.library.register(dest, "edit", "Voice-over: " + body.text[:40], {"tool": "tts"})
+            return {"asset_id": made.id}
+
+        return ai_job("ai", "Voice-over", run)
 
     # ------------------------------------------------------------------ projects
     @router.get("/projects")

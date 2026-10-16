@@ -109,3 +109,23 @@
 }
 @media (max-width: 800px) { .shell { grid-template-columns: 1fr; } .nav { flex-direction: row; overflow-x: auto; } .nav ul { flex-direction: row; } .nav-jobs { display: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---- editor upgrade: pickers, chips, AI cards */
+.chip { border: 1px solid var(--color-gray-3); background: transparent; color: inherit; border-radius: 999px; padding: 2px 10px; font-size: var(--text-xs); cursor: pointer; }
+.chip--on { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-bg); }
+.fontpick-current { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; min-height: 36px; }
+.fontpick-current img, .fontrow img { filter: invert(var(--invert-samples, 0)); object-fit: contain; max-width: 100%; }
+.fontlist { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow: auto; border: 1px solid var(--color-gray-3); border-radius: 8px; }
+.fontrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 10px; background: transparent; border: 0; border-bottom: 1px solid rgba(128,128,128,.15); color: inherit; cursor: pointer; text-align: left; }
+.fontrow:hover, .fontrow.on { background: rgba(128,128,128,.18); }
+.fontrow img { background: #20242c; border-radius: 4px; padding: 2px 6px; }
+.fontpick-current img { background: #20242c; border-radius: 4px; padding: 2px 6px; }
+.stylegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.stylebtn { padding: 8px 6px; border: 1px solid var(--color-gray-3); border-radius: 8px; background: transparent; color: inherit; cursor: pointer; font-size: var(--text-xs); }
+.stylebtn:hover { border-color: var(--color-accent); }
+.aicard { border: 1px solid var(--color-gray-3); border-radius: 10px; padding: var(--space-7, 10px); }
+.stage-media-inner { position: absolute; }
+.stage-text { transform-origin: center; }
+
+.ed-inspector .tabs { flex-wrap: wrap; }
+.ed-inspector .tab { flex: 0 1 auto; }

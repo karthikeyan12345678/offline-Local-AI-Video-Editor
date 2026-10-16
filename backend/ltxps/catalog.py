@@ -76,3 +76,24 @@ CONFIG_PATTERNS = ("transformer/config.json", "vae/config.json")
 
 def base_dir(models_root: Path) -> Path:
     return models_root / "ltx-video-base"
+
+
+# Speech-to-text models for automatic captions (faster-whisper format, ~75 MB / 145 MB / 480 MB).
+@dataclass(frozen=True)
+class AuxSpec:
+    id: str
+    label: str
+    note: str
+    repo: str
+    patterns: tuple[str, ...]
+
+
+WHISPER_PATTERNS = ("config.json", "model.bin", "tokenizer.json", "vocabulary.*", "preprocessor_config.json")
+AUX: dict[str, AuxSpec] = {
+    f"whisper-{size}": AuxSpec(f"whisper-{size}", f"Captions model: Whisper {size}", note, f"Systran/faster-whisper-{size}", WHISPER_PATTERNS)
+    for size, note in (
+        ("tiny", "Fastest, English and simple speech (about 75 MB)."),
+        ("base", "Good balance for clear speech (about 145 MB)."),
+        ("small", "Best accuracy for Tamil, Hindi and other languages; slower (about 480 MB)."),
+    )
+}

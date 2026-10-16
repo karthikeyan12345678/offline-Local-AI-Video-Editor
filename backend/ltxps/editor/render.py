@@ -7,30 +7,21 @@ generated silence of the exact length.
 
 from __future__ import annotations
 
+import math
 import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .audiofx import fx_filters
+from .effects import PRESET_FILTERS, XFADE_NAMES, Fragment, effect_filter, motion_filters, pick_random_transition
 from .media import NO_WINDOW, require_ffmpeg
-from .project import Clip, ExportOptions, Project
+from .project import AudioClip, Clip, ExportOptions, Project, TextOverlay
 from .textimage import render_text_png
 
 SAMPLE_RATE = 48000
 QUALITY_CRF = {"low": 28, "medium": 23, "high": 18}
 VP9_CRF = {"low": 38, "medium": 32, "high": 25}
-
-PRESET_FILTERS = {
-    "bw": "hue=s=0",
-    "sepia": "colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131:0",
-    "vintage": "curves=preset=vintage",
-    "cool": "colorbalance=rs=-.1:bs=.15:rm=-.05:bm=.1",
-    "warm": "colorbalance=rs=.15:bs=-.15:rm=.08:bm=-.08",
-    "faded": "curves=all='0/0.12 1/0.9',eq=saturation=0.8",
-    "dramatic": "curves=preset=increase_contrast,eq=saturation=1.15",
-    "negative": "negate",
-}
-
 
 @dataclass
 class AssetRef:
@@ -128,11 +119,122 @@ def ffmpeg_major() -> int:
     return _FFMPEG_MAJOR
 
 
+# ---------------------------------------------------------------- transitions support
+_XFADE_SUPPORTED: set[str] | None = None
+
+
+def xfade_supported() -> set[str]:
+    """Transition names the installed ffmpeg knows (older builds lack the newest ones)."""
+    global _XFADE_SUPPORTED
+    if _XFADE_SUPPORTED is None:
+        try:
+            out = subprocess.run([require_ffmpeg(), "-hide_banner", "-h", "filter=xfade"], capture_output=True, text=True, creationflags=NO_WINDOW)
+            names = set(re.findall(r"^\s+([a-z0-9]+)\s+-?\d+\s+\.\.FV", out.stdout + out.stderr, re.M))
+            _XFADE_SUPPORTED = (names & set(XFADE_NAMES)) or set(XFADE_NAMES)
+        except OSError:
+            _XFADE_SUPPORTED = set(XFADE_NAMES)
+    return _XFADE_SUPPORTED
+
+
+def transition_name(clip: Clip, warnings: list[str] | None = None) -> str:
+    """The xfade name to use after `clip` (random picks are stable, unsupported names fall back to a cross-fade)."""
+    t = clip.transition.type
+    supported = xfade_supported()
+    if t == "random":
+        return pick_random_transition(clip.id, supported)
+    if t not in supported:
+        if warnings is not None and "A transition is not available in this ffmpeg build; a cross-fade was used instead." not in warnings:
+            warnings.append("A transition is not available in this ffmpeg build; a cross-fade was used instead.")
+        return "fade"
+    return t
+
+
 # ---------------------------------------------------------------- per-clip chains
-def _video_chain(clip: Clip, asset: AssetRef, idx: int, project: Project, dur: float) -> str:
+def _orient_point(clip: Clip, cx: float, cy: float) -> tuple[float, float]:
+    """Move a point given in source-picture coordinates through the clip's rotate/flip."""
+    if clip.rotate == 90:
+        cx, cy = 1 - cy, cx
+    elif clip.rotate == 180:
+        cx, cy = 1 - cx, 1 - cy
+    elif clip.rotate == 270:
+        cx, cy = cy, 1 - cx
+    if clip.flip_h:
+        cx = 1 - cx
+    if clip.flip_v:
+        cy = 1 - cy
+    return cx, cy
+
+
+def _follow_stages(clip: Clip, asset: AssetRef, idx: int, project: Project, dur: float, warnings: list[str]) -> list[str] | None:
+    """Crop window that follows a tracked subject. Returns None when it cannot be used."""
+    fol = clip.follow
+    if fol is None or not fol.keys or asset.kind == "image":
+        return None
     c = project.canvas
     W, H = c.width, c.height
-    f: list[str] = []
+    sw, sh = (asset.height, asset.width) if clip.rotate in (90, 270) else (asset.width, asset.height)
+    if sw <= 0 or sh <= 0:
+        warnings.append("Follow-the-subject was skipped for a clip whose size is unknown.")
+        return None
+    target = W / H
+    if sw / sh > target:
+        ch, cw = float(sh), sh * target
+    else:
+        cw, ch = float(sw), sw / target
+    cw, ch = max(16, int(cw / fol.zoom)) & ~1, max(16, int(ch / fol.zoom)) & ~1
+    cw, ch = min(cw, sw & ~1), min(ch, sh & ~1)
+    span_end = clip.trim_in + source_span(clip, asset)
+    pts: list[tuple[float, float, float]] = []
+    for t_src, cx, cy in fol.keys:
+        t_out = ((span_end - t_src) if clip.reverse else (t_src - clip.trim_in)) / clip.speed
+        ox, oy = _orient_point(clip, min(1.0, max(0.0, cx)), min(1.0, max(0.0, cy)))
+        pts.append((t_out, ox, oy))
+    pts.sort()
+    if not pts:
+        return None
+    ts = [p[0] for p in pts]
+
+    def at(t: float) -> tuple[float, float]:
+        if t <= ts[0]:
+            return pts[0][1], pts[0][2]
+        if t >= ts[-1]:
+            return pts[-1][1], pts[-1][2]
+        lo, hi = 0, len(ts) - 1
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if ts[mid] <= t:
+                lo = mid
+            else:
+                hi = mid
+        span = ts[hi] - ts[lo]
+        k = 0.0 if span <= 1e-9 else (t - ts[lo]) / span
+        return pts[lo][1] + (pts[hi][1] - pts[lo][1]) * k, pts[lo][2] + (pts[hi][2] - pts[lo][2]) * k
+
+    def xy(t: float) -> tuple[float, float]:
+        cx, cy = at(t)
+        return min(max(cx * sw - cw / 2, 0.0), float(sw - cw)), min(max(cy * sh - ch / 2, 0.0), float(sh - ch))
+
+    x0, y0 = xy(0.0)
+    moving = max(abs(p[1] - pts[0][1]) * sw for p in pts) > 1 or max(abs(p[2] - pts[0][2]) * sh for p in pts) > 1
+    name = f"crop@fol{idx}"
+    stages: list[str] = []
+    if moving:
+        n_frames = int(math.ceil(dur * c.fps)) + 1
+        cmds = []
+        for n in range(n_frames):
+            t = n / c.fps
+            x, y = xy(t)
+            cmds.append(f"{t:.4f} {name} x {x:.1f}, {name} y {y:.1f}")
+        stages.append("sendcmd=c='" + ";".join(cmds) + "'")
+    stages.append(f"{name}={cw}:{ch}:{_f(x0)}:{_f(y0)}")
+    stages.append(f"scale={W}:{H}:flags=bicubic")
+    return stages
+
+
+def _video_stages(clip: Clip, asset: AssetRef, idx: int, project: Project, dur: float, warnings: list[str]) -> list[str | Fragment]:
+    c = project.canvas
+    W, H = c.width, c.height
+    f: list[str | Fragment] = []
     is_image = asset.kind == "image"
     if clip.reverse and not is_image:
         f.append("reverse")
@@ -151,19 +253,25 @@ def _video_chain(clip: Clip, asset: AssetRef, idx: int, project: Project, dur: f
     if clip.flip_v:
         f.append("vflip")
 
-    bg = _hex(c.background)
-    if clip.fit == "fit":
-        f.append(f"scale={W}:{H}:force_original_aspect_ratio=decrease:flags=bicubic")
-        f.append(f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color={bg}")
-    elif clip.fit == "fill":
-        f.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=bicubic")
-        f.append(f"crop={W}:{H}")
+    followed = _follow_stages(clip, asset, idx, project, dur, warnings)
+    if followed is not None:
+        f.extend(followed)
     else:
-        f.append(f"scale={W}:{H}:flags=bicubic")
-    if clip.zoom > 1.0001:
-        z = _f(clip.zoom)
-        f.append(f"scale=iw*{z}:ih*{z}:flags=bicubic")
-        f.append(f"crop={W}:{H}:(iw-{W})*{_f(0.5 + clip.pan_x * 0.5)}:(ih-{H})*{_f(0.5 + clip.pan_y * 0.5)}")
+        bg = _hex(c.background)
+        if clip.fit == "fit":
+            f.append(f"scale={W}:{H}:force_original_aspect_ratio=decrease:flags=bicubic")
+            f.append(f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color={bg}")
+        elif clip.fit == "fill":
+            f.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=bicubic")
+            f.append(f"crop={W}:{H}")
+        else:
+            f.append(f"scale={W}:{H}:flags=bicubic")
+        if clip.zoom > 1.0001:
+            z = _f(clip.zoom)
+            f.append(f"scale=iw*{z}:ih*{z}:flags=bicubic")
+            f.append(f"crop={W}:{H}:(iw-{W})*{_f(0.5 + clip.pan_x * 0.5)}:(ih-{H})*{_f(0.5 + clip.pan_y * 0.5)}")
+
+    f.extend(motion_filters(clip.motion, clip.motion_strength, W, H, dur))
 
     a = clip.adjust
     eq_parts = []
@@ -189,6 +297,8 @@ def _video_chain(clip: Clip, asset: AssetRef, idx: int, project: Project, dur: f
         f.append(f"unsharp=5:5:{_f(clip.sharpen)}:5:5:0")
     if clip.vignette:
         f.append("vignette=PI/4")
+    for e in clip.effects:
+        f.append(effect_filter(e.type, e.amount, W, H))
 
     f.append("setsar=1")
     f.append("format=yuv420p")
@@ -200,7 +310,31 @@ def _video_chain(clip: Clip, asset: AssetRef, idx: int, project: Project, dur: f
     f.append(f"trim=duration={_f(dur)}")
     f.append("setpts=PTS-STARTPTS")
     f.append(f"fps={c.fps}")  # constant frame rate on the output link (xfade requires it)
-    return f"[{idx}:v]" + ",".join(f) + f"[v{idx}]"
+    return f
+
+
+def _assemble(stages: list[str | Fragment], src: str, out: str, prefix: str) -> list[str]:
+    """Turn a stage list into graph statements; fragments (split/blend/stack) get their own labels."""
+    stmts: list[str] = []
+    cur, buf, n = src, [], 0
+    for st in stages:
+        if isinstance(st, str):
+            buf.append(st)
+            continue
+        if buf:
+            mid = f"{prefix}m{n}"
+            stmts.append(f"[{cur}]" + ",".join(buf) + f"[{mid}]")
+            cur, buf = mid, []
+        nxt = f"{prefix}f{n}"
+        for line in st.statements:
+            stmts.append(line.replace("{in}", cur).replace("{out}", nxt).replace("{p}", f"{prefix}{n}_"))
+        cur, n = nxt, n + 1
+    stmts.append(f"[{cur}]" + ",".join(buf or ["null"]) + f"[{out}]")
+    return stmts
+
+
+def _video_chain(clip: Clip, asset: AssetRef, idx: int, project: Project, dur: float, warnings: list[str] | None = None) -> list[str]:
+    return _assemble(_video_stages(clip, asset, idx, project, dur, warnings if warnings is not None else []), f"{idx}:v", f"v{idx}", f"c{idx}")
 
 
 def _audio_chain(clip: Clip, asset: AssetRef, idx: int, dur: float, head: float, tail: float, start: float) -> str:
@@ -221,6 +355,7 @@ def _audio_chain(clip: Clip, asset: AssetRef, idx: int, dur: float, head: float,
         f += atempo_chain(clip.speed)
         if abs(clip.volume - 1) > 1e-6:
             f.append(f"volume={_f(clip.volume)}")
+        f += fx_filters(clip.audio_fx, clip.pitch, clip.bass, clip.treble, clip.denoise_audio, clip.normalize_audio)
         f.append("asetpts=PTS-STARTPTS")
         # Pad (silence) or cut so audio length matches the video exactly.
         f.append(f"apad=whole_dur={_f(dur)}")
@@ -238,6 +373,79 @@ def _audio_chain(clip: Clip, asset: AssetRef, idx: int, dur: float, head: float,
     if ms > 0:
         f.append(f"adelay={ms}|{ms}")
     return src + ",".join(f) + f"[a{idx}]"
+
+
+def _music_chain(ac: AudioClip, idx: int, span: float, total: float) -> str:
+    """One audio-track block: effects, optional loop to the end of the video, fades, and its start offset."""
+    f = [f"aresample={SAMPLE_RATE}", "aformat=channel_layouts=stereo:sample_fmts=fltp"]
+    f += fx_filters(ac.fx, ac.pitch, ac.bass, ac.treble, ac.denoise, ac.normalize)
+    if abs(ac.volume - 1) > 1e-6:
+        f.append(f"volume={_f(ac.volume)}")
+    length = span
+    if ac.loop:
+        length = max(0.05, total - ac.start)
+        f += ["asetpts=PTS-STARTPTS", f"aloop=loop=-1:size={int(span * SAMPLE_RATE) + 1}", f"atrim=duration={_f(length)}"]
+    if ac.fade_in > 0:
+        f.append(f"afade=t=in:st=0:d={_f(min(ac.fade_in, length))}")
+    if ac.fade_out > 0:
+        d = min(ac.fade_out, length)
+        f.append(f"afade=t=out:st={_f(max(0, length - d))}:d={_f(d)}")
+    f.append("asetpts=PTS-STARTPTS")
+    ms = int(round(ac.start * 1000))
+    if ms > 0:
+        f.append(f"adelay={ms}|{ms}")
+    return f"[{idx}:a]" + ",".join(f) + f"[ax{idx}]"
+
+
+def _text_animation(t: TextOverlay, W: int, H: int) -> tuple[list[str], str, str]:
+    """Filters for the text picture plus the overlay x / y expressions that move it in and out."""
+    st, end = t.start, t.start + t.duration
+    di = min(t.fade_in, t.duration / 2) if t.anim_in != "none" else 0.0
+    do = min(t.fade_out, t.duration / 2) if t.anim_out != "none" else 0.0
+    chain = ["format=rgba"]
+    p_in = f"clip((t-{_f(st)})/{_f(max(di, 0.001))},0,1)"
+    q_out = f"clip((t-{_f(end - do)})/{_f(max(do, 0.001))},0,1)"
+    e_in = f"(1-pow(1-{p_in},3))"
+    e_out = f"pow({q_out},3)"
+    dist_v, dist_h = 0.09 * H, 0.12 * W
+    dx, dy = "0", "0"
+    if di > 0:
+        if t.anim_in in ("fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom"):
+            chain.append(f"fade=t=in:st={_f(st)}:d={_f(di)}:alpha=1")
+        if t.anim_in == "slide_up":
+            dy += f"+{_f(dist_v)}*(1-{e_in})"
+        elif t.anim_in == "slide_down":
+            dy += f"-{_f(dist_v)}*(1-{e_in})"
+        elif t.anim_in == "slide_left":
+            dx += f"+{_f(dist_h)}*(1-{e_in})"
+        elif t.anim_in == "slide_right":
+            dx += f"-{_f(dist_h)}*(1-{e_in})"
+    if do > 0:
+        if t.anim_out in ("fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom"):
+            chain.append(f"fade=t=out:st={_f(end - do)}:d={_f(do)}:alpha=1")
+        if t.anim_out == "slide_up":
+            dy += f"-{_f(dist_v)}*{e_out}"
+        elif t.anim_out == "slide_down":
+            dy += f"+{_f(dist_v)}*{e_out}"
+        elif t.anim_out == "slide_left":
+            dx += f"-{_f(dist_h)}*{e_out}"
+        elif t.anim_out == "slide_right":
+            dx += f"+{_f(dist_h)}*{e_out}"
+    scale_terms: list[str] = []
+    if di > 0 and t.anim_in == "zoom":
+        scale_terms.append(f"(0.6+0.4*{e_in})")
+    if di > 0 and t.anim_in == "pop":
+        scale_terms.append(f"(1+2.70158*pow({p_in}-1,3)+1.70158*pow({p_in}-1,2))")
+    if do > 0 and t.anim_out == "zoom":
+        scale_terms.append(f"(1+0.35*{e_out})")
+    if scale_terms:
+        s = "*".join(scale_terms)
+        chain.append(f"scale=w='max(2,trunc(iw*{s}/2)*2)':h='max(2,trunc(ih*{s}/2)*2)':eval=frame:flags=bicubic")
+    if di > 0 and t.anim_in == "reveal":
+        chain.append(f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(X,W*clip((T-{_f(st)})/{_f(di)},0,1)),alpha(X,Y),0)'")
+    x = f"(W-w)*{_f(t.x)}+{dx}"
+    y = f"(H-h)*{_f(t.y)}+{dy}"
+    return chain, x, y
 
 
 # ---------------------------------------------------------------- main entry
@@ -299,7 +507,7 @@ def build_plan(project: Project, assets: dict[str, AssetRef], opts: ExportOption
             if clip.reverse and span > 60:
                 warnings.append("Reversing clips longer than a minute uses a lot of memory.")
             args += ["-ss", _f(clip.trim_in), "-t", _f(span), "-i", str(asset.path)]
-        graph.append(_video_chain(clip, asset, i, project, dur))
+        graph.extend(_video_chain(clip, asset, i, project, dur, warnings))
 
     # ---- join video
     any_transition = any(c.transition.type != "none" for c in project.clips[:-1])
@@ -316,7 +524,7 @@ def build_plan(project: Project, assets: dict[str, AssetRef], opts: ExportOption
             nv = f"vj{i}"
             if td > 0:
                 graph.append(
-                    f"[{v_run}][v{i}]xfade=transition={prev.transition.type}:duration={_f(td)}:offset={_f(run - td)}[{nv}]"
+                    f"[{v_run}][v{i}]xfade=transition={transition_name(prev, warnings)}:duration={_f(td)}:offset={_f(run - td)}[{nv}]"
                 )
                 run = run + durations[i] - td
             else:
@@ -335,26 +543,22 @@ def build_plan(project: Project, assets: dict[str, AssetRef], opts: ExportOption
         idx = next_input
         next_input += 1
         end = t.start + t.duration
-        chain = ["format=rgba"]
-        if t.fade_in > 0:
-            chain.append(f"fade=t=in:st={_f(t.start)}:d={_f(min(t.fade_in, t.duration))}:alpha=1")
-        if t.fade_out > 0:
-            d = min(t.fade_out, t.duration)
-            chain.append(f"fade=t=out:st={_f(max(t.start, end - d))}:d={_f(d)}:alpha=1")
+        chain, x_expr, y_expr = _text_animation(t, canvas.width, canvas.height)
         graph.append(f"[{idx}:v]" + ",".join(chain) + f"[tx{k}]")
         nxt = f"vt{k}"
         graph.append(
-            f"[{cur}][tx{k}]overlay=x=(W-w)*{_f(t.x)}:y=(H-h)*{_f(t.y)}:enable='between(t,{_f(t.start)},{_f(end)})':format=auto[{nxt}]"
+            f"[{cur}][tx{k}]overlay=x='{x_expr}':y='{y_expr}':enable='between(t,{_f(t.start)},{_f(end)})':format=auto[{nxt}]"
         )
         cur = nxt
     v_last = cur
 
     # ---- audio: every clip is delayed to its start and mixed (skipped when not exporting audio)
     if want_audio:
-        mix: list[str] = []
+        voice: list[str] = []  # the clips' own sound and any non-music audio blocks
+        music: list[str] = []
         for i, clip in enumerate(project.clips):
             graph.append(_audio_chain(clip, assets[clip.asset_id], i, durations[i], overlap[i], overlap[i + 1], starts[i]))
-            mix.append(f"[a{i}]")
+            voice.append(f"[a{i}]")
         for ac in project.audio:
             asset = assets[ac.asset_id]
             if not asset.has_audio and asset.kind != "audio":
@@ -365,27 +569,32 @@ def build_plan(project: Project, assets: dict[str, AssetRef], opts: ExportOption
             end = ac.trim_out if ac.trim_out > 0 else asset.duration
             span = max(0.05, (min(end, asset.duration) if asset.duration > 0 else end) - ac.trim_in)
             args += ["-ss", _f(ac.trim_in), "-t", _f(span), "-i", str(asset.path)]
-            f = [f"aresample={SAMPLE_RATE}", "aformat=channel_layouts=stereo:sample_fmts=fltp"]
-            if abs(ac.volume - 1) > 1e-6:
-                f.append(f"volume={_f(ac.volume)}")
-            if ac.fade_in > 0:
-                f.append(f"afade=t=in:st=0:d={_f(min(ac.fade_in, span))}")
-            if ac.fade_out > 0:
-                d = min(ac.fade_out, span)
-                f.append(f"afade=t=out:st={_f(max(0, span - d))}:d={_f(d)}")
-            ms = int(round(ac.start * 1000))
-            if ms > 0:
-                f.append(f"adelay={ms}|{ms}")
-            graph.append(f"[{idx}:a]" + ",".join(f) + f"[ax{idx}]")
-            mix.append(f"[ax{idx}]")
-        if len(mix) > 1:
-            graph.append(f"{''.join(mix)}amix=inputs={len(mix)}:duration=longest:dropout_transition=0:normalize=0[amix]")
+            graph.append(_music_chain(ac, idx, span, total))
+            (music if (ac.is_music and project.duck_music) else voice).append(f"[ax{idx}]")
+
+        def mix_of(labels: list[str], out: str) -> str:
+            if len(labels) == 1:
+                graph.append(f"{labels[0]}anull[{out}]")
+            else:
+                graph.append(f"{''.join(labels)}amix=inputs={len(labels)}:duration=longest:dropout_transition=0:normalize=0[{out}]")
+            return out
+
+        voice_bus = mix_of(voice, "avoice")
+        if music:
+            music_bus = mix_of(music, "amusic")
+            graph.append(f"[{voice_bus}]asplit=2[avo1][avo2]")
+            ratio = 2 + 10 * project.duck_amount
+            graph.append(f"[{music_bus}][avo1]sidechaincompress=threshold=0.03:ratio={_f(ratio)}:attack=30:release=600:makeup=1[aduck]")
+            graph.append("[avo2][aduck]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[amix]")
             a_final = "amix"
         else:
-            a_final = "a0"
+            a_final = voice_bus
         if abs(project.master_volume - 1) > 1e-6:
             graph.append(f"[{a_final}]volume={_f(project.master_volume)}[amaster]")
             a_final = "amaster"
+        if project.master_normalize:
+            graph.append(f"[{a_final}]loudnorm=I=-14:TP=-1.5:LRA=11,aresample={SAMPLE_RATE}[anorm]")
+            a_final = "anorm"
         graph.append(f"[{a_final}]alimiter=limit=0.97[aout]")
 
     # ---- final video shaping

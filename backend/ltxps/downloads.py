@@ -14,7 +14,7 @@ from urllib.parse import quote
 
 import httpx
 
-from .catalog import BASE_ID, BASE_PATTERNS, BASE_REPO, CONFIG_PATTERNS, MODELS, base_dir
+from .catalog import AUX, BASE_ID, BASE_PATTERNS, BASE_REPO, CONFIG_PATTERNS, MODELS, base_dir
 from .config import SettingsStore
 
 MARKER = ".complete.json"
@@ -126,6 +126,8 @@ class DownloadManager:
 
     # ---- layout --------------------------------------------------------------
     def _root(self, item_id: str) -> Path:
+        if item_id in AUX:
+            return self.models_root / item_id
         return base_dir(self.models_root) if item_id == BASE_ID else MODELS[item_id].root(self.models_root)
 
     def _marker(self, item_id: str) -> Path:
@@ -133,6 +135,8 @@ class DownloadManager:
 
     def _plan(self, item_id: str) -> list[tuple[str, tuple[str, ...], str]]:
         """(repo, glob patterns, local sub-directory) for everything one item needs."""
+        if item_id in AUX:
+            return [(AUX[item_id].repo, AUX[item_id].patterns, "")]
         if item_id == BASE_ID:
             return [(BASE_REPO, BASE_PATTERNS, "")]
         spec = MODELS[item_id]
@@ -188,7 +192,7 @@ class DownloadManager:
             return st
 
     def start(self, item_id: str) -> DownloadState:
-        if item_id != BASE_ID and item_id not in MODELS:
+        if item_id != BASE_ID and item_id not in MODELS and item_id not in AUX:
             raise KeyError(item_id)
         st = self.state(item_id)
         with self._lock:

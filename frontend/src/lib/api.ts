@@ -1,4 +1,4 @@
-import type { Asset, ExportOptions, Job, Limits, ModelRow, Project, Settings, SystemInfo, ToolInfo } from "./types";
+import type { Adjust, Asset, Catalog, ExportOptions, Job, Limits, ModelRow, Project, Settings, SystemInfo, ToolInfo } from "./types";
 
 function readToken(): string {
   try {
@@ -55,7 +55,18 @@ export interface GenerateBody {
   steps?: number; guidance?: number; seed: number; model_id?: string; image_asset_id?: string; unlock_limits: boolean;
 }
 
+export const fontSampleUrl = (font: string, text: string, bold = false, height = 44) =>
+  `/api/editor/fonts/sample?font=${encodeURIComponent(font)}&text=${encodeURIComponent(text)}&bold=${bold}&height=${height}&t=${encodeURIComponent(token)}`;
+export const fontFileUrl = (font: string, bold = false) => `/api/editor/fonts/${encodeURIComponent(font)}/file?bold=${bold}&t=${encodeURIComponent(token)}`;
+
+export interface AIRequest { asset_id: string; trim_in?: number; trim_out?: number; options?: Record<string, unknown> }
+
 export const api = {
+  catalog: () => call<Catalog>("GET", "/editor/catalog"),
+  ai: (what: "follow" | "silence" | "scenes" | "beats" | "captions", b: AIRequest) => call<Job>("POST", `/editor/ai/${what}`, b),
+  enhance: (b: AIRequest) => call<Adjust>("POST", "/editor/ai/enhance", b),
+  voices: () => call<{ voices: string[] }>("GET", "/editor/ai/voices"),
+  speak: (text: string, voice: string, rate: number) => call<Job>("POST", "/editor/ai/speak", { text, voice, rate }),
   system: (refresh = false) => call<SystemInfo>("GET", `/system${refresh ? "?refresh=true" : ""}`),
   settings: () => call<Settings>("GET", "/settings"),
   saveSettings: (p: Partial<Settings>) => call<Settings>("PUT", "/settings", p),

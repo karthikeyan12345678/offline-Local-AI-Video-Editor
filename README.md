@@ -101,3 +101,11 @@ The 145 assistant design themes were derived from Open Design (Apache-2.0); see 
 
 
 The app code is yours. The model files are not part of it: check the licence terms of `Lightricks/LTX-Video` and of the T5 text encoder on Hugging Face before commercial use.
+
+## Video editor upgrade
+
+- **Transitions:** 57 ffmpeg transitions (fade, wipe, slide, cover/reveal, shapes, slices, wind, zoom) plus *Random*; one click applies a transition to every cut.
+- **Looks, effects, camera motion:** 24 colour looks, 19 stackable effects (RGB split, glitch, VHS, film grain, neon edges, bloom, mirror, …), 11 camera moves (Ken Burns, pans, shake, pulse).
+- **Text:** 68 bundled fonts (Latin, display, script, plus Tamil, Hindi, Telugu, Kannada, Malayalam, Bengali), outline, shadow, glow, gradient, box, spacing, tilt, 14 one-click styles, in/out animations (fade, slide, zoom, pop, wipe reveal). Fonts are OFL/Apache licensed (see `backend/ltxps/editor/fonts/README.txt`).
+- **Sound:** 25 sound effects (voice clean-up, telephone, robot, reverb, echo, lo-fi, …), pitch, bass/treble, noise removal, loudness, music loop, automatic music ducking under speech.
+- **AI (all on this PC):** follow a person with a moving crop (YuNet face model bundled, falls back to movement), auto captions (Whisper via faster-whisper; models are downloaded from the Models page), cut silences, split at scene changes, auto-enhance colour, cut clips to the music beat, text-to-speech voice-over using the PC's own voices.

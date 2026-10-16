@@ -19,7 +19,7 @@ call npm run build
 if errorlevel 1 goto :fail
 popd
 pushd assistant-ui
-call npm install
+call npm ci
 if errorlevel 1 goto :fail
 call npm run build
 if errorlevel 1 goto :fail

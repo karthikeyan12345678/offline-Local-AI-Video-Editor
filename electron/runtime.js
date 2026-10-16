@@ -172,7 +172,13 @@ async function setupRuntime({ dataDir, backendDir, requirementsFile, report, sig
 
   // 3. PyTorch: try builds until one can really use this GPU (the AI Assistant does not need it)
   let chosen = needTorch ? null : "none";
-  const candidates = needTorch ? torchCandidates(gpu) : [];
+  // An app update that only adds libraries must not download PyTorch again: keep the working one.
+  const previous = readyInfo(runtimeDir);
+  if (needTorch && previous && previous.format === SETUP_FORMAT && previous.torch && previous.torch !== "none" && fs.existsSync(py) && hasPip) {
+    const probe = spawnSync(py, ["-c", "import torch"], { windowsHide: true, timeout: 120000 });
+    if (probe.status === 0) { chosen = previous.torch; report("Keeping your existing PyTorch", null, ""); }
+  }
+  const candidates = needTorch && !chosen ? torchCandidates(gpu) : [];
   let lastError = "";
   for (const tag of candidates) {
     check();
