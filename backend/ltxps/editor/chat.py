@@ -18,9 +18,9 @@ from typing import Any
 
 from PIL import Image
 
-from . import fonts
+from . import fonts, soundfx
 from .audiofx import AUDIO_FX_IDS
-from .effects import EFFECTS, FILTER_PRESETS, MOTIONS, TRANSITIONS
+from .effects import EFFECTS, FILTER_PRESETS, MASKS, MOTIONS, TRANSITIONS
 from .project import TEXT_ANIM_IN, TEXT_ANIM_OUT, Project
 
 RATIOS = {"16:9": (1280, 720), "9:16": (720, 1280), "1:1": (1080, 1080), "4:3": (1024, 768), "21:9": (1260, 540), "4:5": (864, 1080), "3:4": (810, 1080)}
@@ -82,7 +82,17 @@ def describe(project: Project, names: dict[str, str], durations: dict[str, float
         box = _drawing_box(d)
         lines.append(f"Drawing {i}: {len(d.shapes)} shape(s) at {d.start:.1f}s for {d.duration:.1f}s" + (f", covers x {box[0]:.2f}-{box[2]:.2f}, y {box[1]:.2f}-{box[3]:.2f}" if box else ""))
     for i, im in enumerate(project.images, 1):
-        lines.append(f"Picture {i}: \"{names.get(im.asset_id, '?')}\" centre ({im.x:.2f},{im.y:.2f}) width {im.size:.2f} at {im.start:.1f}s for {im.duration:.1f}s")
+        lines.append(f"Picture {i}: \"{names.get(im.asset_id, '?')}\" centre ({im.x:.2f},{im.y:.2f}) width {im.size:.2f} at {im.start:.1f}s for {im.duration:.1f}s" + (f", {len(im.keys)} keyframes" if im.keys else ""))
+    for i, ly in enumerate(project.layers, 1):
+        bits = [f"track {ly.track}", "behind the main video" if ly.behind else "on top", f"centre ({ly.x:.2f},{ly.y:.2f}) width {ly.size:.2f}", f"opacity {ly.opacity:g}" if ly.opacity != 1 else "",
+                "green/blue screen removed" if ly.chroma.enabled else "", f"{len(ly.keys)} keyframes" if ly.keys else "", "muted" if ly.muted else ""]
+        lines.append(f"Layer {i}: \"{names.get(ly.asset_id, '?')}\" starts {ly.start:.1f}s, " + ", ".join(b for b in bits if b))
+    for i, cl in enumerate(project.clips, 1):
+        if cl.chroma.enabled:
+            lines.append(f"Clip {i} has its screen colour {cl.chroma.color} removed.")
+    for i, t in enumerate(project.texts, 1):
+        if t.keys:
+            lines.append(f"Text {i} moves along {len(t.keys)} keyframes.")
     return "\n".join(lines)
 
 
@@ -116,12 +126,21 @@ ACTIONS (target = "all" | "first" | "last" | clip number such as 2 | list of num
 {{"do":"add_drawing","start":s,"duration":s,"shapes":[{{"type":"arrow|rect|ellipse|line|pen|highlight","points":[[x,y],[x,y]],"color":"#RRGGBB","width":0.3-3}}]}}  (x and y are 0-1 of the picture; arrow/line/rect/ellipse need 2 points)
 {{"do":"add_image","image":"attached"|"<library picture name>","start":s,"duration":s,"anchor":"head"|"drawing"|null,"x":0-1,"y":0-1,"size":0.03-1,"rotation":-180..180,"opacity":0-1}}   (puts a picture such as a cap, logo or sticker ON the video. x,y = centre, size = width as a fraction of the video width. anchor "head" finds the face in the video and puts the picture on top of the head; anchor "drawing" puts it where the last drawing is. With no anchor give x, y and size yourself.)
 {{"do":"set_image","target":number,"set":{{x,y,size,rotation,opacity,start,duration}}}}   {{"do":"delete_image","target":number or "all"}}
+{{"do":"add_layer","video":"<library video or picture name>","start":s,"duration":s,"x":0-1,"y":0-1,"size":0.05-3,"track":1-8,"behind":true|false,"opacity":0-1,"rotation":-180..180,"remove_color":"green|blue|#RRGGBB"|null,"mute":true|false}}
+   puts a SECOND video or picture on the timeline that plays AT THE SAME TIME as the main video (picture-in-picture, a logo, an overlay, a green-screen actor, a background). x,y = centre, size = width as a fraction of the video width.
+   "behind":true puts it BEHIND the main video, which only shows where the main video is see-through (use it to replace a green screen background: first remove_background on the main clip, then add_layer with behind:true).
+{{"do":"set_layer","target":number,"set":{{x,y,size,rotation,opacity,start,track,behind,volume,muted,speed,fade_in,fade_out,blur,preset,mask,mask_feather 0-1,mask_invert,effect,effect_amount 0-1,adjust:{{brightness,contrast,saturation,gamma,hue}}}}}}   {{"do":"delete_layer","target":number or "all"}}
+   mask cuts the layer into a shape ("put the video in a circle / heart / star"): one of MASKS below. effect adds ONE effect from the effects list to the layer (up to 4).
+{{"do":"add_sound","sound":"<a built-in sound: whoosh, pop, ding, impact, riser, rain, drum loop ...>","start":s,"volume":0-2,"loop":true|false}}   puts a free built-in sound effect, ambience or drum loop on the timeline at that second ("add a whoosh at 3 seconds", "add rain in the background", "add a drum loop"). Use it instead of a task for these.
+{{"do":"remove_background","on":"clip"|"layer","target":number,"color":"green|blue|#RRGGBB","similarity":0.05-1,"blend":0-1}}   removes a green or blue screen (chroma key) so what is behind shows through. "off":true turns it off again.
+{{"do":"keyframe","on":"layer"|"text"|"picture","target":number,"at":seconds on the timeline,"x":0-1,"y":0-1,"size":0.05-3,"rotation":degrees,"opacity":0-1,"ease":"smooth|linear|hold"}}   adds or changes ONE keyframe; leave out any value that should stay as it is. Between keyframes the item moves smoothly.
+{{"do":"move_along","on":"layer"|"text"|"picture","target":number,"from":[x,y],"to":[x,y],"size_from":n,"size_to":n,"opacity_from":n,"opacity_to":n,"rotation_to":degrees}}   animates the item from the first to the last second it is shown ("text flies from left to right", "logo grows and fades in").   {{"do":"clear_keyframes","on":"layer"|"text"|"picture","target":number}}
 {{"do":"set_audio","target":number or "music","set":{{volume 0-2, loop, fade_in, fade_out, fx, pitch, bass, treble, denoise, normalize, is_music}}}}
 {{"do":"set_project","set":{{duck_music, duck_amount 0-1, master_volume 0-2, master_normalize}}}}
 Long jobs (the app runs them with progress bars):
 {{"do":"task","name":"captions","target":T,"language":"en|ta|hi|..."}}   {{"do":"task","name":"follow_person","target":T}}   {{"do":"task","name":"cut_silence","target":T}}
-{{"do":"task","name":"scene_split","target":T}}   {{"do":"task","name":"auto_enhance","target":T}}   {{"do":"task","name":"beat_cut","every":1|2|4}}   {{"do":"task","name":"voiceover","text":"words to speak"}}
-{{"do":"task","name":"generate_video","prompt":"<rich visual description: subject, setting, camera movement, light, mood, style; English; 1-3 sentences>","use_reference":true|false,"narration":"optional words a voice speaks over it","ambience":"auto|none|waves|rain|wind|fire|city|night|space|calm","music":true|false}}
+{{"do":"task","name":"scene_split","target":T}}   {{"do":"task","name":"auto_enhance","target":T}}   {{"do":"task","name":"beat_cut","every":1|2|4}}   {{"do":"task","name":"voiceover","text":"words to speak","persona":"auto|girl|boy|woman|man|old_woman|old_man"}}
+{{"do":"task","name":"generate_video","prompt":"<a detailed English paragraph of 60-100 words: the subject with visible detail (age, clothing, fur or skin, colours), the action, the setting, the light, the camera shot and movement, the photorealistic look>","use_reference":true|false,"narration":"optional words a voice speaks over it","persona":"auto|girl|boy|woman|man|old_woman|old_man (who speaks; auto = from the picture and words)","ambience":"auto|none|waves|rain|wind|fire|city|night|space|calm","music":true|false}}
    narration / ambience / music make the NEW video come with a voice and background sound. Leave them out for a silent video; ambience "auto" picks a sound that fits the scene.
 {{"do":"task","name":"soundtrack","target":T,"narration":"words to speak (optional)","ambience":"auto|none|waves|rain|wind|fire|city|night|space|calm","music":true|false}}
    adds a voice and/or background sound to existing clips ("add sound", "add a voice saying ...", "add rain sound", "add background music").
@@ -139,7 +158,9 @@ transitions: none, random, {', '.join(sorted(t for t in TRANSITIONS if t not in 
 looks: {', '.join(k for k in FILTER_PRESETS if k != 'none')}
 effects: {', '.join(EFFECTS)}
 motions: {', '.join(m for m in MOTIONS if m != 'none')}
-sound effects: {', '.join(a for a in AUDIO_FX_IDS if a != 'none')}
+voice and audio styles (set_clip audio_fx / set_audio fx): {', '.join(a for a in AUDIO_FX_IDS if a != 'none')}
+built-in sounds (add_sound): {', '.join(soundfx.SOUNDS)}
+masks: {', '.join(m for m in MASKS if m != 'none')}
 text styles: {', '.join(TEXT_STYLES)}   text animations in: {', '.join(TEXT_ANIM_IN)}   out: {', '.join(TEXT_ANIM_OUT)}
 fonts (examples): {', '.join(list(fonts.catalog())[:30])}
 Times are seconds on the final timeline. Use numbers, never words, for numbers. Keep any text in the language the person wrote it in."""
@@ -165,7 +186,7 @@ def parse_answer(text: str) -> dict[str, Any]:
     return {"reply": t[:600] or "I could not understand that. Please try again in other words.", "actions": [], "ok": False}
 
 
-_EDIT_WORDS = re.compile(r"\b(add|put|place|make|change|set|remove|delete|cut|trim|draw|apply|insert|replace|move|speed|slow|zoom|crop|caption|subtitle|title|text|cap|hat|logo|sticker|vertical|fade|filter|blur|mute|volume)\b", re.I)
+_EDIT_WORDS = re.compile(r"\b(layer|overlay|green|blue screen|chroma|keyframe|animate|background|picture-in-picture|add|put|place|make|change|set|remove|delete|cut|trim|draw|apply|insert|replace|move|speed|slow|zoom|crop|caption|subtitle|title|text|cap|hat|logo|sticker|vertical|fade|filter|blur|mute|volume|sound|whoosh|music|beat|loop|rain|mask|circle|heart|star|shape|effect|glitch|look)\b", re.I)
 
 
 def looks_like_edit_request(text: str) -> bool:
@@ -511,6 +532,244 @@ class Applier:
             self.p["images"].pop(i)
         self.applied.append("Removed a picture from the video")
 
+    # --- layers (a second video or picture at the same time), screen removal and keyframes
+    def _asset(self, aid: str):
+        return (self.ctx.get("assets") or {}).get(aid)
+
+    def _pick_media(self, a) -> tuple[str, str]:
+        want = str(a.get("video") or a.get("image") or a.get("asset") or a.get("file") or "").strip().lower()
+        attached = list(self.ctx.get("attached") or [])
+        if not want or want.startswith("attached"):
+            if attached:
+                return attached[0], self.names.get(attached[0], "picture")
+            raise ValueError("say which library video or picture to use")
+        for nm, aid in self.library.items():
+            if want in nm:
+                asset = self._asset(aid)
+                if asset is None or asset.kind in ("video", "image"):
+                    return aid, self.names.get(aid, nm)
+        raise ValueError(f"no video or picture called '{a.get('video') or a.get('image')}' in the library")
+
+    @staticmethod
+    def _screen(color: Any) -> str:
+        c = str(color or "green").strip().lower()
+        if re.fullmatch(r"#?[0-9a-f]{6}", c):
+            return "#" + c.lstrip("#").upper()
+        return {"blue": "#0047BB", "bluescreen": "#0047BB", "blue screen": "#0047BB", "green": "#00B140", "greenscreen": "#00B140", "green screen": "#00B140", "white": "#FFFFFF", "black": "#000000"}.get(c, "#00B140")
+
+    def _layer_index(self, a) -> int:
+        t = a.get("target")
+        n = len(self.p["layers"])
+        if t in (None, "", "last") and n:
+            return n - 1
+        if t == "first" and n:
+            return 0
+        try:
+            i = int(t) - 1
+        except (TypeError, ValueError):
+            raise ValueError("which layer? use its number")
+        if not 0 <= i < n:
+            raise ValueError("no such layer")
+        return i
+
+    def a_add_layer(self, a):
+        aid, nm = self._pick_media(a)
+        asset = self._asset(aid)
+        keyed = a.get("remove_color") or a.get("chroma")
+        full = bool(keyed) or bool(a.get("behind"))
+        x, y = a.get("x"), a.get("y")
+        size = a.get("size")
+        ly: dict[str, Any] = {"id": uuid.uuid4().hex[:8], "asset_id": aid, "start": max(0.0, float(a.get("start") or 0)), "behind": bool(a.get("behind")),
+                              "x": 0.5 if x is None else float(x), "y": 0.5 if y is None else float(y), "size": max(0.05, min(3.0, float(size))) if size else (1.0 if full else 0.35)}
+        if x is None and y is None and not full:
+            ly["x"], ly["y"] = 0.8, 0.8
+        if a.get("track"):
+            ly["track"] = int(max(1, min(8, float(a["track"]))))
+        else:
+            ly["track"] = min(8, 1 + sum(1 for q in self.p["layers"] if bool(q.get("behind")) == ly["behind"]))
+        if a.get("opacity") is not None:
+            ly["opacity"] = max(0.0, min(1.0, float(a["opacity"])))
+        if a.get("rotation"):
+            ly["rotation"] = max(-720.0, min(720.0, float(a["rotation"])))
+        if a.get("mute") or a.get("muted"):
+            ly["muted"] = True
+        if a.get("duration"):
+            d = max(0.2, float(a["duration"]))
+            if asset is not None and asset.kind == "image":
+                ly["image_duration"] = d
+            else:
+                ly["trim_out"] = d * float(a.get("speed") or 1) + float(a.get("trim_in") or 0)
+        if keyed:
+            ly["chroma"] = {"enabled": True, "color": self._screen(keyed)}
+        self.validated(lambda: self.p["layers"].append(ly))
+        self.applied.append(f"Added “{nm[:30]}” as a layer" + (" behind the video" if ly["behind"] else "") + (" with the screen colour removed" if keyed else ""))
+
+    def a_set_layer(self, a):
+        i = self._layer_index(a)
+        ok = {"x", "y", "size", "rotation", "opacity", "start", "track", "behind", "volume", "muted", "speed", "fade_in", "fade_out", "blur", "preset", "trim_in", "trim_out", "image_duration", "mask", "mask_feather", "mask_invert"}
+        sets = a.get("set") or {}
+        patch = {k: v for k, v in sets.items() if k in ok}
+        adj = sets.get("adjust")
+        fx = str(sets.get("effect") or "").strip()
+        if fx and fx not in EFFECTS:
+            raise ValueError(f"unknown effect '{fx}'")
+        if "mask" in patch:
+            patch["mask"] = "none" if str(patch["mask"]).lower() in ("", "off", "none", "false") else str(patch["mask"]).lower()
+            if patch["mask"] not in MASKS:
+                raise ValueError(f"unknown mask '{patch['mask']}'")
+
+        def m():
+            ly = self.p["layers"][i]
+            for k, v in patch.items():
+                ly[k] = int(v) if k == "track" else (bool(v) if k in ("behind", "muted", "mask_invert") else (str(v) if k in ("preset", "mask") else float(v)))
+            if fx:
+                ly.setdefault("effects", []).append({"type": fx, "amount": max(0.0, min(1.0, float(sets.get("effect_amount", 0.6))))})
+            if isinstance(adj, dict):
+                for ak, av in adj.items():
+                    if ak in ADJUST_FIELDS:
+                        ly["adjust"][ak] = _check(ak, av, ADJUST_FIELDS[ak])
+        if not patch and not fx and not isinstance(adj, dict):
+            raise ValueError("nothing to set")
+        self.validated(m)
+        self.applied.append(f"Changed layer {i + 1}: " + ", ".join(list(patch) + (["effect"] if fx else []) + (["adjust"] if adj else [])))
+
+    def a_add_sound(self, a):
+        q = str(a.get("sound") or a.get("name") or a.get("effect") or "")
+        sid = soundfx.find(q)
+        if not sid:
+            raise ValueError(f"I have no built-in sound called '{q}'. Try: whoosh, pop, ding, impact, riser, rain, wind, drum loop")
+        make = self.ctx.get("sound")
+        if make is None:
+            raise ValueError("built-in sounds are not available here")
+        asset = make(sid)
+        self.names[asset.id] = asset.name
+        label, group, dur, _ = soundfx.SOUNDS[sid]
+        ambient = group in ("Ambience", "Music and loops")
+        loop = bool(a.get("loop")) or (ambient and a.get("loop") is None)
+        ac = {"id": uuid.uuid4().hex[:8], "asset_id": asset.id, "start": max(0.0, float(a.get("start") if a.get("start") is not None else (a.get("at") or 0))),
+              "volume": max(0.0, min(2.0, float(a.get("volume") if a.get("volume") is not None else (0.5 if ambient else 1.0)))), "loop": loop, "is_music": ambient,
+              "fade_in": 0.5 if ambient else 0.0, "fade_out": 1.0 if ambient else 0.0}
+        self.validated(lambda: self.p["audio"].append(ac))
+        self.applied.append(f"Added the sound “{label}” at {ac['start']:.1f} s" + (" (repeats to the end)" if loop else ""))
+
+    def a_delete_layer(self, a):
+        if a.get("target") == "all":
+            self.p["layers"] = []
+        else:
+            self.p["layers"].pop(self._layer_index(a))
+        self.applied.append("Removed a layer")
+
+    def a_remove_background(self, a):
+        on = str(a.get("on") or ("layer" if self.p["layers"] and not a.get("clip") else "clip")).lower()
+        off = bool(a.get("off"))
+        patch = {"enabled": not off}
+        if not off:
+            patch["color"] = self._screen(a.get("color"))
+            if a.get("similarity") is not None:
+                patch["similarity"] = max(0.01, min(1.0, float(a["similarity"])))
+            if a.get("blend") is not None:
+                patch["blend"] = max(0.0, min(1.0, float(a["blend"])))
+
+        def m():
+            if on == "layer":
+                self.p["layers"][self._layer_index(a)]["chroma"].update(patch)
+            else:
+                for i in self.pick(a):
+                    self.p["clips"][i]["chroma"].update(patch)
+        self.validated(m)
+        self.applied.append("Turned the screen removal off" if off else "Removed the green/blue screen so what is behind shows through")
+
+    def _keyed(self, a) -> tuple[dict[str, Any], str]:
+        on = str(a.get("on") or "layer").lower().replace("image", "picture")
+        key = {"layer": "layers", "text": "texts", "picture": "images"}.get(on)
+        if key is None:
+            raise ValueError("keyframes work on a layer, a text or a picture")
+        try:
+            i = int(a.get("target") if a.get("target") is not None else len(self.p[key])) - 1
+        except (TypeError, ValueError):
+            raise ValueError("which one? use its number")
+        if not 0 <= i < len(self.p[key]):
+            raise ValueError(f"no such {on}")
+        return self.p[key][i], on
+
+    @staticmethod
+    def _rest(item: dict[str, Any], on: str) -> dict[str, float]:
+        base = {"x": item.get("x", 0.5), "y": item.get("y", 0.5), "size": item.get("size", 0.5) if on != "text" else 0.5, "rotation": item.get("rotation", 0) if on != "text" else 0, "opacity": item.get("opacity", 1)}
+        return {k: float(v) for k, v in base.items()}
+
+    def _value_at(self, item: dict[str, Any], on: str, rel: float) -> dict[str, float]:
+        """What the item looks like `rel` seconds after it starts (so a new keyframe starts from the current look)."""
+        keys = sorted(item.get("keys") or [], key=lambda k: k["t"])
+        rest = self._rest(item, on)
+        if not keys:
+            return rest
+        if rel <= keys[0]["t"]:
+            return {f: float(keys[0][f]) for f in rest}
+        if rel >= keys[-1]["t"]:
+            return {f: float(keys[-1][f]) for f in rest}
+        for k0, k1 in zip(keys, keys[1:]):
+            if k0["t"] <= rel <= k1["t"]:
+                span = max(1e-6, k1["t"] - k0["t"])
+                p = (rel - k0["t"]) / span
+                if k0.get("ease", "smooth") == "smooth":
+                    p = p * p * (3 - 2 * p)
+                elif k0.get("ease") == "hold":
+                    p = 0.0
+                return {f: float(k0[f]) + (float(k1[f]) - float(k0[f])) * p for f in rest}
+        return rest
+
+    def _length(self, item: dict[str, Any], on: str) -> float:
+        if on != "layer":
+            return float(item.get("duration", 3))
+        asset = self._asset(item["asset_id"])
+        if asset is None:
+            return 4.0
+        if asset.kind == "image":
+            return float(item.get("image_duration", 4))
+        end = item.get("trim_out") or asset.duration
+        return max(0.1, (min(end, asset.duration) - item.get("trim_in", 0)) / max(0.01, item.get("speed", 1)))
+
+    def a_keyframe(self, a):
+        item, on = self._keyed(a)
+        rel = max(0.0, float(a.get("at") or 0) - float(item.get("start", 0)))
+        vals = self._value_at(item, on, rel)
+        for f in vals:
+            if a.get(f) is not None:
+                vals[f] = float(a[f])
+        ease = str(a.get("ease") or "smooth")
+        if ease not in ("smooth", "linear", "hold"):
+            ease = "smooth"
+
+        def m():
+            keys = [k for k in (item.get("keys") or []) if abs(k["t"] - rel) > 0.02]
+            keys.append({"t": round(rel, 3), **vals, "ease": ease})
+            item["keys"] = sorted(keys, key=lambda k: k["t"])[:200]
+        self.validated(m)
+        self.applied.append(f"Added a keyframe at {a.get('at') or 0}s")
+
+    def a_move_along(self, a):
+        item, on = self._keyed(a)
+        rest = self._rest(item, on)
+        end = max(0.2, self._length(item, on))
+        fr, to = a.get("from"), a.get("to")
+
+        def pt(v, fallback):
+            try:
+                return float(v[0]), float(v[1])
+            except (TypeError, ValueError, IndexError, KeyError):
+                return fallback
+        x0, y0 = pt(fr, (rest["x"], rest["y"]))
+        x1, y1 = pt(to, (x0, y0))
+        k0 = {"t": 0.0, "x": x0, "y": y0, "size": float(a.get("size_from", rest["size"])), "rotation": float(a.get("rotation_from", rest["rotation"])), "opacity": float(a.get("opacity_from", rest["opacity"])), "ease": "smooth"}
+        k1 = {"t": round(end, 3), "x": x1, "y": y1, "size": float(a.get("size_to", k0["size"])), "rotation": float(a.get("rotation_to", k0["rotation"])), "opacity": float(a.get("opacity_to", k0["opacity"])), "ease": "smooth"}
+        self.validated(lambda: item.update(keys=[k0, k1]))
+        self.applied.append("Animated it from the start to the end of its time")
+
+    def a_clear_keyframes(self, a):
+        item, _ = self._keyed(a)
+        item["keys"] = []
+        self.applied.append("Removed the keyframes")
+
     def a_set_audio(self, a):
         tgt = a.get("target", "music")
         audio = self.p["audio"]
@@ -604,6 +863,10 @@ class Applier:
             task["language"] = str(a.get("language", ""))[:5]
         if name == "beat_cut":
             task["every"] = int(a.get("every", 2)) if int(a.get("every", 2)) in (1, 2, 4, 8) else 2
+        if name in ("voiceover", "generate_video", "soundtrack"):
+            from .voicecast import PERSONAS
+            pers = str(a.get("persona") or "auto").strip().lower().replace(" ", "_")
+            task["persona"] = pers if pers in PERSONAS else "auto"
         if name == "voiceover":
             task["text"] = str(a.get("text", ""))[:2000]
             if not task["text"].strip():
@@ -628,7 +891,8 @@ class Applier:
                              "auto_enhance": "Will improve the colours", "beat_cut": "Will cut to the beat", "voiceover": "Will create the voice-over", "generate_video": "Will generate a new AI video" + (" with sound" if (task.get("narration") or task.get("ambience") not in (None, "none") or task.get("music")) else ""), "soundtrack": "Will add sound and voice"}[name])
 
 
-ALIASES = {"remove_object": "ai_edit", "erase": "ai_edit", "inpaint": "ai_edit", "remove": "ai_edit", "add_picture": "add_image", "add_sticker": "add_image", "overlay_image": "add_image", "add_overlay": "add_image", "place_image": "add_image", "add_drawings": "add_drawing",
+ALIASES = {"add_overlay_video": "add_layer", "add_video_layer": "add_layer", "pip": "add_layer", "picture_in_picture": "add_layer", "add_track": "add_layer", "chroma_key": "remove_background", "green_screen": "remove_background",
+           "remove_green_screen": "remove_background", "remove_bg": "remove_background", "key_color": "remove_background", "add_keyframe": "keyframe", "animate": "move_along", "remove_layer": "delete_layer", "add_sfx": "add_sound", "sound_effect": "add_sound", "add_sound_effect": "add_sound", "add_music": "add_sound", "play_sound": "add_sound", "set_mask": "set_layer", "update_layer": "set_layer", "remove_object": "ai_edit", "erase": "ai_edit", "inpaint": "ai_edit", "remove": "ai_edit", "add_picture": "add_image", "add_sticker": "add_image", "overlay_image": "add_image", "add_overlay": "add_image", "place_image": "add_image", "add_drawings": "add_drawing",
            "draw": "add_drawing", "set_clips": "set_clip", "add_title": "add_text", "text": "add_text", "remove_clip": "delete_clip", "cut": "trim_clip", "trim": "trim_clip"}
 
 
@@ -642,7 +906,7 @@ def _drawing_box_dict(d: dict[str, Any]) -> tuple[float, float, float, float] | 
 
 def _starts(p: dict[str, Any]) -> dict[str, float]:
     out: dict[str, float] = {}
-    for key in ("texts", "drawings", "images"):
+    for key in ("texts", "drawings", "images", "layers"):
         for it in p.get(key, []):
             out[f"{key}:{it['id']}"] = float(it.get("start", 0))
     return out

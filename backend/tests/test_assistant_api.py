@@ -261,3 +261,50 @@ def test_progress_estimate_rises_but_never_finishes_early():
 
     vals = [estimate_fraction(t, "horde") for t in (0, 5, 20, 60, 600)]
     assert vals == sorted(vals) and vals[0] == 0 and vals[-1] < 0.93
+
+
+# ------------------------------------------------------------------ 1.2.11: advisor, prompt enhancement, image providers
+def test_advice_matches_the_pc(client):
+    r = client.get("/api/assistant/ai/advice")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["local"]["model"] and d["free_online"][0]["id"] == "groq" and d["paid"][0]["model"] == "claude-sonnet-5-5"
+    assert d["best"]["id"] and d["pc"]
+    assert "ready" in d["current"]
+
+
+def test_advisor_scales_with_hardware():
+    from ltxps.advisor import advise
+
+    small = advise(6, 0, "", False)
+    mid = advise(23.7, 6, "RTX 4050", True)
+    big = advise(64, 24, "RTX 4090", True)
+    assert small["local"]["model"] == "llama3.2:1b" and small["best"]["id"] == "groq"  # weak PC: use a free online service
+    assert mid["local"]["model"] == "qwen2.5:7b" and mid["best"]["id"] == "ollama"
+    assert big["local"]["model"] == "qwen2.5:32b"
+    keyed = advise(23.7, 6, "RTX 4050", True, {"anthropic": True})
+    assert keyed["best"]["id"] == "anthropic"  # a connected key wins
+
+
+def test_prompt_enhancer_uses_model_or_recipe():
+    from ltxps.assistant import enhance
+
+    better, how = enhance.enhance("a dragon", "image", lambda s, u: "A towering black dragon perched on a cliff at dawn, wings spread, volumetric light, detailed scales")
+    assert how == "ai" and "dragon" in better and len(better) > 40
+    fallback, how2 = enhance.enhance("a dragon", "image", None)
+    assert how2 == "recipe" and "dragon" in fallback and "detailed" in fallback
+    broken, how3 = enhance.enhance("a dragon", "video", lambda s, u: (_ for _ in ()).throw(RuntimeError("offline")))
+    assert how3 == "recipe" and "motion" in broken
+    assert enhance.enhance("x" * 700, "image", None)[1] == "none"
+
+
+def test_prompt_enhance_route_works_offline(client):
+    r = client.post("/api/assistant/prompt/enhance", json={"prompt": "a lighthouse at sunset", "kind": "image"})
+    assert r.status_code == 200 and "lighthouse" in r.json()["prompt"]
+
+
+def test_new_image_providers_listed():
+    from ltxps.assistant import images
+
+    assert {"huggingface", "together", "openai"} <= set(images.IMAGE_PROVIDERS)
+    assert "Midjourney" in images.IMAGE_PROVIDERS["openai"]["help"]

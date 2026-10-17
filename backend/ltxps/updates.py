@@ -19,7 +19,7 @@ import httpx
 
 from . import __version__
 
-DEFAULT_URL = "https://raw.githubusercontent.com/karthikeyan12345678/ai-assistant-studio/main/update-manifest.json"
+DEFAULT_URL = "https://raw.githubusercontent.com/karthikeyan12345678/offline-Local-AI-Video-Editor/main/update-manifest.json"
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 Fetch = Callable[[str], dict[str, Any]]
 
@@ -124,11 +124,11 @@ def manifest_from_requirements(requirements_text: str, app_version: str, notes: 
 
 
 # Packages the person can refresh without reinstalling the app. PyTorch is left out on purpose: it is tied to the graphics card.
-UPDATABLE = ("faster-whisper", "opencv-python-headless", "imageio-ffmpeg", "pillow", "httpx", "pypdf", "python-docx", "python-pptx", "openpyxl", "reportlab")
+UPDATABLE = ("faster-whisper", "mediapipe", "opencv-python-headless", "imageio-ffmpeg", "pillow", "httpx", "pypdf", "python-docx", "python-pptx", "openpyxl", "reportlab")
 
 
 # ---- version list: what is installed, what was installed before, and what else exists
-LABELS = {"faster-whisper": "Captions engine", "opencv-python-headless": "Person tracking (OpenCV)", "imageio-ffmpeg": "Video tools", "pillow": "Pictures",
+LABELS = {"faster-whisper": "Captions engine", "mediapipe": "Body tracking for motion (MediaPipe)", "opencv-python-headless": "Person tracking (OpenCV)", "imageio-ffmpeg": "Video tools", "pillow": "Pictures",
           "httpx": "Internet access", "pypdf": "PDF reading", "python-docx": "Word files", "python-pptx": "PowerPoint files", "openpyxl": "Excel files", "reportlab": "PDF making"}
 STABLE = re.compile(r"^\d+(\.\d+){0,3}$")
 

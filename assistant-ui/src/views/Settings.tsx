@@ -1,7 +1,9 @@
+import { IS_WEB } from "../lib/env";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import type { Info, SettingsData, ThemeInfo } from "../lib/types";
 import { Banner, Button, Spinner, errText } from "../ui";
+import AdvisorDialog from "../AdvisorDialog";
 
 export default function Settings() {
   const [info, setInfo] = useState<Info | null>(null);
@@ -12,6 +14,7 @@ export default function Settings() {
   const [models, setModels] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ kind: "info" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState("");
+  const [adv, setAdv] = useState(false);
 
   useEffect(() => { void Promise.all([api.info(), api.settings(), api.themes()]).then(([i, st, t]) => { setInfo(i); setS(st); setThemes(t.themes); }).catch((e) => setMsg({ kind: "error", text: errText(e) })); }, []);
   if (!info || !s) return <div className="page">{msg ? <Banner kind="error">{msg.text}</Banner> : <Spinner />}</div>;
@@ -43,10 +46,11 @@ export default function Settings() {
 
   return (
     <div className="page">
-      <header><h1>Settings</h1><p className="muted">Choose which AI answers your chat and which engine makes images. Keys are stored on this PC only and are never shown again after saving.</p></header>
+      <header><h1>Settings</h1><p className="muted">Choose which AI answers your chat and which engine makes images. Keys are stored on {IS_WEB ? "this browser" : "this PC"} only and are never shown again after saving.</p></header>
       {msg && <Banner kind={msg.kind} onClose={() => setMsg(null)}>{msg.text}</Banner>}
+      {adv && <AdvisorDialog load={api.advice} onClose={() => setAdv(false)} onPick={(id, model) => { setS({ ...s, provider: id, providers: { ...s.providers, [id]: { ...(s.providers[id] ?? {}), model } } }); setKey(""); setModels([]); setAdv(false); setMsg({ kind: "info", text: info.providers[id]?.needs_key ? `Selected ${info.providers[id].name}. Paste your key below, then press “Save and test”.` : `Selected ${info.providers[id]?.name ?? id}. Press “Save and test”.` }); }} />}
       <section className="card stack">
-        <h2>Chat model</h2>
+        <div className="row between"><h2>Chat model</h2><Button variant="secondary" onClick={() => setAdv(true)}>Help me choose the best AI for my PC</Button></div>
         <div className="field"><label htmlFor="prov">Provider</label>
           <select id="prov" className="select" value={prov} onChange={(e) => { setS({ ...s, provider: e.target.value }); setKey(""); setModels([]); }}>
             {Object.entries(info.providers).map(([id, p]) => <option key={id} value={id}>{p.name}</option>)}</select>
@@ -84,7 +88,8 @@ export default function Settings() {
           <textarea id="sp" className="textarea" value={s.system_prompt} onChange={(e) => setS({ ...s, system_prompt: e.target.value })} placeholder="For example: Answer in British English. Keep replies short." /></div>
         <div className="row"><Button busy={busy === "save"} onClick={() => void save()}>Save</Button></div>
       </section>
-      <p className="hint">AI Assistant {info.version} · {info.themes} designs · File creation, comparison, resume check and analysis run fully on this PC; only chat and (optionally) image requests go to the service you choose.</p>
+      <div className="row"><Button variant="secondary" onClick={() => { try { localStorage.removeItem("aia_tour_done"); } catch { /* ignore */ } location.reload(); }}>Take the tour</Button></div>
+      <p className="hint">AI Assistant {info.version} · {info.themes} designs · File creation, comparison, resume check and analysis run fully on {IS_WEB ? "this browser" : "this PC"}; only chat and (optionally) image requests go to the service you choose.</p>
     </div>
   );
 }

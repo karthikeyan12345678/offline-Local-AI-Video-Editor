@@ -1,3 +1,6 @@
+import { ApiError } from "./errors";
+import { IS_WEB } from "./env";
+import * as W from "../web/shim";
 import type { AnalyticsResult, AtsResult, Card, CompareResult, Conversation, FileRef, Info, Message, SettingsData, ThemeInfo } from "./types";
 
 function readToken(): string {
@@ -15,9 +18,7 @@ function readToken(): string {
 }
 export const token = readToken();
 
-export class ApiError extends Error {
-  constructor(message: string, public status: number) { super(message); }
-}
+export { ApiError };
 
 function messageFrom(body: unknown, status: number): string {
   const d = (body as { detail?: unknown } | null)?.detail;
@@ -32,6 +33,7 @@ function messageFrom(body: unknown, status: number): string {
 }
 
 async function call<T>(method: string, path: string, body?: unknown, form?: FormData): Promise<T> {
+  if (IS_WEB) return W.webCall(method, path, body, form) as Promise<T>;
   let res: Response;
   try {
     res = await fetch("/api/assistant" + path, {
@@ -48,7 +50,7 @@ async function call<T>(method: string, path: string, body?: unknown, form?: Form
   return data as T;
 }
 
-export const fileUrl = (id: string, inline = false) => `/api/assistant/files/${id}/download?t=${encodeURIComponent(token)}${inline ? "&inline=true" : ""}`;
+export const fileUrl = (id: string, inline = false) => IS_WEB ? W.fileUrl(id) : `/api/assistant/files/${id}/download?t=${encodeURIComponent(token)}${inline ? "&inline=true" : ""}`;
 
 export type StreamEvent =
   | { event: "start"; data: { message_id: string; intent: string; title: string } }
@@ -62,6 +64,7 @@ export type StreamEvent =
 /** Reads the server-sent events of one chat turn. */
 export async function streamChat(body: { conversation_id: string; text: string; file_ids: string[]; options: Record<string, unknown> },
                                  onEvent: (e: StreamEvent) => void, signal: AbortSignal): Promise<void> {
+  if (IS_WEB) return W.webStream(body, onEvent, signal);
   let res: Response;
   try {
     res = await fetch("/api/assistant/chat", { method: "POST", signal, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -102,6 +105,8 @@ export async function streamChat(body: { conversation_id: string; text: string; 
 }
 
 export const api = {
+  advice: () => call<import("../AdvisorDialog").Advice>("GET", "/ai/advice"),
+  enhancePrompt: (prompt: string, kind: "image" | "video") => call<{ prompt: string; how: string }>("POST", "/prompt/enhance", { prompt, kind }),
   info: () => call<Info>("GET", "/info"),
   settings: () => call<SettingsData>("GET", "/settings"),
   saveSettings: (patch: unknown) => call<SettingsData>("PUT", "/settings", patch),

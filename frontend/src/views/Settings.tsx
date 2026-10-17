@@ -1,9 +1,31 @@
 import { useEffect, useState } from "react";
+import { api, type BudgetStatus } from "../lib/api";
 import { useApp } from "../lib/store";
 import { Button, Field } from "../ds";
 import { ModelList } from "./Models";
 import UpdatesCard, { ModulesCard } from "./Updates";
 import SmartInstall from "./SmartInstall";
+
+
+function BudgetCard() {
+  const { toast } = useApp();
+  const [b, setB] = useState<BudgetStatus | null>(null);
+  const [usd, setUsd] = useState("0");
+  useEffect(() => { api.budget().then((x) => { setB(x); setUsd(String(x.limit_usd)); }).catch(() => {}); }, []);
+  const save = async (patch: { limit_usd?: number; window_hours?: 6 | 12 | 24 }) => { try { const x = await api.setBudget(patch); setB(x); setUsd(String(x.limit_usd)); toast("Online budget saved."); } catch (e) { toast((e as Error).message, true); } };
+  return (
+    <section className="card stack gap" aria-labelledby="budget">
+      <h2 id="budget">Online budget (optional)</h2>
+      <p className="text-sm">Everything on this PC is free. The few <b>online</b> features (sharp cloud video, motion control) use your own fal.ai credit, so they are <b>off until you set a budget</b>. The budget is a limit the app respects: once it is used up, online features stop until the period renews (6, 12 or 24 hours). fal.ai itself has no free renewing plan; a new account gets a one-time credit at most.</p>
+      <div className="row gap wrap">
+        <Field label="Budget (US dollars, 0 = off)" htmlFor="bud"><input id="bud" className="input" type="number" min={0} max={1000} step={0.5} value={usd} onChange={(e) => setUsd(e.target.value)} /></Field>
+        <Field label="Renews every" htmlFor="bwin"><select id="bwin" className="select" value={b?.window_hours ?? 24} onChange={(e) => void save({ window_hours: Number(e.target.value) as 6 | 12 | 24 })}>{[6, 12, 24].map((h) => <option key={h} value={h}>{h} hours</option>)}</select></Field>
+      </div>
+      <div className="row gap wrap"><Button small onClick={() => void save({ limit_usd: Number(usd) || 0 })}>Save budget</Button></div>
+      {b && <p className="text-xs">{b.enabled ? `$${b.left_usd.toFixed(2)} left of $${b.limit_usd.toFixed(2)}${b.renews_in ? `, renews in ${b.renews_in}` : ""}.` : "Online features are switched off."}</p>}
+    </section>
+  );
+}
 
 function LookCard() {
   const [look, setLook] = useState<string>(() => document.documentElement.dataset.look === "studio" ? "studio" : "classic");
@@ -41,6 +63,7 @@ export default function Settings() {
       <h1>Settings</h1>
 
       <LookCard />
+      <BudgetCard />
       <UpdatesCard />
       <ModulesCard />
       <SmartInstall compact />
@@ -85,6 +108,13 @@ export default function Settings() {
         <Field label="Frames per second of new videos" htmlFor="fps">
           <input id="fps" className="input" type="number" min={8} max={60} value={settings.output_fps} onChange={(e) => setSettings({ output_fps: Number(e.target.value) || 24 })} />
         </Field>
+        <div className="row"><Button variant="secondary" onClick={() => window.dispatchEvent(new Event("vk-tour"))}>Take the tour</Button></div>
+        <Field label="Stop a video that runs longer than (minutes)" htmlFor="tl" hint="0 = never stop. Protects you from a video that would take hours.">
+          <input id="tl" className="input" type="number" min={0} max={720} value={settings.time_limit_min} onChange={(e) => setSettings({ time_limit_min: Math.max(0, Number(e.target.value) || 0) })} />
+        </Field>
+        <label className="check"><input type="checkbox" checked={settings.auto_enhance} onChange={(e) => setSettings({ auto_enhance: e.target.checked })} />Write a detailed prompt automatically from my short idea (more detail in every video)</label>
+        <label className="check"><input type="checkbox" checked={settings.ai_upscale} onChange={(e) => setSettings({ ai_upscale: e.target.checked })} />Add real fine detail with an AI upscaler (downloads about 45 MB once; falls back to sharpening)</label>
+        <label className="check"><input type="checkbox" checked={settings.sharpen_output} onChange={(e) => setSettings({ sharpen_output: e.target.checked })} />Sharpen and enlarge finished videos (looks crisper, makes the file 2× bigger; it cannot add detail the model never drew)</label>
         <label className="check"><input type="checkbox" checked={settings.keep_loaded} onChange={(e) => setSettings({ keep_loaded: e.target.checked })} />Keep the model in memory between videos (faster next time, uses more memory)</label>
       </section>
 

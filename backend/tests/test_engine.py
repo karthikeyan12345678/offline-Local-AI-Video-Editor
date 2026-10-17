@@ -325,3 +325,50 @@ def test_reduced_precision_with_8bit_weight_storage_matches_cached_embedding_dty
         assert "torch.float8_e4m3fn" in stored  # weights really are stored in 8 bits
     finally:
         mod.build_plans = orig
+
+
+def test_six_gb_card_gets_the_lite_profile():
+    for mb in (6141, 6144, 7000):
+        assert pick_profile(system(mb)).id == "lite"
+    assert pick_profile(system(8192)).id == "balanced"
+
+
+# ------------------------------------------------------------------ 1.2.11: GPU arch compatibility and time estimate
+def test_rtx40_is_supported_by_a_build_without_sm89():
+    from ltxps.system import arch_is_supported
+
+    cu130 = ["sm_75", "sm_80", "sm_86", "sm_90", "sm_100", "sm_120"]
+    assert arch_is_supported(cu130, (8, 9))  # RTX 4050/4060/4070/4090 run the sm_86 / sm_80 machine code
+    assert arch_is_supported(cu130, (8, 6))
+    assert not arch_is_supported(["sm_90", "sm_100"], (8, 9))  # a newer-only build really cannot run an older card
+    assert not arch_is_supported(["sm_80"], (7, 5))
+    assert arch_is_supported(["sm_80", "compute_80"], (9, 0))  # PTX forward compatibility
+
+
+def test_estimate_is_minutes_on_gpu_and_hours_on_cpu():
+    from ltxps.catalog import MODELS
+    from ltxps.estimate import estimate
+
+    m = MODELS["ltxv-2b-distilled"]
+    s_gpu = system(6144, cap=(8, 9))
+    lite = pick_profile(s_gpu)
+    fast = estimate(s_gpu, lite, m, 384, 256, 33)
+    assert fast.device == "gpu" and fast.seconds < 600 and fast.band in ("fast", "ok")
+    s_cpu = system(0)
+    cpu = estimate(s_cpu, pick_profile(s_cpu), m, 384, 256, 33)
+    assert cpu.device == "cpu" and cpu.seconds > fast.seconds * 4
+    assert any("CPU" in n for n in cpu.notes)
+    big = estimate(s_cpu, pick_profile(s_cpu), MODELS["ltxv-2b-091"], 384, 256, 33)
+    assert big.band == "too_long" and big.tips
+
+
+def test_usage_sample_and_diagnosis():
+    from ltxps import usage
+
+    s = usage.sample()
+    assert {"cpu", "ram_used_gb", "gpu", "vram_used_gb"} <= set(s)
+    spill = {"gpu": 40, "cpu": 20, "vram_used_gb": 5.9, "vram_total_gb": 6.0, "ram_used_gb": 21.0, "ram_total_gb": 23.7}
+    assert "Lite" in (usage.diagnose(spill, 600, 200) or "")
+    cpu_run = {"gpu": 2, "cpu": 95, "vram_used_gb": 0.3, "vram_total_gb": 6.0, "ram_used_gb": 12.0, "ram_total_gb": 23.7}
+    assert "CPU" in (usage.diagnose(cpu_run, 600, 200) or "")
+    assert usage.diagnose(cpu_run, 30, 200) is None

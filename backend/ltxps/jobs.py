@@ -44,6 +44,8 @@ class Job:
     started: float = 0.0
     finished: float = 0.0
     cancel: threading.Event = field(default_factory=threading.Event, repr=False)
+    expected: float = 0.0  # seconds the estimate promised (0 = no estimate)
+    note: str = ""  # why a job was stopped or what the person should know
 
     def to_json(self) -> dict[str, Any]:
         now = time.time()
@@ -64,6 +66,8 @@ class Job:
             "created": self.created,
             "elapsed": round(elapsed, 1),
             "eta": round(eta, 1) if eta is not None else None,
+            "expected": round(self.expected),
+            "note": self.note,
         }
 
 

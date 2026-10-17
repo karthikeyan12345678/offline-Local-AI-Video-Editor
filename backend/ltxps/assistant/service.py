@@ -9,17 +9,17 @@ import shutil
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Iterator
 
-from . import analytics, ats, compare, images, llm, reference
+from . import analytics, ats, compare, enhance, images, llm, reference
 from .documents import FORMATS, build_file, parse_markdown
 from .extract import ExtractError, extract
 from .store import AssistantSettings, AssistantStore
 from .themes import get_theme, recommend
 
-FORMAT_WORDS = {"pdf": "pdf", "ppt": "pptx", "pptx": "pptx", "powerpoint": "pptx", "slides": "pptx", "deck": "pptx", "presentation": "pptx", "doc": "docx", "docx": "docx",
+FORMAT_WORDS = {"pdf": "pdf", "ppt": "pptx", "pptx": "pptx", "powerpoint": "pptx", "slides": "pptx", "slide": "pptx", "deck": "pptx", "presentation": "pptx", "doc": "docx", "docx": "docx",
                 "word": "docx", "csv": "csv", "xlsx": "xlsx", "excel": "xlsx", "spreadsheet": "xlsx"}
 COMMANDS = {"pdf": "pdf", "ppt": "pptx", "pptx": "pptx", "slides": "pptx", "doc": "docx", "docx": "docx", "word": "docx", "csv": "csv", "xlsx": "xlsx", "excel": "xlsx",
             "ats": "ats", "resume": "ats", "image": "image", "img": "image", "draw": "image", "compare": "compare", "diff": "compare", "analyze": "analyze", "analyse": "analyze",
@@ -440,6 +440,11 @@ def _do_image(state: AssistantState, prompt: str, options: dict[str, Any]) -> It
     cfg = state.image_config()
     box: dict[str, Any] = {}
     note = {"text": "Starting the picture engine…"}
+    how = "none"
+    idea = prompt
+    if options.get("enhance", True):
+        yield sse("progress", {"fraction": 0.02, "elapsed": 0.0, "text": "Writing a detailed description of your idea…", "estimated": True})
+        prompt, how = enhance_prompt(state, prompt, "image")
 
     def work() -> None:
         try:
@@ -460,10 +465,59 @@ def _do_image(state: AssistantState, prompt: str, options: dict[str, Any]) -> It
     out = box["out"]
     yield sse("progress", {"fraction": 1.0, "elapsed": round(time.monotonic() - t0, 1), "text": "Done", "estimated": False})
     f = state.store.add_file("generated", out["name"], Path(out["path"]), "png")
-    msg = " The free fallback service adds a small logo; install the on-this-PC picture model (Install everything) for logo-free pictures with no limits." if out.get("watermark") else ""
+    msg = f" I expanded your idea for more detail: “{prompt}”" if how in ("ai", "recipe") and prompt != idea else ""
+    msg += " The free fallback service adds a small logo; install the on-this-PC picture model (Install everything) for logo-free pictures with no limits." if out.get("watermark") else ""
     if out.get("fallback_reason"):
         msg = f" Made by the free online engine because the one on this PC failed: {out['fallback_reason']}" + msg
     return f"Here is your image ({out['width']}×{out['height']}).{msg}", [{"type": "image", "file": f, "prompt": prompt, "width": out["width"], "height": out["height"], "provider": out["provider"]}]
+
+
+def enhance_prompt(state: AssistantState, prompt: str, kind: str) -> tuple[str, str]:
+    """A richer prompt from the connected chat model, or the built-in recipe when none is reachable."""
+    cfg = state.llm_config()
+    preset = llm.PRESETS.get(cfg.provider, {})
+    ask = None
+    if cfg.base_url and (not preset.get("needs_key") or cfg.api_key):
+        short = replace(cfg, timeout=25.0, max_tokens=300, temperature=0.8)
+
+        def ask(system: str, user: str) -> str:  # noqa: E306 - closure over the short-timeout config
+            return llm.complete(short, [{"role": "user", "content": user}], system)
+    return enhance.enhance(prompt, kind, ask)
+
+
+def ask_about_image(state: AssistantState, image_path: Path, question: str) -> str:
+    """Shows one picture to the connected chat model (if it can see pictures) and returns its short answer. Raises when no model is ready."""
+    import base64
+    import io
+
+    from PIL import Image
+
+    cfg = state.llm_config()
+    preset = llm.PRESETS.get(cfg.provider, {})
+    if not (cfg.base_url and cfg.model) or (preset.get("needs_key") and not cfg.api_key):
+        raise llm.LLMError("No chat model is connected.")
+    im = Image.open(image_path).convert("RGB")
+    im.thumbnail((640, 640))
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=85)
+    short = replace(cfg, timeout=40.0, max_tokens=80, temperature=0.0)
+    msg = {"role": "user", "content": question, "images": [{"media_type": "image/jpeg", "data": base64.b64encode(buf.getvalue()).decode()}]}
+    return llm.complete(short, [msg], "")
+
+
+def advice(state: AssistantState, ram_gb: float, vram_gb: float, gpu_name: str, gpu_ok: bool) -> dict[str, Any]:
+    """Best local model, best free online service and best paid one for this PC, marking which ones already have a key saved."""
+    from ..advisor import advise
+
+    saved = state.settings.raw().get("providers", {})
+    configured = {pid: bool(isinstance(v, dict) and v.get("api_key")) for pid, v in saved.items()}
+    configured["pollinations"] = False  # works with no key but is never "connected" on purpose
+    out = advise(ram_gb, vram_gb, gpu_name, gpu_ok, configured)
+    cur = state.llm_config()
+    preset = llm.PRESETS.get(cur.provider, {})
+    out["current"] = {"provider": cur.provider, "name": preset.get("name", cur.provider), "model": cur.model,
+                      "ready": bool(cur.base_url and cur.model) and (not preset.get("needs_key") or bool(cur.api_key))}
+    return out
 
 
 def _do_design(text: str, options: dict[str, Any]) -> tuple[str, list[dict]]:

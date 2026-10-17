@@ -3,12 +3,15 @@ import { fontFileUrl, mediaUrl } from "../lib/api";
 import type { Asset, Clip, Project, TextOverlay } from "../lib/types";
 import { DrawCapture, DrawingsLayer, type PenSettings } from "./Draw";
 import type { Shape } from "../lib/types";
-import { cssFilter, cssTransform, layout, objectFit, type Placed } from "./model";
+import { cssFilter, cssTransform, itemPose, layout, objectFit, type Placed, type Pose } from "./model";
+import { KeyedVideo, LayerView } from "./Layers";
+import type { Selection } from "./Inspector";
 
 interface Props {
   project: Project; asset: (id: string) => Asset | undefined; time: number; playing: boolean;
   onTick: (t: number) => void; onEnd: () => void;
   pen?: PenSettings | null; editingId?: string | null; onShape?: (s: Shape) => void;
+  sel?: Selection; onSelect?: (s: Selection) => void; onPose?: (kind: "layer" | "text" | "image", id: string, patch: Partial<Pose>) => void;
 }
 
 
@@ -39,7 +42,8 @@ function followBox(c: Clip, a: Asset, canvas: { width: number; height: number },
 const fontCss = (fonts: string[]) => fonts.map((id) =>
   `@font-face{font-family:"ltx-${id}";font-weight:400;src:url("${fontFileUrl(id, false)}")}@font-face{font-family:"ltx-${id}";font-weight:700;src:url("${fontFileUrl(id, true)}")}`).join("");
 
-function textNode(t: TextOverlay, time: number) {
+function textNode(t: TextOverlay, time: number, drag?: { on: boolean; start: (e: React.PointerEvent) => void }) {
+  const pose = itemPose(t, time);
   const inP = t.anim_in !== "none" && t.fade_in > 0 ? clamp01((time - t.start) / t.fade_in) : 1;
   const outP = t.anim_out !== "none" && t.fade_out > 0 ? clamp01((time - (t.start + t.duration - t.fade_out)) / t.fade_out) : 0;
   const ei = easeOut(inP), eo = outP * outP * outP;
@@ -53,9 +57,14 @@ function textNode(t: TextOverlay, time: number) {
   else if (t.anim_in === "zoom") scale *= 0.6 + 0.4 * ei;
   else if (t.anim_in === "pop") scale *= 1 + 2.70158 * Math.pow(inP - 1, 3) + 1.70158 * Math.pow(inP - 1, 2);
   else if (t.anim_in === "reveal") clip = `inset(0 ${(1 - inP) * 100}% 0 0)`;
+  else if (t.anim_in === "bounce") { const b = (x: number) => (x < 0.363636 ? 7.5625 * x * x : x < 0.727273 ? 7.5625 * Math.pow(x - 0.545455, 2) + 0.75 : x < 0.909091 ? 7.5625 * Math.pow(x - 0.818182, 2) + 0.9375 : 7.5625 * Math.pow(x - 0.954545, 2) + 0.984375); dy -= 28 * (1 - b(inP)); alpha *= clamp01(inP / 0.4); }
+  else if (t.anim_in === "typewriter") { const n = Math.max(1, ...t.text.split("\n").map((l) => l.length)); clip = `inset(0 ${(1 - Math.floor(inP * n) / n) * 100}% 0 0)`; }
+  else if (t.anim_in === "flicker" && inP < 1) alpha *= Math.sin(time * 113) * Math.sin(time * 37) + inP * 1.7 - 0.85 > 0 ? 1 : 0;
   if (t.anim_out === "slide_up") dy -= 9 * eo; else if (t.anim_out === "slide_down") dy += 9 * eo;
   else if (t.anim_out === "slide_left") dx -= 12 * eo; else if (t.anim_out === "slide_right") dx += 12 * eo;
   else if (t.anim_out === "zoom") scale *= 1 + 0.35 * eo;
+  else if (t.anim_out === "drop") { dy += 22 * outP * outP; alpha *= 1 - outP; }
+  else if (t.anim_out === "flicker" && outP > 0) alpha *= Math.sin(time * 113) * Math.sin(time * 37) + 0.85 - outP * 1.7 > 0 ? 1 : 0;
 
   const fam = t.font ? `"ltx-${t.font}", ` : "";
   const em = (v: number) => `${v}em`;
@@ -73,8 +82,8 @@ function textNode(t: TextOverlay, time: number) {
   const hex = t.box_color.replace("#", "");
   const boxBg = box ? `rgba(${parseInt(hex.slice(0, 2), 16)},${parseInt(hex.slice(2, 4), 16)},${parseInt(hex.slice(4, 6), 16)},${t.box_opacity})` : "transparent";
   return (
-    <div key={t.id} className="stage-text" style={{
-      left: `${t.x * 100}%`, top: `${t.y * 100}%`, fontSize: `${t.size}cqh`, background: boxBg, opacity: alpha * t.opacity, clipPath: clip,
+    <div key={t.id} className={`stage-text${drag?.on ? " stage-text--live" : ""}`} onPointerDown={drag?.on ? drag.start : undefined} style={{
+      left: `${pose.x * 100}%`, top: `${pose.y * 100}%`, fontSize: `${t.size}cqh`, background: boxBg, opacity: alpha * t.opacity, clipPath: clip, ...(drag?.on ? { pointerEvents: "auto" as const, cursor: "move" } : {}),
       transform: `translate(calc(-50% + ${dx}cqw), calc(-50% + ${dy}cqh)) rotate(${t.rotation}deg) scale(${Math.max(0, scale)})`,
     }}>{t.color2 && t.stroke > 0 ? <span style={{ position: "relative", display: "inline-block" }}><span aria-hidden style={{ ...inner, position: "absolute", inset: 0, backgroundImage: "none", WebkitTextFillColor: t.stroke_color, color: t.stroke_color, WebkitTextStroke: `${(t.stroke / 100) * 2}em ${t.stroke_color}` }}>{t.text}</span><span style={{ ...inner, position: "relative" }}>{t.text}</span></span> : <span style={inner}>{t.text}</span>}</div>
   );
@@ -84,7 +93,7 @@ function textNode(t: TextOverlay, time: number) {
  * Live preview: plays the original files directly and approximates colour effects with CSS.
  * Blur, sharpen, denoise, vignette and transitions are only exact in a rendered preview.
  */
-export default function Preview({ project, asset, time, playing, onTick, onEnd, pen = null, editingId = null, onShape }: Props) {
+export default function Preview({ project, asset, time, playing, onTick, onEnd, pen = null, editingId = null, onShape, sel = null, onSelect, onPose }: Props) {
   const { items, total } = layout(project, asset);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRefs = useRef(new Map<string, HTMLAudioElement>());
@@ -97,6 +106,25 @@ export default function Preview({ project, asset, time, playing, onTick, onEnd, 
   const a = active ? asset(active.clip.asset_id) : undefined;
   const isVideo = a?.kind === "video";
   const containerRef = useRef<HTMLDivElement>(null);
+  const interactive = !pen && !!onPose;
+  /** Press on a text or picture and drag it; keyframed items store the move as a keyframe at the playhead. */
+  const dragItem = (kind: "text" | "image", id: string, x: number, y: number) => (e: React.PointerEvent) => {
+    if (!interactive) return;
+    e.preventDefault(); e.stopPropagation();
+    onSelect?.({ type: kind, id });
+    const box = containerRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const x0 = e.clientX, y0 = e.clientY;
+    const move = (ev: PointerEvent) => onPose!(kind, id, { x: Math.round((x + (ev.clientX - x0) / box.width) * 1000) / 1000, y: Math.round((y + (ev.clientY - y0) / box.height) * 1000) / 1000 });
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  };
+  const layerTime = time;
+  const shownLayers = project.layers.map((l, i) => ({ l, i })).filter(({ l }) => { const a = asset(l.asset_id); return a && layerTime >= l.start - 1e-6 && layerTime < l.start + (a.kind === "image" ? l.image_duration : Math.max(0.05, ((l.trim_out > 0 ? Math.min(l.trim_out, a.duration || l.trim_out) : a.duration) - l.trim_in) / l.speed)); });
+  const renderLayer = ({ l, i }: { l: Project["layers"][number]; i: number }) => (
+    <LayerView key={l.id} layer={l} asset={asset(l.asset_id)!} time={time} playing={playing} masterVolume={project.master_volume} index={i} stage={containerRef} interactive={interactive}
+      selected={sel?.type === "layer" && sel.id === l.id} onSelect={() => onSelect?.({ type: "layer", id: l.id })} onPose={(patch) => onPose?.("layer", l.id, patch)} />
+  );
 
   // Keep the <video> element on the right frame of the right clip.
   useEffect(() => {
@@ -168,14 +196,15 @@ export default function Preview({ project, asset, time, playing, onTick, onEnd, 
   return (
     <div className="stage-wrap">
       {usedFonts.length > 0 && <style>{fontCss(usedFonts)}</style>}
-      <div ref={containerRef} className="stage" style={{ aspectRatio: `${width} / ${height}`, background }}>
+      <div ref={containerRef} className="stage" style={{ aspectRatio: `${width} / ${height}`, background, ["--ar" as string]: String(width / height) }}>
+        {shownLayers.filter(({ l }) => l.behind).sort((p, q) => p.l.track - q.l.track).map(renderLayer)}
         {clip && a && (() => {
           const local = Math.max(0, time - (active?.start ?? 0));
           const fb = followBox(clip, a, project.canvas, clip.trim_in + local * clip.speed);
           const mediaStyle: React.CSSProperties = { objectFit: fb ? ("fill" as const) : objectFit(clip), filter: cssFilter(clip, sc), transform: fb ? "none" : cssTransform(clip) };
           const frame: React.CSSProperties | undefined = fb ? { position: "absolute", width: `${100 / fb.w}%`, height: `${100 / fb.h}%`, left: `${(-fb.x0 / fb.w) * 100}%`, top: `${(-fb.y0 / fb.h) * 100}%` } : undefined;
           const el = a.kind === "video"
-            ? <video ref={videoRef} key={a.id} src={mediaUrl(a.id)} playsInline preload="auto" style={mediaStyle} />
+            ? (clip.chroma?.enabled ? <KeyedVideo key={a.id} src={mediaUrl(a.id)} chroma={clip.chroma} videoRef={videoRef} style={mediaStyle} /> : <video ref={videoRef} key={a.id} src={mediaUrl(a.id)} playsInline preload="auto" style={mediaStyle} />)
             : a.kind === "image" ? <img src={mediaUrl(a.id)} alt="" style={mediaStyle} /> : null;
           return (
             <div className="stage-media" style={{ opacity, overflow: "hidden" }}>
@@ -184,7 +213,8 @@ export default function Preview({ project, asset, time, playing, onTick, onEnd, 
             </div>
           );
         })()}
-        {project.texts.filter((t) => time >= t.start && time < t.start + t.duration).map((t) => textNode(t, time))}
+        {shownLayers.filter(({ l }) => !l.behind).sort((p, q) => p.l.track - q.l.track).map(renderLayer)}
+        {project.texts.filter((t) => time >= t.start && time < t.start + t.duration).map((t) => textNode(t, time, { on: interactive, start: dragItem("text", t.id, itemPose(t, time).x, itemPose(t, time).y) }))}
         <DrawingsLayer drawings={project.drawings} time={time} W={width} H={height} editingId={editingId} />
         {(project.images ?? []).filter((im) => time >= im.start && time < im.start + im.duration).map((im) => {
           const a = asset(im.asset_id);
@@ -192,7 +222,8 @@ export default function Preview({ project, asset, time, playing, onTick, onEnd, 
           let o = im.opacity;
           if (im.anim_in !== "none" && im.fade_in > 0 && time - im.start < im.fade_in) o *= Math.max(0, (time - im.start) / im.fade_in);
           if (im.anim_out !== "none" && im.fade_out > 0 && im.start + im.duration - time < im.fade_out) o *= Math.max(0, (im.start + im.duration - time) / im.fade_out);
-          return <img key={im.id} className="stage-overlay-img" alt="" src={mediaUrl(a.id)} style={{ left: `${im.x * 100}%`, top: `${im.y * 100}%`, width: `${im.size * 100}%`, opacity: o, transform: `translate(-50%,-50%) rotate(${im.rotation}deg)` }} />;
+          const ip = itemPose(im, time);
+          return <img key={im.id} className={`stage-overlay-img${interactive ? " stage-overlay-img--live" : ""}${sel?.type === "image" && sel.id === im.id ? " stage-overlay-img--on" : ""}`} alt="" draggable={false} src={mediaUrl(a.id)} onPointerDown={dragItem("image", im.id, ip.x, ip.y)} style={{ left: `${ip.x * 100}%`, top: `${ip.y * 100}%`, width: `${im.size * 100}%`, opacity: o, transform: `translate(-50%,-50%) rotate(${im.rotation}deg)` }} />;
         })}
         {pen && onShape && <DrawCapture pen={pen} W={width} H={height} onShape={onShape} />}
         {!clip && <div className="stage-empty">Add a clip from the Media panel to start.</div>}

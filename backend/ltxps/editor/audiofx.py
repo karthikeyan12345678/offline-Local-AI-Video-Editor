@@ -31,6 +31,21 @@ AUDIO_FX: dict[str, tuple[str, str, str]] = {
     "phaser": ("Phaser", "Modulation", "aphaser=in_gain=0.6:out_gain=0.8:delay=3:decay=0.4:speed=0.6"),
     "tremolo": ("Tremolo", "Modulation", "tremolo=f=6:d=0.6"),
     "vibrato": ("Vibrato", "Modulation", "vibrato=f=6:d=0.4"),
+    # --- added in 1.2.14
+    "helium": ("Helium (very high)", "Voice", "asetrate=62400,aresample=48000,atempo=0.7692"),
+    "monster": ("Monster", "Voice", "asetrate=30000,aresample=48000,atempo=1.6,aecho=0.8:0.8:60:0.4,lowpass=f=3500"),
+    "alien": ("Alien", "Voice", "tremolo=f=28:d=0.7,vibrato=f=9:d=0.6,aecho=0.8:0.85:25:0.5"),
+    "walkie": ("Walkie-talkie", "Voice", "highpass=f=600,lowpass=f=3000,acrusher=bits=8:mode=lin:mix=0.45,volume=1.4"),
+    "ghost": ("Ghost", "Voice", "aecho=0.8:0.9:180|350:0.5|0.35,vibrato=f=5:d=0.5,lowpass=f=3800"),
+    "distorted": ("Distorted", "Voice", "volume=9,asoftclip=type=tanh,volume=0.35"),
+    "low_battery": ("Low battery (slowing down)", "Voice", "asetrate=36000,aresample=48000,atempo=1.3333,vibrato=f=3:d=0.3"),
+    "stadium": ("Stadium / big hall", "Space", "aecho=0.8:0.9:90|250|600|1100:0.5|0.4|0.3|0.2"),
+    "bathroom": ("Bathroom", "Space", "aecho=0.8:0.88:18|30|45:0.5|0.4|0.3,highpass=f=150"),
+    "cinema_wide": ("Cinema wide stereo", "Music", "extrastereo=m=1.8,bass=g=3:f=90"),
+    "vinyl": ("Vinyl record", "Music", "highpass=f=60,lowpass=f=9000,acrusher=bits=11:mode=log:aa=1:mix=0.3,tremolo=f=0.55:d=0.04"),
+    "radio_fm": ("FM radio", "Music", "highpass=f=100,lowpass=f=6500,acompressor=ratio=4:threshold=0.15:makeup=2,treble=g=2:f=4000"),
+    "sub_bass": ("Sub bass boost", "Music", "bass=g=14:f=60:w=0.5,alimiter=limit=0.9"),
+    "night_club_wall": ("Next room (muffled club)", "Music", "lowpass=f=450,bass=g=6:f=80,volume=1.3"),
 }
 AUDIO_FX_IDS = ("none", *AUDIO_FX)
 AUDIO_FX_INFO = [("none", "None", "Basic"), *[(k, v[0], v[1]) for k, v in AUDIO_FX.items()]]

@@ -11,6 +11,6 @@ export function useAI() {
   }), [watchJob]);
 
   const run = useCallback(async (what: Parameters<typeof api.ai>[0], b: AIRequest) => wait(await api.ai(what, b)), [wait]);
-  const speak = useCallback(async (text: string, voice: string, rate: number) => wait(await api.speak(text, voice, rate)), [wait]);
+  const speak = useCallback(async (text: string, voice: string, rate: number, persona?: Parameters<typeof api.speak>[3]) => wait(await api.speak(text, voice, rate, persona)), [wait]);
   return { run, speak, wait, toast };
 }

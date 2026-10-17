@@ -20,12 +20,11 @@ def run() -> dict:
 
             props = torch.cuda.get_device_properties(0)
             out.update(cuda=True, gpu=props.name, capability=[props.major, props.minor])
-            out["arch_ok"] = arch_is_supported(list(torch.cuda.get_arch_list()), (props.major, props.minor))
-            if out["arch_ok"]:  # prove a kernel really runs, not just that the arch is listed
-                import torch as t
+            from .system import kernel_runs
 
-                x = t.ones(8, device="cuda", dtype=t.float16) * 2
-                out["arch_ok"] = bool(float(x.sum().item()) == 16.0)
+            listed = arch_is_supported(list(torch.cuda.get_arch_list()), (props.major, props.minor))
+            out["arch_ok"] = kernel_runs(torch)  # a kernel that really runs beats any list; an unlisted but working card is fine
+            out["listed"] = listed
     except Exception as exc:  # noqa: BLE001
         out["error"] = f"{type(exc).__name__}: {exc}"
         out["arch_ok"] = False

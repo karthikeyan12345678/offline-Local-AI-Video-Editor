@@ -110,11 +110,12 @@ def system_font(text: str, bold: bool) -> str | None:
 
 
 # ---------------------------------------------------------------- loading
-def _apply_variation(font: ImageFont.FreeTypeFont, bold: bool, size: int) -> None:
+def _apply_variation(font: ImageFont.FreeTypeFont, bold: bool, size: int) -> bool:
+    """Sets a variable font's weight. False when this Pillow cannot (the browser build has no variation support)."""
     try:
         axes = font.get_variation_axes()
-    except (OSError, AttributeError, ValueError):
-        return
+    except (OSError, AttributeError, ValueError, NotImplementedError):
+        return False
     values: list[float] = []
     for ax in axes:
         name = ax["name"].decode("latin-1").lower() if isinstance(ax["name"], bytes) else str(ax["name"]).lower()
@@ -130,8 +131,9 @@ def _apply_variation(font: ImageFont.FreeTypeFont, bold: bool, size: int) -> Non
             values.append(default)
     try:
         font.set_variation_by_axes(values)
-    except (OSError, ValueError):
-        pass
+    except (OSError, ValueError, NotImplementedError):
+        return False
+    return True
 
 
 def _glyph_signature(font: ImageFont.FreeTypeFont, ch: str) -> bytes:
@@ -195,11 +197,10 @@ def load_font(font_id: str, size: int, bold: bool, text: str) -> LoadedFont:
         ft = _truetype(e.path(bold), size)
         if ft is None:
             continue
-        if e.variable:
-            _apply_variation(ft, bold, size)
+        varied = _apply_variation(ft, bold, size) if e.variable else False
         if not covers(ft, f"{fid}:{bold}", text):
             continue
-        has_bold = e.variable or bool(e.bold)
+        has_bold = varied or bool(e.bold)
         return LoadedFont(ft, str(e.path(bold)), fid, bold and not has_bold, e.variable)
     sys_path = system_font(text, bold)
     if sys_path:

@@ -1,0 +1,90 @@
+{
+ "ollama": {
+  "name": "Ollama (on this PC)",
+  "style": "openai",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "needs_key": false,
+  "model": "llama3.2",
+  "help": "Free and private. Install Ollama, then run “ollama pull llama3.2”."
+ },
+ "lmstudio": {
+  "name": "LM Studio (on this PC)",
+  "style": "openai",
+  "base_url": "http://127.0.0.1:1234/v1",
+  "needs_key": false,
+  "model": "",
+  "help": "Free and private. Start the local server in LM Studio."
+ },
+ "pollinations": {
+  "name": "Free online AI (no sign-up)",
+  "style": "openai",
+  "base_url": "https://text.pollinations.ai/openai",
+  "needs_key": false,
+  "model": "openai",
+  "help": "Nothing to install and no key. Needs internet; can be slow or busy at times. What you type is sent to a public service."
+ },
+ "openrouter": {
+  "name": "OpenRouter",
+  "style": "openai",
+  "base_url": "https://openrouter.ai/api/v1",
+  "needs_key": true,
+  "model": "meta-llama/llama-3.3-70b-instruct:free",
+  "help": "Has free models. Get a key at openrouter.ai/keys."
+ },
+ "nvidia": {
+  "name": "NVIDIA NIM",
+  "style": "openai",
+  "base_url": "https://integrate.api.nvidia.com/v1",
+  "needs_key": true,
+  "model": "meta/llama-3.3-70b-instruct",
+  "help": "Free credits. Get a key at build.nvidia.com."
+ },
+ "groq": {
+  "name": "Groq",
+  "style": "openai",
+  "base_url": "https://api.groq.com/openai/v1",
+  "needs_key": true,
+  "model": "llama-3.3-70b-versatile",
+  "help": "Fast, with a free tier. Get a key at console.groq.com."
+ },
+ "gemini": {
+  "name": "Google Gemini",
+  "style": "openai",
+  "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+  "needs_key": true,
+  "model": "gemini-2.5-flash",
+  "help": "Free tier. Get a key at aistudio.google.com/apikey. Can also read pictures."
+ },
+ "openai": {
+  "name": "OpenAI",
+  "style": "openai",
+  "base_url": "https://api.openai.com/v1",
+  "needs_key": true,
+  "model": "gpt-4o-mini",
+  "help": "Paid. platform.openai.com."
+ },
+ "anthropic": {
+  "name": "Anthropic Claude",
+  "style": "anthropic",
+  "base_url": "https://api.anthropic.com",
+  "needs_key": true,
+  "model": "claude-sonnet-5-5",
+  "help": "Paid, pay per use. Create a key at console.anthropic.com → API keys. The model name can be changed (for example claude-opus-5-5 for the strongest, claude-haiku-5-5 for the cheapest)."
+ },
+ "fcc": {
+  "name": "free-claude-code proxy",
+  "style": "anthropic",
+  "base_url": "http://127.0.0.1:8082",
+  "needs_key": false,
+  "model": "claude-sonnet-5-5",
+  "help": "Run the free-claude-code proxy yourself (default port 8082); it routes Claude-style requests to free providers. Enter its auth token if you set one."
+ },
+ "custom": {
+  "name": "Other (OpenAI-compatible)",
+  "style": "openai",
+  "base_url": "",
+  "needs_key": false,
+  "model": "",
+  "help": "Any server that speaks the OpenAI chat API."
+ }
+}

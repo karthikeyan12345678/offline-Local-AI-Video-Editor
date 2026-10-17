@@ -202,3 +202,113 @@ def test_soundtrack_and_sound_on_new_video_tasks():
     assert t[0]["name"] == "soundtrack" and t[0]["ambience"] == "rain" and t[0]["music"] and len(t[0]["clips"]) == 1
     assert t[1]["name"] == "generate_video" and t[1]["narration"] == "Hello sea" and t[1]["ambience"] == "auto"
     assert len(t) == 2  # the empty soundtrack request was refused
+
+
+# ---------------------------------------------------------------- layers, green screen, keyframes
+class _A:
+    def __init__(self, kind="video", duration=6.0):
+        self.kind, self.duration, self.width, self.height = kind, duration, 640, 360
+
+
+def _ctx():
+    return {"assets": {"a0": _A(), "a1": _A(), "a2": _A("video", 8.0), "a3": _A("image", 0)}}
+
+
+NAMES2 = {"a0": "beach.mp4", "a1": "city.mp4", "a2": "actor_greenscreen.mp4", "a3": "logo.png"}
+
+
+def test_add_layer_remove_green_and_put_a_background_behind():
+    out = chat.apply_actions(proj(), [
+        {"do": "remove_background", "on": "clip", "target": 1, "color": "green"},
+        {"do": "add_layer", "video": "beach", "behind": True},
+        {"do": "add_layer", "video": "logo", "x": 0.9, "y": 0.1, "size": 0.15, "start": 1, "duration": 3},
+        {"do": "add_layer", "video": "greenscreen", "remove_color": "green", "track": 2},
+    ], NAMES2, _ctx())
+    p = out["project"]
+    assert not out["skipped"], out["skipped"]
+    assert p.clips[0].chroma.enabled and not p.clips[1].chroma.enabled
+    bg, logo, actor = p.layers
+    assert bg.behind and bg.size == 1.0 and (bg.x, bg.y) == (0.5, 0.5)
+    assert logo.image_duration == 3 and logo.start == 1 and logo.size == 0.15
+    assert actor.chroma.enabled and actor.track == 2 and actor.size == 1.0
+
+
+def test_set_and_delete_layer_are_checked():
+    base = chat.apply_actions(proj(), [{"do": "add_layer", "video": "city"}], NAMES2, _ctx())["project"]
+    out = chat.apply_actions(base, [{"do": "set_layer", "target": 1, "set": {"opacity": 0.4, "x": 0.2, "adjust": {"brightness": 10}}},
+                                    {"do": "set_layer", "target": 5, "set": {"x": 1}}, {"do": "set_layer", "target": 1, "set": {"evil": 1}}], NAMES2, _ctx())
+    assert out["project"].layers[0].opacity == 0.4 and out["project"].layers[0].adjust.brightness == 10
+    assert len(out["skipped"]) == 2
+    gone = chat.apply_actions(out["project"], [{"do": "delete_layer", "target": "all"}], NAMES2, _ctx())["project"]
+    assert gone.layers == []
+
+
+def test_keyframes_by_chat_start_from_the_current_look():
+    base = chat.apply_actions(proj(), [{"do": "add_layer", "video": "city", "x": 0.2, "y": 0.5, "size": 0.3, "start": 2}], NAMES2, _ctx())["project"]
+    out = chat.apply_actions(base, [{"do": "keyframe", "on": "layer", "target": 1, "at": 2, "ease": "linear"}, {"do": "keyframe", "on": "layer", "target": 1, "at": 5, "x": 0.8, "opacity": 0.5}], NAMES2, _ctx())["project"]
+    k = out.layers[0].keys
+    assert [round(q.t, 2) for q in k] == [0, 3] and k[0].x == 0.2 and k[1].x == 0.8 and k[1].size == 0.3 and k[1].opacity == 0.5 and k[0].ease == "linear"
+    again = chat.apply_actions(out, [{"do": "keyframe", "on": "layer", "target": 1, "at": 5, "x": 0.9}], NAMES2, _ctx())["project"]
+    assert len(again.layers[0].keys) == 2 and again.layers[0].keys[1].x == 0.9  # same moment = replaced, not doubled
+    assert chat.apply_actions(again, [{"do": "clear_keyframes", "on": "layer", "target": 1}], NAMES2, _ctx())["project"].layers[0].keys == []
+
+
+def test_move_along_makes_text_fly_across():
+    base = chat.apply_actions(proj(), [{"do": "add_text", "text": "Hi", "start": 1, "duration": 4}], NAMES2, _ctx())["project"]
+    out = chat.apply_actions(base, [{"do": "move_along", "on": "text", "target": 1, "from": [0.1, 0.5], "to": [0.9, 0.5]}], NAMES2, _ctx())
+    k = out["project"].texts[0].keys
+    assert not out["skipped"] and len(k) == 2 and k[0].x == 0.1 and k[1].x == 0.9 and k[1].t == 4
+
+
+def test_prompt_and_summary_know_layers():
+    base = chat.apply_actions(proj(), [{"do": "add_layer", "video": "beach", "behind": True}], NAMES2, _ctx())["project"]
+    assert "Layer 1" in chat.describe(base, NAMES2, {"a0": 6.0}) and "behind" in chat.describe(base, NAMES2, {})
+    sp = chat.system_prompt("x", [], False)
+    for word in ("add_layer", "remove_background", "keyframe", "move_along"):
+        assert word in sp
+    assert chat.looks_like_edit_request("remove the green screen")
+
+
+# ---------------------------------------------------------------- 1.2.14 pack: sounds, masks, layer effects
+class _Snd:
+    def __init__(self, i, n):
+        self.id, self.name = i, n
+
+
+def _with_sound():
+    made = []
+
+    def make(sid):
+        made.append(sid)
+        return _Snd("snd_" + sid, sid.replace("_", " ").title())
+
+    ctx = _ctx()
+    ctx["sound"] = make
+    return ctx, made
+
+
+def test_add_sound_finds_the_sound_from_everyday_words():
+    ctx, made = _with_sound()
+    out = chat.apply_actions(proj(), [{"do": "add_sound", "sound": "a whoosh", "start": 3}, {"do": "add_sound", "sound": "rain"}, {"do": "add_sound", "sound": "xyzzy"}], NAMES2, ctx)
+    a = out["project"].audio
+    assert made == ["whoosh", "rain"] and len(out["skipped"]) == 1
+    assert a[0].start == 3 and not a[0].loop and a[0].volume == 1
+    assert a[1].loop and a[1].is_music and a[1].volume == 0.5  # ambience repeats under the video, quietly
+
+
+def test_set_layer_takes_a_mask_and_one_effect():
+    base = chat.apply_actions(proj(), [{"do": "add_layer", "video": "city"}], NAMES2, _ctx())["project"]
+    out = chat.apply_actions(base, [{"do": "set_layer", "target": 1, "set": {"mask": "heart", "mask_feather": 0.3, "effect": "glitch", "effect_amount": 0.8}},
+                                    {"do": "set_layer", "target": 1, "set": {"mask": "dragon"}}, {"do": "set_layer", "target": 1, "set": {"effect": "nope"}}], NAMES2, _ctx())
+    ly = out["project"].layers[0]
+    assert ly.mask == "heart" and ly.mask_feather == 0.3 and ly.effects[0].type == "glitch" and ly.effects[0].amount == 0.8
+    assert len(out["skipped"]) == 2
+    off = chat.apply_actions(out["project"], [{"do": "set_layer", "target": 1, "set": {"mask": "off"}}], NAMES2, _ctx())["project"]
+    assert off.layers[0].mask == "none"
+
+
+def test_prompt_lists_the_new_catalog():
+    sp = chat.system_prompt("x", [], False)
+    for word in ("add_sound", "whoosh", "blockbuster", "kaleido", "heart", "typewriter", "helium"):
+        assert word in sp
+    assert chat.looks_like_edit_request("add a whoosh sound at 3 seconds")

@@ -1,7 +1,7 @@
 {
-  "app_version": "1.2.9",
-  "notes": "Start and end pictures, minimise view, motion control layout, Claude-style assistant, resume tailoring, always ask where to save",
-  "download_url": "https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest",
+  "app_version": "1.2.14",
+  "notes": "Free website version (runs in the browser, deploy on GitHub Pages or Netlify), CapCut-style workspace, free AI chat with renewing usage meter, layers, 51 looks, 34 effects, 38 free sounds",
+  "download_url": "https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest",
   "modules": [
     {
       "name": "pillow",
@@ -42,6 +42,10 @@
     {
       "name": "faster-whisper",
       "version": "1.2.1"
+    },
+    {
+      "name": "mediapipe",
+      "version": "1.1.1"
     }
   ]
 }

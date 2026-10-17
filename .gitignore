@@ -8,3 +8,15 @@ __pycache__/
 .venv*/
 electron/design/
 *.part
+
+# secrets and personal data - never commit
+LTXStudioData/
+*.key
+.env
+.env.*
+motion.json
+settings.json
+*.sqlite
+*.db
+frontend/public/engine/
+frontend/dist-web/

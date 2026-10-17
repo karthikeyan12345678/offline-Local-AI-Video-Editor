@@ -1,3 +1,4 @@
+import { IS_WEB } from "../lib/env";
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { AnalyticsResult, AtsResult, FileRef } from "../lib/types";
@@ -49,7 +50,7 @@ export function Analyze() {
   const run = useAsync<AnalyticsResult>();
   return (
     <div className="page">
-      <header><h1>Analyse a file</h1><p className="muted">Upload a spreadsheet, CSV, document or PDF to get statistics, data-quality warnings and plain-language findings. Everything is calculated on this PC.</p></header>
+      <header><h1>Analyse a file</h1><p className="muted">Upload a spreadsheet, CSV, document or PDF to get statistics, data-quality warnings and plain-language findings. Everything is calculated on {IS_WEB ? "this browser" : "this PC"}.</p></header>
       <FilePicker label="File to analyse" files={files} onChange={(f) => { setFiles(f); run.reset(); }} hint="CSV, Excel, Word, PDF, PowerPoint or text." />
       <div className="row"><Button busy={run.busy} disabled={!files.length} onClick={() => void run.run(() => api.analyze(files[0].id))}>Analyse</Button></div>
       {run.error && <Banner kind="error">{run.error}</Banner>}
@@ -69,7 +70,7 @@ export function ImageGen() {
   const go = () => void run.run(async () => { const r = await api.image(prompt, shape); setGallery((g) => [r, ...g]); return r; });
   return (
     <div className="page">
-      <header><h1>Generate images</h1><p className="muted">Describe the picture. The image engine is chosen in Settings (a free online service, your own API, or a model on this PC).</p></header>
+      <header><h1>Generate images</h1><p className="muted">Describe the picture. The image engine is chosen in Settings (a free online service, your own API, or a model on {IS_WEB ? "the desktop app" : "this PC"}).</p></header>
       <div className="field"><label htmlFor="ip">Describe the image</label>
         <textarea id="ip" className="textarea" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && prompt.trim().length > 2) go(); }} placeholder="A lighthouse at sunset, oil painting" />
         <div className="chips">{IDEAS.map((i) => <button key={i} className="chip" onClick={() => setPrompt(i)}>{i}</button>)}</div></div>

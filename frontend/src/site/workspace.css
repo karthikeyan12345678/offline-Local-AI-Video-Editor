@@ -1,0 +1,27 @@
+/* Pages of the signed-in workspace (Home, Make video, Settings). Uses the editor's own tokens. */
+.shell--web .content { overflow: auto; }
+.home-hello { margin-bottom: var(--space-9); }
+.home-hello h1 { margin: 0; }
+.avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; display: inline-flex; align-items: center; justify-content: center; background: var(--color-gray-2); color: var(--color-text); font-weight: 500; flex: none; }
+.avatar--sm { width: 32px; height: 32px; font-size: var(--text-sm); }
+.avatar--blank { border: 1px solid var(--color-gray-3); }
+.home-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--space-7); margin-bottom: var(--space-11); }
+.home-tile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: var(--space-9); text-align: left; font: inherit; color: var(--color-text); background: var(--color-gray-1); border: 1px solid var(--color-gray-2); border-radius: 12px; cursor: pointer; transition: border-color .1s ease-in-out, background-color .1s ease-in-out; }
+.home-tile b { font-size: var(--text-lg); font-weight: 500; }
+.home-tile span { font-size: var(--text-sm); color: var(--color-gray-4, #9aa0a6); }
+.home-tile svg { color: var(--color-accent); }
+.home-tile:hover { border-color: var(--color-accent); background: var(--color-gray-2); }
+.home-tile:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.home-projects, .home-history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.home-history li { padding: var(--space-5) var(--space-7); border: 1px solid var(--color-gray-2); border-radius: 8px; background: var(--color-gray-1); }
+.hist-ico { width: 28px; height: 28px; border-radius: 50%; background: var(--color-gray-2); display: inline-flex; align-items: center; justify-content: center; flex: none; color: var(--color-accent); }
+.page.home { display: flex; flex-direction: column; gap: var(--space-9); }
+.nav-account { margin-top: var(--space-7); display: flex; align-items: center; gap: var(--space-6); width: 100%; padding: var(--space-5) var(--space-6); text-align: left; font: inherit; color: var(--color-text); background: var(--color-gray-1); border: 1px solid var(--color-gray-2); border-radius: 12px; cursor: pointer; }
+.nav-account:hover { background: var(--color-gray-2); }
+.nav-account:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.nav-account .stack { min-width: 0; }
+.nav .brand { color: var(--color-text); text-decoration: none; display: flex; align-items: center; gap: var(--space-5); }
+.pop { padding: var(--space-7); border: 1px solid var(--color-gray-2); border-radius: 12px; background: var(--color-gray-1); }
+.notice { padding: var(--space-6) var(--space-7); border: 1px solid var(--color-gray-3); border-radius: 8px; background: var(--color-gray-1); font-size: var(--text-sm); }
+.assistant-frame { width: 100%; height: 100vh; border: 0; display: block; background: #000; }
+@media (max-width: 760px) { .shell--web { grid-template-columns: 1fr; } .shell--web .nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--color-gray-2); } .shell--web .nav ul { flex-direction: row; flex-wrap: wrap; } }

@@ -1,0 +1,829 @@
+[
+ {
+  "id": "montserrat",
+  "label": "Montserrat",
+  "category": "Sans",
+  "regular": "Montserrat[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "inter",
+  "label": "Inter",
+  "category": "Sans",
+  "regular": "Inter[opsz,wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "poppins",
+  "label": "Poppins",
+  "category": "Sans",
+  "regular": "Poppins-Regular.ttf",
+  "bold": "Poppins-Bold.ttf",
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "opensans",
+  "label": "Open Sans",
+  "category": "Sans",
+  "regular": "OpenSans[wdth,wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "raleway",
+  "label": "Raleway",
+  "category": "Sans",
+  "regular": "Raleway[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "nunito",
+  "label": "Nunito",
+  "category": "Sans",
+  "regular": "Nunito[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "quicksand",
+  "label": "Quicksand",
+  "category": "Sans",
+  "regular": "Quicksand[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "comfortaa",
+  "label": "Comfortaa",
+  "category": "Sans",
+  "regular": "Comfortaa[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "barlow",
+  "label": "Barlow",
+  "category": "Sans",
+  "regular": "Barlow-Regular.ttf",
+  "bold": "Barlow-Bold.ttf",
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "fredoka",
+  "label": "Fredoka",
+  "category": "Sans",
+  "regular": "Fredoka[wdth,wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "oswald",
+  "label": "Oswald",
+  "category": "Condensed",
+  "regular": "Oswald[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "barlowcondensed",
+  "label": "Barlow Condensed",
+  "category": "Condensed",
+  "regular": "BarlowCondensed-Bold.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "teko",
+  "label": "Teko",
+  "category": "Condensed",
+  "regular": "Teko[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "fjalla",
+  "label": "Fjalla One",
+  "category": "Condensed",
+  "regular": "FjallaOne-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "staatliches",
+  "label": "Staatliches",
+  "category": "Condensed",
+  "regular": "Staatliches-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "bebas",
+  "label": "Bebas Neue",
+  "category": "Condensed",
+  "regular": "BebasNeue-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "anton",
+  "label": "Anton",
+  "category": "Impact",
+  "regular": "Anton-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "archivoblack",
+  "label": "Archivo Black",
+  "category": "Impact",
+  "regular": "ArchivoBlack-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "bangers",
+  "label": "Bangers",
+  "category": "Impact",
+  "regular": "Bangers-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "luckiest",
+  "label": "Luckiest Guy",
+  "category": "Impact",
+  "regular": "LuckiestGuy-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "Apache-2.0"
+ },
+ {
+  "id": "titanone",
+  "label": "Titan One",
+  "category": "Impact",
+  "regular": "TitanOne-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "passionone",
+  "label": "Passion One",
+  "category": "Impact",
+  "regular": "PassionOne-Bold.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "bungee",
+  "label": "Bungee",
+  "category": "Impact",
+  "regular": "Bungee-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "alfaslab",
+  "label": "Alfa Slab One",
+  "category": "Impact",
+  "regular": "AlfaSlabOne-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "righteous",
+  "label": "Righteous",
+  "category": "Display",
+  "regular": "Righteous-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "fugaz",
+  "label": "Fugaz One",
+  "category": "Display",
+  "regular": "FugazOne-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "russo",
+  "label": "Russo One",
+  "category": "Display",
+  "regular": "RussoOne-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "audiowide",
+  "label": "Audiowide",
+  "category": "Display",
+  "regular": "Audiowide-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "orbitron",
+  "label": "Orbitron",
+  "category": "Display",
+  "regular": "Orbitron[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "blackops",
+  "label": "Black Ops One",
+  "category": "Display",
+  "regular": "BlackOpsOne-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "monoton",
+  "label": "Monoton",
+  "category": "Display",
+  "regular": "Monoton-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "creepster",
+  "label": "Creepster",
+  "category": "Display",
+  "regular": "Creepster-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "pressstart",
+  "label": "Press Start 2P (pixel)",
+  "category": "Display",
+  "regular": "PressStart2P-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "knewave",
+  "label": "Knewave",
+  "category": "Display",
+  "regular": "Knewave-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "shrikhand",
+  "label": "Shrikhand",
+  "category": "Display",
+  "regular": "Shrikhand-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "playfair",
+  "label": "Playfair Display",
+  "category": "Serif",
+  "regular": "PlayfairDisplay[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "dmserif",
+  "label": "DM Serif Display",
+  "category": "Serif",
+  "regular": "DMSerifDisplay-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "abril",
+  "label": "Abril Fatface",
+  "category": "Serif",
+  "regular": "AbrilFatface-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "lora",
+  "label": "Lora",
+  "category": "Serif",
+  "regular": "Lora[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "prata",
+  "label": "Prata",
+  "category": "Serif",
+  "regular": "Prata-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "cinzel",
+  "label": "Cinzel",
+  "category": "Serif",
+  "regular": "Cinzel[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "cinzeldeco",
+  "label": "Cinzel Decorative",
+  "category": "Serif",
+  "regular": "CinzelDecorative-Bold.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "zillaslab",
+  "label": "Zilla Slab",
+  "category": "Serif",
+  "regular": "ZillaSlab-Regular.ttf",
+  "bold": "ZillaSlab-Bold.ttf",
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "robotoslab",
+  "label": "Roboto Slab",
+  "category": "Serif",
+  "regular": "RobotoSlab[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "Apache-2.0"
+ },
+ {
+  "id": "pacifico",
+  "label": "Pacifico",
+  "category": "Script",
+  "regular": "Pacifico-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "lobster",
+  "label": "Lobster",
+  "category": "Script",
+  "regular": "Lobster-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "satisfy",
+  "label": "Satisfy",
+  "category": "Script",
+  "regular": "Satisfy-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "Apache-2.0"
+ },
+ {
+  "id": "sacramento",
+  "label": "Sacramento",
+  "category": "Script",
+  "regular": "Sacramento-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "kaushan",
+  "label": "Kaushan Script",
+  "category": "Script",
+  "regular": "KaushanScript-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "courgette",
+  "label": "Courgette",
+  "category": "Script",
+  "regular": "Courgette-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "dancing",
+  "label": "Dancing Script",
+  "category": "Script",
+  "regular": "DancingScript[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "caveat",
+  "label": "Caveat",
+  "category": "Handwriting",
+  "regular": "Caveat[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "indieflower",
+  "label": "Indie Flower",
+  "category": "Handwriting",
+  "regular": "IndieFlower-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "patrickhand",
+  "label": "Patrick Hand",
+  "category": "Handwriting",
+  "regular": "PatrickHand-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "permanentmarker",
+  "label": "Permanent Marker",
+  "category": "Handwriting",
+  "regular": "PermanentMarker-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "Apache-2.0"
+ },
+ {
+  "id": "specialelite",
+  "label": "Special Elite (typewriter)",
+  "category": "Handwriting",
+  "regular": "SpecialElite-Regular.ttf",
+  "bold": null,
+  "variable": false,
+  "scripts": [
+   "latin"
+  ],
+  "license": "Apache-2.0"
+ },
+ {
+  "id": "robotomono",
+  "label": "Roboto Mono",
+  "category": "Mono",
+  "regular": "RobotoMono[wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "latin"
+  ],
+  "license": "Apache-2.0"
+ },
+ {
+  "id": "notosanstamil",
+  "label": "Noto Sans Tamil",
+  "category": "Tamil",
+  "regular": "NotoSansTamil[wdth,wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "tamil",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "hindmadurai",
+  "label": "Hind Madurai (Tamil)",
+  "category": "Tamil",
+  "regular": "HindMadurai-Regular.ttf",
+  "bold": "HindMadurai-Bold.ttf",
+  "variable": false,
+  "scripts": [
+   "tamil",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "muktamalar",
+  "label": "Mukta Malar (Tamil)",
+  "category": "Tamil",
+  "regular": "MuktaMalar-Regular.ttf",
+  "bold": "MuktaMalar-Bold.ttf",
+  "variable": false,
+  "scripts": [
+   "tamil",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "notosansdevanagari",
+  "label": "Noto Sans Devanagari",
+  "category": "Hindi",
+  "regular": "NotoSansDevanagari[wdth,wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "devanagari",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "hind",
+  "label": "Hind (Hindi)",
+  "category": "Hindi",
+  "regular": "Hind-Regular.ttf",
+  "bold": "Hind-Bold.ttf",
+  "variable": false,
+  "scripts": [
+   "devanagari",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "mukta",
+  "label": "Mukta (Hindi)",
+  "category": "Hindi",
+  "regular": "Mukta-Regular.ttf",
+  "bold": "Mukta-Bold.ttf",
+  "variable": false,
+  "scripts": [
+   "devanagari",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "notosanstelugu",
+  "label": "Noto Sans Telugu",
+  "category": "Telugu",
+  "regular": "NotoSansTelugu[wdth,wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "telugu",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "hindguntur",
+  "label": "Hind Guntur (Telugu)",
+  "category": "Telugu",
+  "regular": "HindGuntur-Regular.ttf",
+  "bold": "HindGuntur-Bold.ttf",
+  "variable": false,
+  "scripts": [
+   "telugu",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "notosanskannada",
+  "label": "Noto Sans Kannada",
+  "category": "Kannada",
+  "regular": "NotoSansKannada[wdth,wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "kannada",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "notosansmalayalam",
+  "label": "Noto Sans Malayalam",
+  "category": "Malayalam",
+  "regular": "NotoSansMalayalam[wdth,wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "malayalam",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ },
+ {
+  "id": "notosansbengali",
+  "label": "Noto Sans Bengali",
+  "category": "Bengali",
+  "regular": "NotoSansBengali[wdth,wght].ttf",
+  "bold": null,
+  "variable": true,
+  "scripts": [
+   "bengali",
+   "latin"
+  ],
+  "license": "OFL-1.1"
+ }
+]

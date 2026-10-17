@@ -106,11 +106,21 @@ def _nvidia_smi() -> GpuInfo | None:
 
 
 def arch_is_supported(arch_list: list[str], capability: tuple[int, int]) -> bool:
-    """True if this torch build can run kernels on a GPU of this compute capability."""
-    cc = capability[0] * 10 + capability[1]
+    """True if this torch build can run kernels on a GPU of this compute capability.
+
+    NVIDIA machine code is compatible upward inside one major generation: an sm_86 build runs on an sm_89 card (RTX 40-series), an
+    sm_80 build on sm_86, and so on. Recent CUDA 13 wheels list sm_86 and sm_90 but no sm_89, so an exact match would wrongly call
+    those cards unusable and push the studio onto the CPU."""
+    major, minor = capability
+    cc = major * 10 + minor
     for arch in arch_list:
-        m = re.fullmatch(r"sm_(\d+)[a-z]?", arch)
-        if m and int(m.group(1)) == cc:
+        m = re.fullmatch(r"sm_(\d+)([a-z]?)", arch)
+        if not m:
+            continue
+        v, suffix = int(m.group(1)), m.group(2)
+        if v == cc:
+            return True
+        if not suffix and v // 10 == major and v < cc:  # same generation, older minor: binary compatible
             return True
     # PTX (compute_XX) is forward compatible with newer GPUs.
     for arch in arch_list:
@@ -118,6 +128,16 @@ def arch_is_supported(arch_list: list[str], capability: tuple[int, int]) -> bool
         if m and int(m.group(1)) <= cc:
             return True
     return False
+
+
+def kernel_runs(torch_module) -> bool:
+    """Prove it: run a tiny kernel on the GPU. Used when the arch list alone says 'no', so a good card is never rejected on a technicality."""
+    try:
+        t = torch_module
+        x = t.ones(16, device="cuda", dtype=t.float16) * 2
+        return bool(float(x.sum().item()) == 32.0)
+    except Exception:  # noqa: BLE001 - any failure means the kernels really are missing
+        return False
 
 
 def ffmpeg_path() -> str | None:
@@ -158,7 +178,7 @@ def detect_system() -> SystemInfo:
                         best_idx, best_mem = idx, mem
                 props = torch.cuda.get_device_properties(best_idx)
                 cap = (props.major, props.minor)
-                supported = arch_is_supported(list(torch.cuda.get_arch_list()), cap)
+                supported = arch_is_supported(list(torch.cuda.get_arch_list()), cap) or kernel_runs(torch)
                 gpu = GpuInfo(
                     available=True,
                     name=props.name,

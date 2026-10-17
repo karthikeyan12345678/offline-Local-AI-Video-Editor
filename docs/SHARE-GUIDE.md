@@ -1,3 +1,5 @@
+> **Update:** the easiest way to share VK Editor is now the **website version**. Deploy it once (see [HOSTING.md](HOSTING.md)) and send people the link, for example `https://karthikeyan12345678.github.io/offline-Local-AI-Video-Editor/`. No installer, no Windows warning, nothing to download. The rest of this page is about the older Windows installer and is only needed if you still want that.
+
 # VK Editor — the "explain it like I'm 10" guide
 
 Two parts: **A. How YOU put it on GitHub and share it** and **B. What the person you share it with does**.
@@ -29,7 +31,7 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
    - `VKEditor-Setup-1.2.3.exe` — normal installer
    - `VKEditor-1.2.3-portable.exe` — runs from any folder, nothing to install
    - `AIAssistant-…exe` — the separate AI Assistant app
-3. **Share this one link** with anyone: `https://github.com/karthikeyan12345678/ai-assistant-studio/releases/latest`
+3. **Share this one link** with anyone: `https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest`
    (The repository must be **Public** for strangers to download. In a private repository only people you invite can.)
 
 ### When you make a new version
@@ -69,12 +71,12 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 - **Pictures without a logo.** The AI Assistant now uses the free AI Horde service by default (no watermark, no account; it may queue for a minute or two). If you installed "Install everything", the model on your PC is used instead: private, no limits, no logo. The old Pollinations service is only a last-resort backup and the reply tells you when it was used (it adds a small logo and has quotas).
 - **Documents that copy your file.** Attach a PDF, Word or PowerPoint file and ask `/pdf`, `/doc` or `/ppt` for something new. The AI follows that file's section order, length and tone, and the document uses its main colour and font.
 - **AI object edits in the chat editor.** Mark a place with the Draw tool (box, circle or scribble) and say "remove this hill", "remove the person", "change the hill to a snowy mountain". Or say "put a white cap on his head" (it finds the face). It repaints the video frames with an inpainting model (Models page → "Object editor: AI inpainting", about 2.2 GB, graphics card needed). Up to 8 seconds per clip per request. Still camera: fast "patch" mode. Moving person or camera: slower "track" mode, which may flicker a little. Undo restores the original.
-- Not included: Kling-style "Motion Control" (a character picture driven by a motion video). It needs a model far bigger than a 6 GB card can run.
+- Not included: "Motion Control" (a character picture driven by a motion video). It needs a model far bigger than a 6 GB card can run.
 
 ## What is new in 1.2.5
 
-- **Motion control** (new page in the left menu): choose a character picture and a video of someone moving; Kling 2.6 makes the character perform that movement. It runs in the cloud through your own fal.ai key (Dashboard → Keys; add a little credit). The motion video must be 3–30 s (3–10 s if you keep the picture's direction). Nothing is sent until you press the button.
-- **Kling Studio look**: Settings → Look → "Kling Studio" (dark with Kling's green).
+- **Motion control** (new page in the left menu): choose a character picture and a video of someone moving; an online model makes the character perform that movement. It runs in the cloud through your own fal.ai key (Dashboard → Keys; add a little credit). The motion video must be 3–30 s (3–10 s if you keep the picture's direction). Nothing is sent until you press the button.
+- **Studio look**: Settings → Look (dark with a green accent).
 - **AI edits work on pictures too.** A picture on the timeline can now be repainted (mark the place with Draw, then "change the hill to a snowy mountain"). The object-editor model must be installed first (Models page).
 - **Pictures in the AI Assistant**: if the model on your PC fails, the free online engine is used automatically and the reply says why.
 
@@ -83,7 +85,7 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 
 ## 1.2.7
 - **Object editor (AI inpainting)** no longer crashes on newer `diffusers` (`enable_vae_slicing` error); the same fix covers the local picture maker.
-- **Studio look** is now the default (dark, green accent, Google Sans type). "Classic (light)" is still in Settings → Look. The Kling name is gone from the app.
+- **Studio look** is now the default (dark, green accent, Google Sans type). "Classic (light)" is still in Settings → Look. The old name is gone from the app.
 - **Library**: Select → pick several (or Select all) → Delete selected. Deleted files can be uploaded again.
 - **Drag and drop** works anywhere in the window, plus an "Add files" button in the Library and the editor's Media panel. If dropping still does nothing, the app is probably running as administrator (Windows blocks drops into elevated windows): untick "Run as administrator" in the exe's Properties → Compatibility.
 - **Make a video** redesigned: result stage on top, prompt bar at the bottom, shape chips (16:9, 9:16, 1:1, 4:5), live timer, progress bar, time left and stage flow. When Generate is greyed out the reason is written next to it (models still downloading with %, or prompt missing).
@@ -102,3 +104,50 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 - **AI Assistant** has a new look (warm dark paper, serif headings, line icons, a rounded message box with round attach and send buttons). **Pictures show a progress bar** with the time passed.
 - **Tailor my resume**: attach a resume (PDF, Word, text or CSV) and a job description (a second file or pasted in the message) and say "tailor my resume to this JD with high ATS score". You get a new PDF (or Word file if you ask) that only uses facts from your resume, plus the ATS score before and after and the job terms that could not be added honestly.
 - **Saving always asks where**: every export and "Save as…" opens the Save As window in the desktop app, and a finished export opens it automatically.
+
+## 1.2.10
+- **Faster videos on 6 GB graphics cards (RTX 4050, 3050, 2060…)**: these cards now use the Lite profile (8-bit weights). Before, the full-size weights filled the 6 GB and Windows quietly moved the overflow into normal RAM, which made each step take minutes. The profile names now read Lite (4-7 GB) and Balanced (8-11 GB).
+- The log file now records which memory strategy and graphics card each video used.
+
+## 1.2.11 – why videos took hours, and what is new
+- **Your graphics card was wrongly rejected.** Settings showed "no kernels for this GPU (compute 8.9)". The check wanted an exact `sm_89` match, but the CUDA 13 PyTorch build ships `sm_86` and `sm_90`, which an RTX 40-series card runs fine. The app then used the CPU, which is why a 4-second clip took hours. The check now follows NVIDIA's real compatibility rule and also runs a tiny kernel on the card to prove it works.
+- **Time estimate before you press Generate**, from your graphics card, memory and the chosen size, with tips when it would be too slow. Generate is switched off above your time limit (Settings, default 30 minutes; "Allow sizes and lengths beyond…" overrides it). A running video that passes the limit stops with an explanation.
+- **Live meters** for CPU, GPU, memory and graphics memory on the Make video page. A video that runs far too long shows why (graphics memory full, running on the CPU, or the card idle).
+- **Drop overlay** ("Drop to add to your Library") no longer stays on the screen after you drop a file into a picture or video slot.
+- **fal.ai key**: you can paste the bare key, `Key abc:def`, or a whole JSON line; the app cleans it. A broken saved key is repaired on read. Network errors now say what really happened (cannot connect, upload too slow, key refused). A big motion video is shrunk before it is uploaded.
+- **Improve prompt** button on Make video and an automatic detail boost for pictures in the AI Assistant (written by your AI if one is connected, otherwise by a built-in recipe).
+- **Better picture engines**: FLUX on Hugging Face (free token), FLUX on Together AI (free model), OpenAI DALL·E 3 / GPT Image (paid, high quality). Midjourney has no public API, so it cannot be connected.
+- **"Which AI is best for my PC?"** pop-up in both apps: the best model to run on the PC (Ollama), the best free online service (Groq, Gemini, OpenRouter) and the best paid one (Claude, `claude-sonnet-5-5`).
+- **First-run tour** with Skip, in both apps. Replay it from Settings > Take the tour.
+
+## 1.2.12 – fixes and free local motion
+- **"Expected all tensors to be on the same device"** when making a video (start + end picture) is fixed. Now that the graphics card is used, the written prompt data was left on the CPU; it is moved to the card before the model runs.
+- **fal.ai "did not accept the key"**: the box held the example words `PASTE_YOUR_KEY_HERE`. The app now says so, and refuses example text. Paste your real key (fal.ai > Dashboard > Keys). Never put a real key in the README, a screenshot or GitHub.
+- **Motion control, free quick preview (MediaPipe)**: choose "Quick preview (free, on this PC)". MediaPipe finds the body in the picture and in the video, and the picture is bent to follow the movement. It is a rough puppet-style preview, not realistic video. First use downloads a 6 MB body-finder file (`pose_landmarker_lite.task`) into `LTXStudioData/models/pose`; if there is no internet, download it once and put it in that folder. Existing installs get MediaPipe from Settings > Updates (modules).
+- Updated README with the new features.
+
+## 1.2.13 – sharper video and better local motion
+- **Why videos are blurry:** the model that fits a 6 GB card is a 2B model working at about 512x320 with 8-bit weights. It cannot draw fine detail. Every video made on the PC is now cleaned, enlarged 2x and sharpened (Settings > "Sharpen and enlarge finished videos"). This looks crisper but adds no real detail.
+- **LTX-2 / LTX-2.5 (Lightricks)** is a 22B model with a Gemma text encoder and about 66 GiB of files. It cannot run on 6 GB of graphics memory. It is offered in the cloud instead: Make video > **Sharp cloud video** uses `fal-ai/ltx-2.3/text-to-video` and `image-to-video` (with optional end picture), 6/8/10 seconds, 1080p/1440p/4K, optional sound, $0.08/$0.16/$0.32 per second. It uses the same fal.ai key as Motion control.
+- **Motion control, free quick preview rebuilt:** MediaPipe or TensorFlow (MoveNet) finds 13 body points; the person is cut out; each limb turns by the same angle as in the video (limb lengths stay the character's); the background is filled in and stays still.
+- **TensorFlow** is not bundled (about 350 MB). Choose "TensorFlow (MoveNet)" and press Install TensorFlow; restart the app once. The MoveNet file is downloaded on first use from tfhub.dev; if that fails, save it as `movenet_lightning.tflite` in `LTXStudioData/models/pose`.
+- Saving a fal.ai key now checks it with fal.ai (`GET /v1/models`) and explains a refused key; it still saves when offline.
+
+## 1.2.14 – detail, online video engines, voices that fit the person
+- **Detail:** short ideas are turned into a detailed prompt automatically (Settings > "Write a detailed prompt automatically"), the editor chat now writes 60-100 word prompts and uses the sharper size, and Make video starts at the profile's default size (640x384 on a 6 GB card) instead of the smallest. Finished videos go through the Real-ESRGAN upscaler (about 45 MB, downloaded once into `LTXStudioData/tools`; plain sharpening if it cannot be had).
+- **Online video:** `Sharp online video` offers LTX-2.3 (`fal-ai/ltx-2.3/*`) and Gemini Omni Flash 1.1 (`google/gemini-omni-flash/v1.1/text-to-video` and `image-to-video`; 720p $0.10, 1080p $0.15, 4K $0.30 per second). The result link is read from whichever shape the service answers with.
+- **fal.ai key:** saved once in `LTXStudioData/motion.json`; may also be preloaded from `LTXStudioData/fal.key` or the `FAL_KEY` environment variable (saved on first use). `Test` calls `POST /api/motion/test`.
+- **Voices:** `persona` (girl, boy, woman, man, old_woman, old_man, auto) on generation sound, Motion control, online video, the voice-over task and `/editor/ai/speak`. Auto = picture (if a vision AI is connected), then the words, then a man.
+- **Motion:** the reference video's own sound is attached to the result (cloud and quick preview).
+- Names: the online motion model is no longer named in the app.
+- **Layers:** `Project.layers` (max 60) with `track` 1-8, `behind`, trim, speed, position/size/rotation/opacity, fades, colour adjust, up to 4 effects, `chroma` and `keys`. Layers are trimmed to the main video's length. Render order: colour base, behind layers, main video, front layers, drawings, pictures, text.
+- **Chroma key:** `Clip.chroma` and `Layer.chroma` (colour, similarity, blend, spill) become ffmpeg `chromakey` + `despill`. The live preview uses a canvas approximation; the export is exact.
+- **Keyframes:** `keys` on layers, text and pictures (t, x, y, size, rotation, opacity, ease smooth/linear/hold) become nested lerp expressions.
+- **Chat actions:** add_layer, set_layer, delete_layer, remove_background, keyframe, move_along, clear_keyframes. Layers are numbered L1, L2... in list order.
+- **Fixes:** picture overlays are now included when exporting; the speak-route test waits for its job (this was the red CI run on tag v1.2.14).
+- Not done: blend modes (screen/multiply); layers longer than the main video are cut.
+- **Effect pack:** `effects.py` now holds 51 looks (grouped, `LOOK_GROUPS`), 34 effects (grouped, `EFFECT_GROUPS`; light leak, kaleidoscope, cartoon, tilt-shift and focus-in are multi-stream fragments) and 11 shape masks (`MASK_INFO`, `mask_alpha_expr` builds a `geq` alpha expression; feather and invert supported). `audiofx.py` has 39 styles. Every one is rendered by `tests/test_pack.py`.
+- **Built-in sounds:** `soundfx.py` makes 38 sounds from ffmpeg recipes (oscillators, noise, filters), cached in `LTXStudioData/sounds`. Routes: `GET /editor/sounds`, `GET /editor/sounds/{id}/file`, `POST /editor/sounds/{id}/add` (registers a library asset with source `sound`). Chat action `add_sound`; `set_layer` accepts `mask`, `mask_feather`, `mask_invert`, `effect`, `effect_amount`.
+- **Text animations:** in: bounce, typewriter, flicker; out: drop, flicker.
+- Honest limits: the sounds are synthetic "editor" sounds, not studio recordings; the mask soft edge and the keyed preview are approximations in the live preview (the export is exact); blend modes are still not implemented. I could not listen to the sounds here, only check length, level and that none is silent.
+- **Reference projects:** CapCutAPI only lists CapCut's own cloud effect ids (not usable), OpenCut is mostly UI parts, and "CapCut-Professional" contains only a README with a download link and no code. Nothing was copied from them; the effects are original ffmpeg recipes.

@@ -15,10 +15,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .audiofx import fx_filters
-from .effects import PRESET_FILTERS, XFADE_NAMES, Fragment, effect_filter, motion_filters, pick_random_transition
+from .effects import PRESET_FILTERS, XFADE_NAMES, Fragment, effect_filter, mask_alpha_expr, motion_filters, pick_random_transition
 from .media import NO_WINDOW, require_ffmpeg
 from .drawimage import render_drawing_png, render_image_overlay_png
-from .project import AudioClip, Clip, Drawing, ExportOptions, Project, TextOverlay
+from .project import AudioClip, Chroma, Clip, Drawing, ExportOptions, Layer, Project, TextOverlay
 from .textimage import render_text_png
 
 SAMPLE_RATE = 48000
@@ -273,6 +273,12 @@ def _video_stages(clip: Clip, asset: AssetRef, idx: int, project: Project, dur: 
             f.append(f"scale=iw*{z}:ih*{z}:flags=bicubic")
             f.append(f"crop={W}:{H}:(iw-{W})*{_f(0.5 + clip.pan_x * 0.5)}:(ih-{H})*{_f(0.5 + clip.pan_y * 0.5)}")
 
+    alpha = any(c.chroma.enabled for c in project.clips)
+    if clip.chroma.enabled:
+        f.extend(chroma_stages(clip.chroma))
+    elif alpha:
+        f.append("format=yuva420p")
+
     f.extend(motion_filters(clip.motion, clip.motion_strength, W, H, dur))
 
     a = clip.adjust
@@ -303,7 +309,7 @@ def _video_stages(clip: Clip, asset: AssetRef, idx: int, project: Project, dur: 
         f.append(effect_filter(e.type, e.amount, W, H))
 
     f.append("setsar=1")
-    f.append("format=yuv420p")
+    f.append("format=yuva420p" if alpha else "format=yuv420p")
     if clip.fade_in > 0:
         f.append(f"fade=t=in:st=0:d={_f(min(clip.fade_in, dur))}")
     if clip.fade_out > 0:
@@ -422,6 +428,12 @@ def _text_animation(t: Any, W: int, H: int) -> tuple[list[str], str, str]:
             dx += f"+{_f(dist_h)}*(1-{e_in})"
         elif t.anim_in == "slide_right":
             dx += f"-{_f(dist_h)}*(1-{e_in})"
+        elif t.anim_in == "bounce":
+            chain.append(f"fade=t=in:st={_f(st)}:d={_f(min(di * 0.4, 0.25))}:alpha=1")
+            p = p_in
+            bounce = (f"if(lt({p},0.363636),7.5625*{p}*{p},if(lt({p},0.727273),7.5625*pow({p}-0.545455,2)+0.75,"
+                      f"if(lt({p},0.909091),7.5625*pow({p}-0.818182,2)+0.9375,7.5625*pow({p}-0.954545,2)+0.984375)))")
+            dy += f"-{_f(0.28 * H)}*(1-({bounce}))"
     if do > 0:
         if t.anim_out in ("fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom"):
             chain.append(f"fade=t=out:st={_f(end - do)}:d={_f(do)}:alpha=1")
@@ -433,6 +445,9 @@ def _text_animation(t: Any, W: int, H: int) -> tuple[list[str], str, str]:
             dx += f"-{_f(dist_h)}*{e_out}"
         elif t.anim_out == "slide_right":
             dx += f"+{_f(dist_h)}*{e_out}"
+        elif t.anim_out == "drop":
+            chain.append(f"fade=t=out:st={_f(end - do)}:d={_f(do)}:alpha=1")
+            dy += f"+{_f(0.22 * H)}*pow({q_out},2)"
     scale_terms: list[str] = []
     if di > 0 and t.anim_in == "zoom":
         scale_terms.append(f"(0.6+0.4*{e_in})")
@@ -445,9 +460,190 @@ def _text_animation(t: Any, W: int, H: int) -> tuple[list[str], str, str]:
         chain.append(f"scale=w='max(2,trunc(iw*{s}/2)*2)':h='max(2,trunc(ih*{s}/2)*2)':eval=frame:flags=bicubic")
     if di > 0 and t.anim_in == "reveal":
         chain.append(f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(X,W*clip((T-{_f(st)})/{_f(di)},0,1)),alpha(X,Y),0)'")
+    if di > 0 and t.anim_in == "typewriter":
+        n = max(1, max((len(line) for line in str(getattr(t, "text", "x")).split("\n")), default=1))
+        chain.append(f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(X,W*floor(clip((T-{_f(st)})/{_f(di)},0,1)*{n})/{n}),alpha(X,Y),0)'")
+    if di > 0 and t.anim_in == "flicker":
+        p = f"clip((T-{_f(st)})/{_f(di)},0,1)"
+        chain.append(f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*if(gte(T,{_f(st + di)}),1,gt(sin(T*113)*sin(T*37)+{p}*1.7-0.85,0))'")
+    if do > 0 and t.anim_out == "flicker":
+        p = f"clip((T-{_f(end - do)})/{_f(do)},0,1)"
+        chain.append(f"geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*if(lt(T,{_f(end - do)}),1,gt(sin(T*113)*sin(T*37)+0.85-{p}*1.7,0))'")
     x = f"(W-w)*{_f(getattr(t, 'x', 0.5))}+{dx}"
     y = f"(H-h)*{_f(getattr(t, 'y', 0.5))}+{dy}"
+    pos = _key_overlay_pos(t, W, H, getattr(t, "x", 0.5), getattr(t, "y", 0.5))
+    if pos is not None:
+        if hasattr(t, "asset_id"):  # a picture: its sheet already holds it at the resting spot, so shift by the difference
+            x = f"W*(({pos[0]})-{_f(t.x)})+{dx}"
+            y = f"H*(({pos[1]})-{_f(t.y)})+{dy}"
+        else:  # text: x and y are fractions of the free room around it
+            x = f"(W-w)*({pos[0]})+{dx}"
+            y = f"(H-h)*({pos[1]})+{dy}"
     return chain, x, y
+
+
+
+# ---------------------------------------------------------------- keyframes and layers
+def _ease(p: str, mode: str) -> str:
+    """Shape a 0..1 progress expression (smooth = slow in, slow out)."""
+    if mode == "smooth":
+        return f"({p}*{p}*(3-2*{p}))"
+    return p
+
+
+def lerp_expr(points: list[tuple[float, float, str]], var: str = "t") -> str:
+    """One ffmpeg expression that moves through (time, value, ease) points: it holds the first value before the first point and the last after it."""
+    pts = sorted(points, key=lambda q: q[0])
+    if not pts:
+        return "0"
+    if len(pts) == 1:
+        return _f(pts[0][1])
+    e = _f(pts[-1][1])
+    for i in range(len(pts) - 2, -1, -1):
+        t0, v0, mode = pts[i]
+        t1, v1, _ = pts[i + 1]
+        if t1 - t0 < 1e-6:
+            continue
+        if mode == "hold":
+            seg = _f(v0)
+        else:
+            p = f"clip(({var}-{_f(t0)})/{_f(t1 - t0)},0,1)"
+            seg = f"({_f(v0)}+({_f(v1 - v0)})*{_ease(p, mode)})"
+        e = f"if(lt({var},{_f(t1)}),{seg},{e})"
+    return f"if(lt({var},{_f(pts[0][0])}),{_f(pts[0][1])},{e})"
+
+
+def _key_points(keys: list[Any], start: float, field: str) -> list[tuple[float, float, str]]:
+    return [(start + k.t, float(getattr(k, field)), getattr(k, "ease", "smooth")) for k in keys]
+
+
+def _vary(keys: list[Any], field: str) -> bool:
+    vals = [round(float(getattr(k, field)), 4) for k in keys]
+    return len(set(vals)) > 1
+
+
+def chroma_stages(ch: Chroma) -> list[str]:
+    """Filters that make the screen colour transparent (output is yuva420p)."""
+    f = ["format=yuva420p", f"chromakey=color={_hex(ch.color)}:similarity={_f(ch.similarity)}:blend={_f(ch.blend)}"]
+    if ch.spill:
+        r, g, b = (int(ch.color.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+        if g >= r and g >= b:
+            f += ["format=gbrap", "despill=type=green", "format=yuva420p"]
+        elif b > r and b > g:
+            f += ["format=gbrap", "despill=type=blue", "format=yuva420p"]
+    return f
+
+
+def layer_duration(layer: Layer, asset: AssetRef) -> float:
+    if asset.kind == "image":
+        return layer.image_duration
+    end = layer.trim_out if layer.trim_out > 0 else asset.duration
+    if asset.duration > 0:
+        end = min(end, asset.duration)
+    return max(0.05, end - layer.trim_in) / layer.speed
+
+
+def _layer_graph(layer: Layer, asset: AssetRef, idx: int, k: int, canvas_w: int, canvas_h: int, fps: int) -> tuple[list[str], str, str, str]:
+    """Statements that turn input `idx` into a positioned, keyed, animated picture. Returns (statements, label, x_expr, y_expr)."""
+    dur = layer_duration(layer, asset)
+    st, end = layer.start, layer.start + dur
+    keys = sorted(layer.keys, key=lambda q: q.t)
+    nw = (min(asset.width, canvas_w * 2) if asset.width > 0 else canvas_w) & ~1
+    nw = max(2, nw)
+    stages: list[str | Fragment] = []
+    if asset.kind != "image":
+        stages.append(f"setpts=(PTS-STARTPTS)/{_f(layer.speed)}")
+    else:
+        stages.append("setpts=PTS-STARTPTS")
+    stages.append(f"fps={fps}")
+    stages.append(f"scale={nw}:-2:flags=bicubic")
+    if layer.chroma.enabled:
+        stages += chroma_stages(layer.chroma)
+    else:
+        stages.append("format=yuva420p")
+    a = layer.adjust
+    eq_parts = []
+    if a.brightness:
+        eq_parts.append(f"brightness={_f(a.brightness / 100)}")
+    if a.contrast:
+        eq_parts.append(f"contrast={_f(1 + a.contrast / 100)}")
+    if a.saturation:
+        eq_parts.append(f"saturation={_f(1 + a.saturation / 100)}")
+    if abs(a.gamma - 1) > 1e-6:
+        eq_parts.append(f"gamma={_f(a.gamma)}")
+    if eq_parts:
+        stages.append("eq=" + ":".join(eq_parts))
+    if a.hue:
+        stages.append(f"hue=h={_f(a.hue)}")
+    if layer.preset != "none":
+        stages.append(PRESET_FILTERS[layer.preset])
+    if layer.blur > 0:
+        stages.append(f"gblur=sigma={_f(layer.blur)}")
+    for e in layer.effects:
+        stages.append(effect_filter(e.type, e.amount, nw, max(2, int(nw * (asset.height / asset.width)) if asset.width else canvas_h)))
+    stages.append("format=rgba")
+    if layer.mask != "none":
+        stages.append(f"format=gbrap,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({mask_alpha_expr(layer.mask, layer.mask_feather, layer.mask_invert)})',format=rgba")
+    # rotation first (into a square big enough for any angle), then size
+    rot_varies = _vary(keys, "rotation") if len(keys) > 1 else False
+    if rot_varies or abs(layer.rotation) > 1e-6 or (keys and abs(keys[0].rotation) > 1e-6):
+        ang = lerp_expr([(st + q.t, q.rotation * math.pi / 180, q.ease) for q in keys]) if keys else _f(layer.rotation * math.pi / 180)
+        stages.append(f"rotate=a='{ang}':ow='ceil(hypot(iw,ih)/2)*2':oh='ceil(hypot(iw,ih)/2)*2':c=none")
+    if keys and _vary(keys, "size"):
+        sz = lerp_expr([(st + q.t, q.size, q.ease) for q in keys])
+        stages.append(f"scale=w='max(2,trunc(iw*({sz})*{canvas_w}/{nw}/2)*2)':h='max(2,trunc(ih*({sz})*{canvas_w}/{nw}/2)*2)':eval=frame:flags=bicubic")
+    else:
+        size = keys[0].size if keys else layer.size
+        stages.append(f"scale=w='max(2,trunc(iw*{_f(size)}*{canvas_w}/{nw}/2)*2)':h='max(2,trunc(ih*{_f(size)}*{canvas_w}/{nw}/2)*2)':flags=bicubic")
+    if keys and _vary(keys, "opacity"):
+        op = lerp_expr([(st + q.t, q.opacity, q.ease) for q in keys], var="T")
+        stages.append(f"format=gbrap,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*({op})',format=rgba")
+    else:
+        op = keys[0].opacity if keys else layer.opacity
+        if abs(op - 1) > 1e-6:
+            stages.append(f"colorchannelmixer=aa={_f(op)}")
+    stages.append(f"setpts=PTS+{_f(st)}/TB")
+    if layer.fade_in > 0:
+        stages.append(f"fade=t=in:st={_f(st)}:d={_f(min(layer.fade_in, dur))}:alpha=1")
+    if layer.fade_out > 0:
+        d = min(layer.fade_out, dur)
+        stages.append(f"fade=t=out:st={_f(max(st, end - d))}:d={_f(d)}:alpha=1")
+    out = f"lay{k}"
+    stmts = _assemble(stages, f"{idx}:v", out, f"l{k}_")
+    if keys and _vary(keys, "x"):
+        cx = lerp_expr([(st + q.t, q.x, q.ease) for q in keys])
+    else:
+        cx = _f(keys[0].x if keys else layer.x)
+    if keys and _vary(keys, "y"):
+        cy = lerp_expr([(st + q.t, q.y, q.ease) for q in keys])
+    else:
+        cy = _f(keys[0].y if keys else layer.y)
+    return stmts, out, f"W*({cx})-w/2", f"H*({cy})-h/2"
+
+
+def _layer_audio(layer: Layer, asset: AssetRef, idx: int, k: int) -> str | None:
+    if asset.kind == "image" or not asset.has_audio or layer.muted:
+        return None
+    dur = layer_duration(layer, asset)
+    f = [f"aresample={SAMPLE_RATE}", "aformat=channel_layouts=stereo:sample_fmts=fltp"]
+    f += atempo_chain(layer.speed)
+    if abs(layer.volume - 1) > 1e-6:
+        f.append(f"volume={_f(layer.volume)}")
+    f += ["asetpts=PTS-STARTPTS", f"atrim=duration={_f(dur)}"]
+    ms = int(round(layer.start * 1000))
+    if ms > 0:
+        f.append(f"adelay={ms}|{ms}")
+    return f"[{idx}:a]" + ",".join(f) + f"[lax{k}]"
+
+
+def _key_overlay_pos(obj: Any, W: int, H: int, base_x: float, base_y: float) -> tuple[str, str] | None:
+    """Replace a text/picture's resting position by one that follows its keyframes. Returns overlay x and y expressions, or None."""
+    keys = sorted(getattr(obj, "keys", []) or [], key=lambda q: q.t)
+    if len(keys) < 1:
+        return None
+    pts_x = [(obj.start + q.t, q.x, q.ease) for q in keys]
+    pts_y = [(obj.start + q.t, q.y, q.ease) for q in keys]
+    return lerp_expr(pts_x), lerp_expr(pts_y)
 
 
 # ---------------------------------------------------------------- main entry
@@ -462,6 +658,11 @@ def build_plan(project: Project, assets: dict[str, AssetRef], opts: ExportOption
     for ac in project.audio:
         if ac.asset_id not in assets:
             raise PlanError("An audio clip refers to a media file that is no longer in the library.")
+    for ly in project.layers:
+        if ly.asset_id not in assets:
+            raise PlanError("A layer refers to a media file that is no longer in the library.")
+        if assets[ly.asset_id].kind == "audio":
+            raise PlanError("Audio files belong on the audio track, not on a video layer.")
 
     workdir.mkdir(parents=True, exist_ok=True)
     warnings: list[str] = []
@@ -535,9 +736,49 @@ def build_plan(project: Project, assets: dict[str, AssetRef], opts: ExportOption
             v_run = nv
         v_last = v_run
 
-    # ---- drawings (pen, arrows, circles): one canvas-sized transparent PNG each, under the text
+    # ---- layers: videos and pictures that play at the same time as the main video (behind it, or on top)
     cur = v_last
     next_input = n
+    layer_audio: list[str] = []
+    use_alpha = any(c.chroma.enabled for c in project.clips)
+    ordered = sorted(enumerate(project.layers), key=lambda q: (q[1].track, q[0]))
+    behind_layers = [q for q in ordered if q[1].behind]
+    front_layers = [q for q in ordered if not q[1].behind]
+
+    def put_layer(base: str, k: int, ly: Layer) -> str:
+        nonlocal next_input
+        asset = assets[ly.asset_id]
+        idx = next_input
+        next_input += 1
+        ldur = layer_duration(ly, asset)
+        if asset.kind == "image":
+            args.extend(["-loop", "1", "-framerate", str(fps), "-t", _f(ldur), "-i", str(asset.path)])
+        else:
+            args.extend(["-ss", _f(ly.trim_in), "-t", _f(max(0.05, ldur * ly.speed)), "-i", str(asset.path)])
+        stmts, lab, x_expr, y_expr = _layer_graph(ly, asset, idx, k, canvas.width, canvas.height, fps)
+        graph.extend(stmts)
+        nxt = f"vl{k}"
+        graph.append(f"[{base}][{lab}]overlay=x='{x_expr}':y='{y_expr}':enable='between(t,{_f(ly.start)},{_f(ly.start + ldur)})':eof_action=pass:format=auto[{nxt}]")
+        if want_audio:
+            la = _layer_audio(ly, asset, idx, k)
+            if la:
+                graph.append(la)
+                layer_audio.append(f"[lax{k}]")
+        return nxt
+
+    if behind_layers or use_alpha:
+        graph.append(f"color=c={_hex(canvas.background)}:s={canvas.width}x{canvas.height}:r={fps}:d={_f(total)}[bgsheet]")
+        base = "bgsheet"
+        for k, ly in behind_layers:
+            base = put_layer(base, k, ly)
+        graph.append(f"[{base}][{cur}]overlay=format=auto[vmain]")
+        cur = "vmain"
+    for k, ly in front_layers:
+        cur = put_layer(cur, k, ly)
+    if behind_layers and not use_alpha:
+        warnings.append("A layer is set to sit behind the main video, but the main video has no see-through part. Remove a green screen from it (Settings → Remove background) to show the layer.")
+
+    # ---- drawings (pen, arrows, circles): one canvas-sized transparent PNG each, under the text
     for k, d in enumerate(project.drawings):
         if not d.shapes:
             continue
@@ -593,6 +834,7 @@ def build_plan(project: Project, assets: dict[str, AssetRef], opts: ExportOption
         for i, clip in enumerate(project.clips):
             graph.append(_audio_chain(clip, assets[clip.asset_id], i, durations[i], overlap[i], overlap[i + 1], starts[i]))
             voice.append(f"[a{i}]")
+        voice.extend(layer_audio)
         for ac in project.audio:
             asset = assets[ac.asset_id]
             if not asset.has_audio and asset.kind != "audio":

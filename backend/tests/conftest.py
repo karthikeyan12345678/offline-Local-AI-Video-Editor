@@ -45,3 +45,11 @@ def data_dir(tmp_path, monkeypatch) -> Path:
 
 def has_cmd(name: str) -> bool:
     return shutil.which(name) is not None
+
+
+@pytest.fixture(autouse=True)
+def _no_real_fal_calls(monkeypatch):
+    """Tests must never contact fal.ai (a fake key would be refused there)."""
+    from ltxps.editor import motion
+
+    monkeypatch.setattr(motion, "check_key", lambda key, client=None: None)

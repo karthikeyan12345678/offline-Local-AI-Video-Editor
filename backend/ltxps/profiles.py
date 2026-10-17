@@ -47,13 +47,13 @@ PROFILES: dict[str, Profile] = {
     ),
     "lite": Profile(
         id="lite",
-        label="Lite (4 GB GPU)",
+        label="Lite (4-7 GB GPU)",
         description="Fits 4 GB cards: 8-bit weight storage, CPU offload and tiled decoding.",
         max_tokens=2300,
         max_frames=97,
         max_side=704,
-        default_width=512,
-        default_height=320,
+        default_width=640,
+        default_height=384,
         default_frames=49,
         fp8_storage=True,
         memory_mode="model",
@@ -69,7 +69,7 @@ PROFILES: dict[str, Profile] = {
     ),
     "balanced": Profile(
         id="balanced",
-        label="Balanced (6-11 GB GPU)",
+        label="Balanced (8-11 GB GPU)",
         description="Full-precision weights with CPU offload between stages.",
         max_tokens=6500,
         max_frames=161,
@@ -118,7 +118,7 @@ def pick_profile(system: SystemInfo, preference: str = "auto") -> Profile:
     gpu = system.gpu
     if not gpu.available or gpu.arch_supported is False:
         return PROFILES["cpu"]
-    if gpu.vram_mb < 6500:
+    if gpu.vram_mb < 8000:  # 6 GB cards (about 6.1 GB usable) need 8-bit weights: bf16 weights spill into shared RAM and are very slow
         return PROFILES["lite"]
     if gpu.vram_mb < 12000:
         return PROFILES["balanced"]

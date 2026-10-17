@@ -11,12 +11,12 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from .audiofx import AUDIO_FX_IDS
-from .effects import EFFECTS, FILTER_PRESETS, MOTIONS, TRANSITIONS
+from .effects import EFFECTS, FILTER_PRESETS, MASKS, MOTIONS, TRANSITIONS
 
 HEX = r"^#[0-9a-fA-F]{6}$"
 
-TEXT_ANIM_IN = ("none", "fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom", "pop", "reveal")
-TEXT_ANIM_OUT = ("none", "fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom")
+TEXT_ANIM_IN = ("none", "fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom", "pop", "reveal", "bounce", "typewriter", "flicker")
+TEXT_ANIM_OUT = ("none", "fade", "slide_up", "slide_down", "slide_left", "slide_right", "zoom", "drop", "flicker")
 
 
 class Canvas(BaseModel):
@@ -70,6 +70,28 @@ class Follow(BaseModel):
     zoom: float = Field(1, ge=1, le=3)  # 1 = widest window of the project's shape that fits; higher = tighter
 
 
+class Chroma(BaseModel):
+    """Remove a green or blue screen (or any single colour) so what is behind shows through."""
+
+    enabled: bool = False
+    color: str = Field("#00FF00", pattern=HEX)
+    similarity: float = Field(0.3, ge=0.01, le=1)  # how far from the key colour still counts as background
+    blend: float = Field(0.1, ge=0, le=1)  # soft edge
+    spill: bool = True  # remove the green/blue tint left on hair and edges
+
+
+class Key(BaseModel):
+    """One keyframe: where a layer, picture or text is, and how it looks, `t` seconds after it starts. Values between keys are blended smoothly."""
+
+    t: float = Field(0, ge=0, le=36000)
+    x: float = Field(0.5, ge=-1, le=2)
+    y: float = Field(0.5, ge=-1, le=2)
+    size: float = Field(0.5, ge=0.01, le=3)
+    rotation: float = Field(0, ge=-720, le=720)
+    opacity: float = Field(1, ge=0, le=1)
+    ease: Literal["smooth", "linear", "hold"] = "smooth"  # how to travel from this key to the next one
+
+
 class Clip(BaseModel):
     id: str
     asset_id: str
@@ -107,6 +129,7 @@ class Clip(BaseModel):
     treble: float = Field(0, ge=-12, le=12)  # dB
     denoise_audio: bool = False
     normalize_audio: bool = False
+    chroma: Chroma = Field(default_factory=Chroma)
 
     @field_validator("preset")
     @classmethod
@@ -163,6 +186,7 @@ class TextOverlay(BaseModel):
     opacity: float = Field(1, ge=0, le=1)
     anim_in: str = "fade"
     anim_out: str = "fade"
+    keys: list[Key] = Field(default_factory=list, max_length=200)  # moves the text between points (x, y only)
 
     @field_validator("anim_in")
     @classmethod
@@ -244,6 +268,7 @@ class ImageOverlay(BaseModel):
     fade_out: float = Field(0.2, ge=0, le=5)
     anim_in: str = "fade"
     anim_out: str = "fade"
+    keys: list[Key] = Field(default_factory=list, max_length=200)  # moves the picture between points (x, y only)
 
     @field_validator("anim_in")
     @classmethod
@@ -257,6 +282,52 @@ class ImageOverlay(BaseModel):
     def known_out(cls, v: str) -> str:
         if v not in TEXT_ANIM_OUT:
             raise ValueError(f"Unknown animation '{v}'")
+        return v
+
+
+class Layer(BaseModel):
+    """A video or picture playing on top of (or behind) the main video, at the same time. x and y are the CENTRE, 0..1 of the picture."""
+
+    id: str
+    asset_id: str
+    track: int = Field(1, ge=1, le=8)  # 1 = lowest layer; a higher number is drawn on top
+    behind: bool = False  # show it behind the main video (what a removed green screen reveals)
+    start: float = Field(0, ge=0)
+    trim_in: float = Field(0, ge=0)
+    trim_out: float = Field(0, ge=0)  # 0 = until the end of the file
+    image_duration: float = Field(4, gt=0, le=3600)  # for still pictures
+    speed: float = Field(1, ge=0.25, le=4)
+    volume: float = Field(1, ge=0, le=2)
+    muted: bool = False
+    x: float = Field(0.5, ge=-1, le=2)
+    y: float = Field(0.5, ge=-1, le=2)
+    size: float = Field(0.5, ge=0.01, le=3)  # width as a fraction of the video width
+    rotation: float = Field(0, ge=-720, le=720)
+    opacity: float = Field(1, ge=0, le=1)
+    fade_in: float = Field(0, ge=0, le=10)
+    fade_out: float = Field(0, ge=0, le=10)
+    adjust: Adjust = Field(default_factory=Adjust)
+    preset: str = "none"
+    blur: float = Field(0, ge=0, le=30)
+    effects: list[Effect] = Field(default_factory=list, max_length=4)
+    chroma: Chroma = Field(default_factory=Chroma)
+    mask: str = "none"  # cut the layer into a shape (circle, heart, star ...)
+    mask_feather: float = Field(0.1, ge=0, le=1)
+    mask_invert: bool = False
+    keys: list[Key] = Field(default_factory=list, max_length=200)
+
+    @field_validator("preset")
+    @classmethod
+    def known_preset(cls, v: str) -> str:
+        if v not in FILTER_PRESETS:
+            raise ValueError(f"Unknown filter '{v}'")
+        return v
+
+    @field_validator("mask")
+    @classmethod
+    def known_mask(cls, v: str) -> str:
+        if v not in MASKS:
+            raise ValueError(f"Unknown mask '{v}'")
         return v
 
 
@@ -296,6 +367,7 @@ class Project(BaseModel):
     audio: list[AudioClip] = Field(default_factory=list)
     drawings: list[Drawing] = Field(default_factory=list, max_length=200)
     images: list[ImageOverlay] = Field(default_factory=list, max_length=100)
+    layers: list[Layer] = Field(default_factory=list, max_length=60)
     master_volume: float = Field(1, ge=0, le=2)
     duck_music: bool = False  # lower the audio track while the clips are speaking
     duck_amount: float = Field(0.6, ge=0, le=1)

@@ -139,7 +139,7 @@ function pipLine(tracker, report, stage, extra) {
   };
 }
 
-const MANIFEST_URL = process.env.LTXPS_UPDATE_URL || "https://raw.githubusercontent.com/karthikeyan12345678/ai-assistant-studio/main/update-manifest.json";
+const MANIFEST_URL = process.env.LTXPS_UPDATE_URL || "https://raw.githubusercontent.com/karthikeyan12345678/offline-Local-AI-Video-Editor/main/update-manifest.json";
 
 /** Newest tested module versions from the project's update manifest, or null when offline (the bundled list is then used). */
 function fetchManifest(url = MANIFEST_URL, timeoutMs = 6000) {

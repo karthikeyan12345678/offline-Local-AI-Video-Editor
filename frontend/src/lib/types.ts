@@ -11,8 +11,11 @@ export interface Job {
   status: "queued" | "running" | "done" | "error" | "cancelled";
   progress: number; phase: string; // eslint-disable-next-line @typescript-eslint/no-explicit-any
   result: Record<string, any> | null;
-  error: string | null; created: number; elapsed: number; eta: number | null;
+  error: string | null; created: number; elapsed: number; eta: number | null; expected?: number; note?: string;
 }
+
+export interface Estimate { seconds: number; low: number; high: number; device: "gpu" | "cpu"; band: "fast" | "ok" | "slow" | "too_long"; notes: string[]; tips: string[]; limit_seconds: number | null }
+export interface Usage { cpu: number | null; ram_used_gb: number | null; ram_total_gb: number | null; gpu: number | null; vram_used_gb: number | null; vram_total_gb: number | null; gpu_temp_c?: number | null; why_slow?: string | null }
 
 export interface SystemInfo {
   version: string; os: string; cpu_count: number; ram_gb: number;
@@ -23,7 +26,7 @@ export interface SystemInfo {
 
 export interface Settings {
   profile: string; memory_mode: string; hf_endpoint: string; default_model: string;
-  compute_dtype: string; keep_loaded: boolean; output_fps: number;
+  compute_dtype: string; keep_loaded: boolean; output_fps: number; time_limit_min: number; tour_done: boolean; sharpen_output: boolean; auto_enhance: boolean; ai_upscale: boolean;
 }
 
 export interface Limits {
@@ -48,6 +51,9 @@ export interface ToolInfo { id: string; label: string; description: string; acce
 export interface Adjust { brightness: number; contrast: number; saturation: number; gamma: number; hue: number }
 export interface Transition { type: string; duration: number }
 export interface Effect { type: string; amount: number }
+export interface Chroma { enabled: boolean; color: string; similarity: number; blend: number; spill: boolean }
+export type Ease = "smooth" | "linear" | "hold";
+export interface Key { t: number; x: number; y: number; size: number; rotation: number; opacity: number; ease: Ease }
 export interface Follow { keys: [number, number, number][]; zoom: number }
 export interface Clip {
   id: string; asset_id: string; trim_in: number; trim_out: number; image_duration: number; speed: number; reverse: boolean;
@@ -56,13 +62,14 @@ export interface Clip {
   vignette: boolean; denoise: boolean; transition: Transition;
   motion: string; motion_strength: number; effects: Effect[]; follow: Follow | null;
   audio_fx: string; pitch: number; bass: number; treble: number; denoise_audio: boolean; normalize_audio: boolean;
+  chroma: Chroma;
 }
 export interface TextOverlay {
   id: string; text: string; start: number; duration: number; x: number; y: number; size: number; color: string;
   bold: boolean; box: boolean; box_opacity: number; fade_in: number; fade_out: number;
   font: string; italic: boolean; uppercase: boolean; align: "left" | "center" | "right"; letter_spacing: number; line_spacing: number;
   color2: string | null; stroke: number; stroke_color: string; shadow: number; shadow_color: string; glow: number; glow_color: string;
-  box_color: string; rotation: number; opacity: number; anim_in: string; anim_out: string;
+  box_color: string; rotation: number; opacity: number; anim_in: string; anim_out: string; keys: Key[];
 }
 export interface AudioClip {
   id: string; asset_id: string; start: number; trim_in: number; trim_out: number; volume: number; fade_in: number; fade_out: number;
@@ -71,16 +78,21 @@ export interface AudioClip {
 export type ShapeType = "pen" | "highlight" | "line" | "arrow" | "rect" | "ellipse";
 export interface Shape { type: ShapeType; points: [number, number][]; color: string; width: number; opacity: number; filled: boolean; fill_color: string | null; fill_opacity: number }
 export interface Drawing { id: string; start: number; duration: number; shapes: Shape[]; opacity: number; fade_in: number; fade_out: number; anim_in: string; anim_out: string }
-export interface ImageOverlay { id: string; asset_id: string; start: number; duration: number; x: number; y: number; size: number; rotation: number; opacity: number; fade_in: number; fade_out: number; anim_in: string; anim_out: string }
+export interface ImageOverlay { id: string; asset_id: string; start: number; duration: number; x: number; y: number; size: number; rotation: number; opacity: number; fade_in: number; fade_out: number; anim_in: string; anim_out: string; keys: Key[] }
+export interface Layer {
+  id: string; asset_id: string; track: number; behind: boolean; start: number; trim_in: number; trim_out: number; image_duration: number; speed: number; volume: number; muted: boolean;
+  x: number; y: number; size: number; rotation: number; opacity: number; fade_in: number; fade_out: number; adjust: Adjust; preset: string; blur: number; effects: Effect[]; chroma: Chroma; mask: string; mask_feather: number; mask_invert: boolean; keys: Key[];
+}
 export interface Project {
   id: string; name: string; canvas: { width: number; height: number; fps: number; background: string };
-  clips: Clip[]; texts: TextOverlay[]; audio: AudioClip[]; drawings: Drawing[]; images: ImageOverlay[]; master_volume: number;
+  clips: Clip[]; texts: TextOverlay[]; audio: AudioClip[]; drawings: Drawing[]; images: ImageOverlay[]; layers: Layer[]; master_volume: number;
   duck_music: boolean; duck_amount: number; master_normalize: boolean;
 }
 export interface Catalog {
   transitions: { id: string; label: string; group: string }[];
-  looks: { id: string; label: string }[];
-  effects: { id: string; label: string }[];
+  looks: { id: string; label: string; group?: string }[];
+  effects: { id: string; label: string; group?: string }[];
+  masks: { id: string; label: string }[];
   motions: { id: string; label: string }[];
   audio_fx: { id: string; label: string; group: string }[];
   fonts: { id: string; label: string; category: string; scripts: string[]; bold: boolean }[];

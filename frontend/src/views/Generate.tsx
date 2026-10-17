@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, mediaUrl, type SoundOptions } from "../lib/api";
+import { api, mediaUrl, PERSONAS, type Persona, type SoundOptions } from "../lib/api";
 import { fmtDuration } from "../lib/format";
 import { useApp } from "../lib/store";
 import { Button, Field, Slider, Tabs, I } from "../ds";
 import MediaSlot from "./MediaSlot";
 import { saveAs } from "../lib/save";
+import Meters from "./Meters";
+import type { Estimate } from "../lib/types";
 
 type Mode = "t2v" | "i2v" | "extend";
 
@@ -39,9 +41,18 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
   const [ambience, setAmbience] = useState("auto");
   const [ambs, setAmbs] = useState<{ id: string; label: string }[]>([]);
   const [music, setMusic] = useState(false);
+  const [persona, setPersona] = useState<Persona>("auto");
+  const [engine, setEngine] = useState<"ltx" | "omni">("ltx");
   const [level, setLevel] = useState(0.5);
   useEffect(() => { api.voices().then((v) => setVoices(v.voices)).catch(() => {}); api.ambiences().then((a) => setAmbs(a.ambiences)).catch(() => {}); }, []);
 
+  const [resSet, setResSet] = useState(false);
+  useEffect(() => { // start at the size this PC is meant to use, not at the smallest one in the list
+    if (!limits || resSet) return;
+    const p = limits.profile, i = p.resolutions.findIndex((r) => r.width === p.default_width && r.height === p.default_height);
+    if (i >= 0) setResIdx(i);
+    setResSet(true);
+  }, [limits, resSet]);
   const model = useMemo(() => limits?.models.find((m) => m.id === (modelId ?? limits.default_model)), [limits, modelId]);
   if (!limits || !settings || !system) return null;
   const prof = limits.profile;
@@ -66,6 +77,41 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
 
   useEffect(() => { if (!active) return; const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, [active]);
 
+  const [cloudOpen, setCloudOpen] = useState(false);
+  const [cDur, setCDur] = useState<6 | 8 | 10>(6);
+  const [cRes, setCRes] = useState<string>("1080p");
+  const [cAudio, setCAudio] = useState(true);
+  const PRICES: Record<"ltx" | "omni", Record<string, number>> = { ltx: { "1080p": 0.08, "1440p": 0.16, "2160p": 0.32 }, omni: { "720p": 0.10, "1080p": 0.15, "4k": 0.30 } };
+  const resOk = cRes in PRICES[engine] ? cRes : "1080p";
+  const cloudCost = cDur * PRICES[engine][resOk];
+  const makeCloud = async () => {
+    if (!prompt.trim()) { toast("Describe what should happen.", true); return; }
+    if (mode === "extend") { toast("Cloud video starts from text or a start picture. Switch to Text or Picture.", true); return; }
+    if (mode === "i2v" && !imageId) { toast("Pick a starting picture first.", true); return; }
+    setSubmitting(true); setResultId(null); setStartedAt(Date.now()); setNow(Date.now());
+    try {
+      const j = await api.cloudVideo({ prompt: prompt.trim(), start_asset_id: mode === "i2v" ? imageId ?? undefined : undefined, end_asset_id: mode === "i2v" ? endId ?? undefined : undefined,
+        duration: cDur, resolution: resOk, aspect_ratio: aspect === "9:16" ? "9:16" : "16:9", audio: cAudio, engine, narration: narration.trim() || undefined, persona });
+      setJobId(j.id);
+      watchJob(j, (done) => { if (done.status === "done" && done.result?.asset_id) setResultId(done.result.asset_id as string); });
+    } catch (e) { toast((e as Error).message, true); } finally { setSubmitting(false); }
+  };
+  const [improving, setImproving] = useState(false);
+  const improve = async () => {
+    if (!prompt.trim()) return;
+    setImproving(true);
+    try { const r = await api.enhancePrompt(prompt.trim(), "video"); setPrompt(r.prompt); toast(r.how === "ai" ? "Your AI rewrote the prompt with more detail." : "Added cinematic detail. Connect an AI in the chat editor for smarter rewrites."); }
+    catch (e) { toast((e as Error).message, true); } finally { setImproving(false); }
+  };
+  const [est, setEst] = useState<Estimate | null>(null);
+  useEffect(() => {
+    if (!model) return;
+    const t = setTimeout(() => { api.estimate({ width, height, frames: nFrames, model_id: model.id, steps: model.distilled ? undefined : (steps ?? model.default_steps), end_image: mode !== "t2v" && !!endId }).then(setEst).catch(() => setEst(null)); }, 250);
+    return () => clearTimeout(t);
+  }, [width, height, nFrames, model, steps, mode, endId]);
+  const fmtEta = (sec: number) => (sec < 90 ? `${Math.round(sec)} seconds` : sec < 5400 ? `${Math.round(sec / 60)} minutes` : `${(sec / 3600).toFixed(1)} hours`);
+  const tooLong = !!est && !unlock && est.limit_seconds != null && est.seconds > est.limit_seconds;
+
   const toggleMini = () => { const v = !mini; setMini(v); try { localStorage.setItem("vk_gen_mini", v ? "1" : "0"); } catch { /* ignore */ } };
   const missing = mode === "i2v" && !imageId ? "Pick a starting picture below." : mode === "extend" && !sourceId ? "Pick the clip to continue below." : !prompt.trim() ? "Describe what should happen." : null;
 
@@ -74,7 +120,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
     setSubmitting(true); setResultId(null); setStartedAt(Date.now()); setNow(Date.now());
     const body = {
       prompt: prompt.trim(), negative_prompt: negative.trim(), width, height, frames: nFrames, seed: seed.trim() === "" ? -1 : Number(seed),
-      sound: soundOn ? ({ narration: narration.trim(), voice, rate: 0, ambience, music, level } as SoundOptions) : undefined,
+      sound: soundOn ? ({ narration: narration.trim(), voice, rate: 0, ambience, music, level, persona } as SoundOptions) : undefined,
       model_id: model.id, steps: model.distilled ? undefined : (steps ?? model.default_steps), guidance: model.distilled ? undefined : (guidance ?? model.default_guidance), unlock_limits: unlock,
     };
     try {
@@ -87,6 +133,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
   };
 
   const elapsed = startedAt ? Math.max(job?.elapsed ?? 0, (now - startedAt) / 1000) : 0;
+  const overTime = !!job && job.status === "running" && !!job.expected && elapsed > Math.max(job.expected * 2, 600);
   const phase = (job?.phase || "").toLowerCase();
   const last = soundOn ? 4 : 3;
   const stage = !job || job.status === "queued" ? 0 : /librar|sav|writ/.test(phase) && job.progress >= 0.98 ? last : soundOn && /sound|voice|record|background/.test(phase) ? 3 : job.progress >= 0.95 && !soundOn ? last : /load|prepar|download/.test(phase) || job.progress === 0 ? 1 : 2;
@@ -119,7 +166,9 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
             <div className="run-timer"><span className="mono run-clock">{fmtDuration(elapsed)}</span><span className="text-sm">elapsed{job.eta != null ? ` · about ${fmtDuration(job.eta)} left` : " · estimating time…"}</span></div>
             <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(job.progress * 100)} aria-label="Video progress"><i className={job.progress === 0 ? "indet" : ""} style={{ width: `${Math.max(job.progress * 100, job.progress === 0 ? 30 : 2)}%` }} /></div>
             <ol className="flow" aria-label="Steps">{STAGES.map((n, i) => <li key={n} className={i < stage ? "done" : i === stage ? "now" : ""}><b>{i < stage ? "✓" : i + 1}</b><span>{n}</span></li>)}</ol>
-            <p className="text-xs run-sub">{job.phase || "Working…"} · {Math.round(job.progress * 100)}%{!system.gpu.available ? " · On the processor this is slow; the first run also loads the model." : ""}</p>
+            <p className="text-xs run-sub">{job.phase || "Working…"} · {Math.round(job.progress * 100)}%{!system.gpu.available ? " · On the processor this is slow; the first run also loads the model." : ""}{job.expected ? ` · expected about ${fmtEta(job.expected)}` : ""}</p>
+            {overTime && <div className="over" role="alert"><b>This is taking much longer than expected.</b><span className="text-sm">Normal for this size: about {fmtEta(job.expected ?? 0)}. It will stop by itself after {settings.time_limit_min || "no"} minutes. Watch the numbers below: they show what is slowing it down.</span></div>}
+            <Meters jobId={job.id} />
           </div>
         ) : result ? (
           <div className="stack gap">
@@ -137,6 +186,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
           <div className={`empty gen-empty${mini ? " gen-empty--mini" : ""}`}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d={I.film} /></svg><h3>What will you create?</h3><p className="text-sm">Describe a scene below. Finished videos are saved in your Library.</p></div>
         )}
         {job?.status === "error" && <p className="error-text" role="alert">{job.error}</p>}
+        {job?.status === "cancelled" && job.note && <p className="error-text" role="alert">{job.note}</p>}
       </section>
 
       <section className="composer" aria-label="Video settings">
@@ -161,14 +211,43 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
           <button type="button" className={`gchip${soundOn ? " gchip--on" : ""}`} aria-pressed={soundOn} onClick={() => setSoundOn(!soundOn)} title="Add a voice and background sound to the new video"><span>{soundOn ? "Sound on" : "Sound off"}</span><small>Voice · ambience</small></button>
           {soundOn && <button type="button" className="gchip" aria-expanded={soundOpen} onClick={() => setSoundOpen(!soundOpen)}><span>Voice &amp; sound</span><small>{soundOpen ? "Hide ▴" : "Edit ▾"}</small></button>}
           <button type="button" className="gchip" aria-expanded={showAdvanced} onClick={() => setShowAdvanced(!showAdvanced)}><span>{width}×{height} · {(nFrames / fps).toFixed(1)} s</span><small>Options ▾</small></button>
+          <button type="button" className="gchip" onClick={() => void improve()} disabled={improving || !prompt.trim()} title="Rewrite your idea as a detailed prompt: subject, camera, light, mood"><span>{improving ? "Improving…" : "Improve prompt"}</span><small>More detail</small></button>
+          <button type="button" className={`gchip${cloudOpen ? " gchip--on" : ""}`} aria-expanded={cloudOpen} onClick={() => setCloudOpen(!cloudOpen)} title="Sharp 1080p+ video with sound, made online (your fal.ai key)"><span>Sharp online video</span><small>1080p+ · with sound</small></button>
           <span className="grow" />
-          <Button icon={I.sparkle} busy={submitting} disabled={!!missing || active || !modelsReady} onClick={submit}>{active ? "Generating…" : "Generate"}</Button>
+          <Button icon={I.sparkle} busy={submitting} disabled={!!missing || active || !modelsReady || tooLong} onClick={submit}>{active ? "Generating…" : "Generate"}</Button>
         </div>
+        {est && !active && (
+          <div className={`eta eta--${est.band}`} role="status">
+            <b>{est.device === "gpu" ? "On your graphics card" : "On the CPU"}: about {fmtEta(est.seconds)}</b>
+            <span className="text-xs run-sub">(usually {fmtEta(est.low)} to {fmtEta(est.high)}{est.device === "gpu" && system.gpu.name ? ` on ${system.gpu.name}` : ""})</span>
+            {(est.band === "too_long" || est.band === "slow" || est.notes.length > 0) && (
+              <ul className="text-xs">{[...est.notes, ...est.tips].map((n) => <li key={n}>{n}</li>)}</ul>
+            )}
+          </div>
+        )}
+        {tooLong && <p className="why-block text-sm" role="alert">This would take longer than your {settings.time_limit_min}-minute limit, so Generate is switched off. Pick a smaller size or shorter length, or tick “Allow sizes and lengths beyond what this PC can handle”.</p>}
         {(blocked || missing) && (
           <div className="why row gap wrap" role="status">
             <span className={blocked ? "why-block" : ""}>{blocked ?? missing}</span>
             {blocked && <Button variant="secondary" small onClick={goSettings}>{downloading ? "See downloads" : "Download models"}</Button>}
             {blocked && downloading && <div className="bar bar--thin" aria-hidden="true"><i style={{ width: `${dlPct}%` }} /></div>}
+          </div>
+        )}
+        {cloudOpen && (
+          <div className="pop stack gap" aria-label="Sharp online video">
+            <div className="row gap wrap center-v"><b className="text-sm">Sharp online video</b><span className="text-xs run-sub">Very large models that a laptop card cannot run. They make crisp video with sound in a minute or two. Uses your fal.ai key (Motion control → Connect). This clip costs about ${cloudCost.toFixed(2)}.</span></div>
+            <div className="seg" style={{ alignSelf: "flex-start" }} role="radiogroup" aria-label="Online engine">
+              <button type="button" role="radio" aria-checked={engine === "ltx"} className={engine === "ltx" ? "on" : ""} onClick={() => setEngine("ltx")} title="LTX-2.3 by Lightricks: 22 billion parameters, 1080p to 4K, with sound">LTX-2.3</button>
+              <button type="button" role="radio" aria-checked={engine === "omni"} className={engine === "omni" ? "on" : ""} onClick={() => setEngine("omni")} title="Gemini Omni Flash 1.1 by Google: strong camera moves, physics and native sound">Gemini Omni Flash 1.1</button>
+            </div>
+            <div className="grid-2">
+              <Field label="Length" htmlFor="cdur"><select id="cdur" className="select" value={cDur} onChange={(e) => setCDur(Number(e.target.value) as 6 | 8 | 10)}><option value={6}>6 seconds</option><option value={8}>8 seconds</option><option value={10}>10 seconds</option></select></Field>
+              <Field label="Sharpness" htmlFor="cres"><select id="cres" className="select" value={resOk} onChange={(e) => setCRes(e.target.value)}>{Object.entries(PRICES[engine]).map(([r, p]) => <option key={r} value={r}>{r === "4k" || r === "2160p" ? "4K" : r} (${p.toFixed(2)} per second)</option>)}</select></Field>
+            </div>
+            {engine === "ltx" && <label className="check"><input type="checkbox" checked={cAudio} onChange={(e) => setCAudio(e.target.checked)} />Let the model make sound too</label>}
+            <p className="hint">A voice-over typed under “Voice &amp; sound” is recorded on this PC in a voice that fits the person (woman, man, old, child) and added to the finished video.</p>
+            {(aspect === "1:1" || aspect === "4:5") && <p className="hint">Online video supports 16:9 and 9:16 only; 16:9 will be used.</p>}
+            <div className="row"><Button icon={I.sparkle} busy={submitting} disabled={active || !prompt.trim()} onClick={makeCloud}>Make it online</Button></div>
           </div>
         )}
         {soundOn && soundOpen && !mini && (
@@ -179,6 +258,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
             </Field>
             <div className="grid-2">
               <Field label="Voice" htmlFor="voice"><select id="voice" className="select" value={voice} onChange={(e) => setVoice(e.target.value)} disabled={!narration.trim() || voices.length === 0}><option value="">{voices.length ? "Default voice" : "No voice found on this PC"}</option>{voices.map((v) => <option key={v} value={v}>{v}</option>)}</select></Field>
+              <Field label="Who is speaking" htmlFor="persona"><select id="persona" className="select" value={persona} onChange={(e) => setPersona(e.target.value as Persona)}>{PERSONAS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select></Field>
               <Field label="Background sound" htmlFor="amb"><select id="amb" className="select" value={ambience} onChange={(e) => setAmbience(e.target.value)}><option value="auto">Automatic (matches your prompt)</option>{ambs.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select></Field>
             </div>
             <div className="row gap wrap center-v">
@@ -215,6 +295,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
           </div>
         )}
       </section>
+      {!active && !mini && <Meters compact />}
     </main>
   );
 }

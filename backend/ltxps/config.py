@@ -86,6 +86,13 @@ class Settings:
     # Keep the DiT in memory between jobs (faster, uses RAM)
     keep_loaded: bool = False
     output_fps: int = 24
+    # A video that runs longer than this many minutes is stopped with an explanation (0 = never stop)
+    time_limit_min: int = 30
+    # The first-run tour has been shown or skipped
+    tour_done: bool = False
+    auto_enhance: bool = True  # write a detailed prompt from a short idea before every video
+    ai_upscale: bool = True  # Real-ESRGAN adds real fine detail (downloads about 45 MB once); falls back to plain sharpening
+    sharpen_output: bool = True  # clean, enlarge and sharpen finished videos (they look soft at small sizes)
 
 
 class SettingsStore:

@@ -16,7 +16,7 @@ const inCat = (a: Asset, c: Cat) => c === "all" || (c === "video" && a.kind === 
 /** Flow-style media picker: categories on the left, search and sort on top, a big preview on the right.
  *  mode "timeline" adds the chosen file to the video; mode "reference" only lets you pick pictures for the AI chat. */
 export default function MediaPicker({ assets, mode, projectName, onPick, onUpload, onClose }: {
-  assets: Asset[]; mode: "timeline" | "reference"; projectName: string; onPick: (a: Asset) => void; onUpload: (f: FileList) => void; onClose: () => void;
+  assets: Asset[]; mode: "timeline" | "reference" | "layer"; projectName: string; onPick: (a: Asset) => void; onUpload: (f: FileList) => void; onClose: () => void;
 }) {
   const [cat, setCat] = useState<Cat>(mode === "reference" ? "image" : "all");
   const [q, setQ] = useState("");
@@ -36,7 +36,7 @@ export default function MediaPicker({ assets, mode, projectName, onPick, onUploa
     const list = assets.filter((a) => inCat(a, cat) && (!q.trim() || a.name.toLowerCase().includes(q.trim().toLowerCase())));
     return [...list].sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "long" ? b.duration - a.duration : b.created - a.created);
   }, [assets, cat, q, sort]);
-  const ok = (a: Asset) => mode === "timeline" || a.kind === "image";
+  const ok = (a: Asset) => mode === "timeline" || (mode === "layer" ? a.kind !== "audio" : a.kind === "image");
 
   return (
     <div className="mp" ref={box} role="dialog" aria-label="Choose media">
@@ -71,9 +71,9 @@ export default function MediaPicker({ assets, mode, projectName, onPick, onUploa
               </div>
               <b className="truncate">{cur.name}</b>
               <span className="text-xs">{cur.kind}{cur.width ? ` · ${cur.width}×${cur.height}` : ""}{cur.duration ? ` · ${fmtDuration(cur.duration)}` : ""}{cur.has_audio && cur.kind === "video" ? " · has sound" : ""}</span>
-              <Button icon={I.plus} disabled={!ok(cur)} onClick={() => onPick(cur)}>{mode === "timeline" ? "Add to timeline" : "Use as reference"}</Button>
+              <Button icon={I.plus} disabled={!ok(cur)} onClick={() => onPick(cur)}>{mode === "timeline" ? "Add to timeline" : mode === "layer" ? "Add as layer" : "Use as reference"}</Button>
             </>
-          ) : <p className="text-sm mp-hint">{mode === "timeline" ? "Pick a video, picture or sound to preview it. Double-click to add it to the timeline." : "Pick a picture for the AI to look at. Double-click to attach it."}</p>}
+          ) : <p className="text-sm mp-hint">{mode === "timeline" ? "Pick a video, picture or sound to preview it. Double-click to add it to the timeline." : mode === "layer" ? "Pick a video or picture to play on top of your video at the same time. Double-click to add it." : "Pick a picture for the AI to look at. Double-click to attach it."}</p>}
         </aside>
       </div>
     </div>

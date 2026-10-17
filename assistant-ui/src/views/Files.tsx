@@ -1,3 +1,4 @@
+import { IS_WEB } from "../lib/env";
 import { useCallback, useEffect, useState } from "react";
 import { api, fileUrl } from "../lib/api";
 import type { FileRef } from "../lib/types";
@@ -11,7 +12,7 @@ export default function Files() {
   useEffect(load, [load]);
   return (
     <div className="page">
-      <header><h1>Files</h1><p className="muted">Everything the assistant made, and files you uploaded. They are stored on this PC only.</p></header>
+      <header><h1>Files</h1><p className="muted">Everything the assistant made, and files you uploaded. They are stored on {IS_WEB ? "this browser" : "this PC"} only.</p></header>
       <div className="chips" role="tablist" aria-label="File lists">
         <button className="chip" role="tab" aria-selected={tab === "generated"} onClick={() => setTab("generated")}>Created</button>
         <button className="chip" role="tab" aria-selected={tab === "upload"} onClick={() => setTab("upload")}>Uploaded</button></div>

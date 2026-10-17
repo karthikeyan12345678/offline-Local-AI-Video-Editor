@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, mediaUrl, type AssistantInfo, type ChatMsg, type ChatStatus, type ChatTask } from "../lib/api";
+import { IS_WEB, api, mediaUrl, type AssistantInfo, type ChatMsg, type ChatStatus, type ChatTask } from "../lib/api";
 import { useApp } from "../lib/store";
 import { Button, Icon, I } from "../ds";
 import { uid } from "../lib/format";
 import { layout, newText, upgradeProject } from "./model";
 import { useAI } from "./useAI";
 import MediaPicker from "./MediaPicker";
+import AdvisorDialog from "./AdvisorDialog";
 import type { Asset, Project, TextOverlay } from "../lib/types";
 
 interface Bubble { id: string; role: "user" | "assistant"; text: string; images?: string[]; notes?: string[]; error?: boolean; result?: "changed" | "same" | "later"; focus?: number | null; undone?: boolean }
@@ -21,19 +22,21 @@ function Working({ label, pics }: { label: string; pics: boolean }) {
   );
 }
 
-const IDEAS = ["Draw a circle on something, then: “remove this”", "Put a cap on the person’s head", "Make it vertical for a phone", "Add a fade between all clips", "Make it look cinematic", "Add the title “My Trip” at the start", "Slow everything down a little"];
+const IDEAS = ["Draw a circle on something, then: “remove this”", "Put a cap on the person’s head", "Make it vertical for a phone", "Add a fade between all clips", "Make it look cinematic", "Add the title “My Trip” at the start", "Slow everything down a little", "Remove the green screen from the top layer", "Put the logo in the top-right corner", "Make the title fly from left to right", "Add a second video layer behind the main one", "Add a whoosh at 2 seconds", "Put the second layer in a heart shape", "Add a light leak and the Blockbuster look", "Add soft rain in the background"];
 
 /** The "Setup" mini form: pick an AI provider, paste a key if it needs one. */
 function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => void }) {
   const [info, setInfo] = useState<AssistantInfo | null>(null);
-  const [providerState, setProvider] = useState("ollama");
+  const [providerState, setProvider] = useState(IS_WEB ? "groq" : "ollama");
   const [model, setModel] = useState("");
   const [key, setKey] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [adv, setAdv] = useState(() => { if (IS_WEB) return false; try { return sessionStorage.getItem("vk_adv_seen") !== "1"; } catch { return true; } });
+  useEffect(() => { if (adv) { try { sessionStorage.setItem("vk_adv_seen", "1"); } catch { /* ignore */ } } }, [adv]);
   useEffect(() => {
     api.llmInfo().then(setInfo).catch(() => {});
-    api.llmSettings().then((s) => { setProvider(s.provider || "ollama"); setModel(s.providers?.[s.provider]?.model ?? ""); }).catch(() => {});
+    api.llmSettings().then((s) => { setProvider(s.provider || (IS_WEB ? "groq" : "ollama")); setModel(s.providers?.[s.provider]?.model ?? ""); }).catch(() => {});
   }, []);
   const preset = info?.providers[providerState];
   const provider = providerState;
@@ -56,7 +59,9 @@ function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => 
   };
   return (
     <div className="chat-setup stack gap">
+      {adv && <AdvisorDialog load={api.advice} onClose={() => setAdv(false)} onPick={(id, m) => { setAdv(false); setProvider(id); setModel(m); setKey(""); setMsg(""); if (id === "pollinations") setTimeout(() => void save("pollinations"), 0); }} />}
       <b>Connect an AI helper</b>
+      {!IS_WEB && <Button variant="secondary" onClick={() => setAdv(true)}>Which AI is best for my PC?</Button>}
       <Button variant="secondary" onClick={() => { setProvider("pollinations"); setModel(""); setKey(""); setTimeout(() => void save("pollinations"), 0); }}>Use the free online AI (easiest)</Button>
       <p className="text-sm">{status?.why === "key" ? "This AI needs a key (a password for the service)." : "The chat needs an AI brain. Pick one — free choices are marked."}</p>
       <label className="field"><span>Which AI?</span>
@@ -92,7 +97,8 @@ export default function ChatPanel({ project, commit, asset, onOpenAsset, onUndo,
   const projectRef = useRef(project);
   projectRef.current = project;
 
-  const check = useCallback(() => api.chatStatus().then((s) => { setStatus(s); setSetup(!s.ready); }).catch(() => setStatus({ ready: false, why: "offline" })), []);
+  const check = useCallback(() => api.chatStatus().then((s) => { setStatus(s); setSetup(IS_WEB ? false : !s.ready); }).catch(() => setStatus({ ready: false, why: "offline" })), []);
+  useEffect(() => { const on = () => { void check(); }; window.addEventListener("vk-llm", on); return () => window.removeEventListener("vk-llm", on); }, [check]);
   useEffect(() => { check(); }, [check]);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [bubbles, busy]);
 
@@ -113,10 +119,11 @@ export default function ChatPanel({ project, commit, asset, onOpenAsset, onUndo,
     const cur = projectRef.current;
     const clips = cur.clips.filter((c) => !t.clips || t.clips.includes(c.id));
     if (t.name === "generate_video") {
-      const long = 512, w = project.canvas.width >= project.canvas.height;
+      const lim = await api.limits().catch(() => null);
+      const long = Math.min(lim?.profile.max_side ?? 512, 640), w = project.canvas.width >= project.canvas.height;
       const ratio = project.canvas.width / project.canvas.height;
       const short = Math.max(256, Math.round((long / Math.max(ratio, 1 / ratio)) / 32) * 32);
-      const body = { mode: t.use_reference && refId ? "i2v" as const : "t2v" as const, prompt: t.prompt ?? "", negative_prompt: "", width: w ? long : short, height: w ? short : long, frames: 49, seed: -1, unlock_limits: false, ...(t.narration || (t.ambience && t.ambience !== "none") || t.music ? { sound: { narration: t.narration ?? "", voice: "", rate: 0, ambience: t.ambience ?? "auto", music: !!t.music, level: 0.5 } } : {}), ...(t.use_reference && refId ? { image_asset_id: refId } : {}) };
+      const body = { mode: t.use_reference && refId ? "i2v" as const : "t2v" as const, prompt: t.prompt ?? "", negative_prompt: "", width: w ? long : short, height: w ? short : long, frames: 49, seed: -1, unlock_limits: false, ...(t.narration || (t.ambience && t.ambience !== "none") || t.music ? { sound: { narration: t.narration ?? "", voice: "", rate: 0, ambience: t.ambience ?? "auto", music: !!t.music, level: 0.5, persona: t.persona ?? "auto" } } : {}), ...(t.use_reference && refId ? { image_asset_id: refId } : {}) };
       const job = await api.generate(body);
       const r = await ai.wait(job);
       await refreshAssets();
@@ -160,7 +167,7 @@ export default function ChatPanel({ project, commit, asset, onOpenAsset, onUndo,
       for (const clip of clips) {
         const a = asset(clip.asset_id);
         if (!a || a.kind !== "video") continue;
-        const r = await ai.wait(await api.soundtrack({ asset_id: a.id, prompt: a.name, narration: t.narration ?? "", ambience: t.ambience ?? "auto", music: !!t.music, level: 0.5 }));
+        const r = await ai.wait(await api.soundtrack({ asset_id: a.id, prompt: a.name, narration: t.narration ?? "", ambience: t.ambience ?? "auto", music: !!t.music, level: 0.5, persona: t.persona }));
         await refreshAssets();
         const made = r.asset_id as string | undefined;
         if (made) { commit((p) => ({ ...p, clips: p.clips.map((c) => c.id === clip.id ? { ...c, asset_id: made } : c) })); n++; }
@@ -169,7 +176,7 @@ export default function ChatPanel({ project, commit, asset, onOpenAsset, onUndo,
       return n ? `Done. Sound and voice were added to ${n} clip${n > 1 ? "s" : ""}. Use Undo if you do not like it.` : "I could only add sound to video clips.";
     }
     if (t.name === "voiceover") { const voice = (await api.voices().catch(() => ({ voices: [] as string[] }))).voices[0] ?? "";
-      const r = await ai.speak(t.text ?? "", voice, 1); await refreshAssets(); return r.asset_id ? "The voice-over is in your Library — drag it to the sound track." : "Voice-over created."; }
+      const r = await ai.speak(t.text ?? "", voice, 1, t.persona); await refreshAssets(); return r.asset_id ? "The voice-over is in your Library — drag it to the sound track." : "Voice-over created."; }
     if (t.name === "beat_cut") return "Cutting to the beat needs a music track: add music, select it and use “Cut to the beat” in the Sound tab.";
     let done = 0; const notes: string[] = [];
     for (const clip of clips) {
@@ -217,6 +224,7 @@ export default function ChatPanel({ project, commit, asset, onOpenAsset, onUndo,
     setText(""); setPics([]); setBusy("Thinking…"); setWaiting({ label: "", pics: sentPics.length > 0 });
     try {
       const r = await api.chat(history, projectRef.current);
+      if (r.new_assets?.length) await refreshAssets();
       setWaiting({ label: "Putting the edits on your video…", pics: false });
       if (r.changed) commit(() => upgradeProject({ ...r.project, id: projectRef.current.id, name: projectRef.current.name }));
       const skipped = r.skipped.map((s) => "Not done — " + s);
@@ -232,7 +240,7 @@ export default function ChatPanel({ project, commit, asset, onOpenAsset, onUndo,
     } catch (e) {
       const msg = e instanceof Error ? e.message : "That did not work.";
       add({ role: "assistant", text: msg, error: true });
-      if (/model|ollama|key|server|connect|not running/i.test(msg)) setSetup(true);
+      if (/model|ollama|key|server|connect|not running|choose an ai/i.test(msg)) setSetup(true);
       check();
     } finally { setBusy(""); setWaiting(null); }
   };
@@ -288,7 +296,7 @@ export default function ChatPanel({ project, commit, asset, onOpenAsset, onUndo,
             {pics.map((p) => <span key={p.id} className="chat-pic"><img alt={p.name} src={mediaUrl(p.id, "thumb")} /><button type="button" aria-label={`Remove ${p.name}`} onClick={() => setPics((x) => x.filter((y) => y.id !== p.id))}>×</button></span>)}
           </div>
         )}
-        <textarea className="fx-text" rows={2} aria-label="Message" placeholder="Describe how to edit this video…" value={text} maxLength={4000}
+        <textarea className="fx-text" rows={IS_WEB ? 1 : 2} aria-label="Message" placeholder="Describe how to edit this video…" value={text} maxLength={4000}
           onFocus={() => setLogOpen(true)} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
         <div className="fx-row">
           <button type="button" className="fx-round" aria-label="Add reference pictures" title="Add reference pictures" disabled={pics.length >= 4} onClick={() => setPicker((v) => !v)}>+</button>

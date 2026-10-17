@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { Button, Field, Slider, Tabs, I } from "../ds";
-import { api } from "../lib/api";
+import { IS_WEB, api } from "../lib/api";
 import { uid } from "../lib/format";
 import type { Asset, AudioClip, Clip, Drawing, Effect, ImageOverlay, Project, TextOverlay } from "../lib/types";
 import { animLabel, groupBy, useCatalog } from "./catalog";
 import FontPicker from "./FontPicker";
-import { CANVAS_PRESETS, TEXT_STYLES, layout, newAudio, newText, sourceEnd } from "./model";
+import { CANVAS_PRESETS, TEXT_STYLES, itemPose, itemRest, layout, newAudio, newText, sourceEnd } from "./model";
 import { useAI } from "./useAI";
+import { ChromaControls, KeyframeControls, LayerPanel } from "./LayerPanel";
 
-export type Selection = { type: "clip" | "text" | "audio" | "draw" | "image"; id: string } | null;
+export type Selection = { type: "clip" | "text" | "audio" | "draw" | "image" | "layer"; id: string } | null;
 type Commit = (fn: (p: Project) => Project, key?: string) => void;
 
 function GroupSelect({ id, label, value, items, onChange }: { id: string; label: string; value: string; items: { id: string; label: string; group?: string }[]; onChange: (v: string) => void }) {
@@ -24,12 +25,13 @@ function GroupSelect({ id, label, value, items, onChange }: { id: string; label:
 const pct = (v: number) => `${Math.round(v)}`;
 const sec = (v: number) => `${v.toFixed(2)} s`;
 
-export default function Inspector({ project, sel, asset, commit, onDelete, time }: { project: Project; sel: Selection; asset: (id: string) => Asset | undefined; commit: Commit; onDelete: () => void; time: number }) {
-  if (sel?.type === "clip") { const c = project.clips.find((x) => x.id === sel.id); if (c) return <ClipPanel key={c.id} clip={c} index={project.clips.findIndex((x) => x.id === c.id)} count={project.clips.length} a={asset(c.asset_id)} project={project} asset={asset} commit={commit} onDelete={onDelete} />; }
-  if (sel?.type === "text") { const t = project.texts.find((x) => x.id === sel.id); if (t) return <TextPanel key={t.id} t={t} commit={commit} onDelete={onDelete} />; }
+export default function Inspector({ project, sel, asset, commit, onDelete, time, onSeek = () => {}, onAddBackground = () => {} }: { project: Project; sel: Selection; asset: (id: string) => Asset | undefined; commit: Commit; onDelete: () => void; time: number; onSeek?: (t: number) => void; onAddBackground?: () => void }) {
+  if (sel?.type === "clip") { const c = project.clips.find((x) => x.id === sel.id); if (c) return <ClipPanel key={c.id} clip={c} index={project.clips.findIndex((x) => x.id === c.id)} count={project.clips.length} a={asset(c.asset_id)} project={project} asset={asset} commit={commit} onDelete={onDelete} onAddBackground={onAddBackground} />; }
+  if (sel?.type === "layer") { const i = project.layers.findIndex((x) => x.id === sel.id); const l = project.layers[i]; if (l) return <LayerPanel key={l.id} layer={l} index={i} a={asset(l.asset_id)} time={time} commit={commit} onDelete={onDelete} onSeek={onSeek} onAddBackground={onAddBackground} />; }
+  if (sel?.type === "text") { const t = project.texts.find((x) => x.id === sel.id); if (t) return <TextPanel key={t.id} t={t} commit={commit} onDelete={onDelete} time={time} onSeek={onSeek} />; }
   if (sel?.type === "audio") { const t = project.audio.find((x) => x.id === sel.id); if (t) return <AudioPanel key={t.id} ac={t} a={asset(t.asset_id)} commit={commit} onDelete={onDelete} />; }
   if (sel?.type === "draw") { const d = project.drawings.find((x) => x.id === sel.id); if (d) return <DrawPanel key={d.id} d={d} commit={commit} onDelete={onDelete} />; }
-  if (sel?.type === "image") { const im = (project.images ?? []).find((x) => x.id === sel.id); if (im) return <ImagePanel key={im.id} im={im} a={asset(im.asset_id)} commit={commit} onDelete={onDelete} />; }
+  if (sel?.type === "image") { const im = (project.images ?? []).find((x) => x.id === sel.id); if (im) return <ImagePanel key={im.id} im={im} a={asset(im.asset_id)} commit={commit} onDelete={onDelete} time={time} onSeek={onSeek} />; }
   return <ProjectPanel project={project} asset={asset} commit={commit} time={time} />;
 }
 
@@ -55,7 +57,7 @@ function ProjectPanel({ project, asset, commit, time }: { project: Project; asse
       <label className="check"><input type="checkbox" checked={project.master_normalize} onChange={(e) => commit((p) => ({ ...p, master_normalize: e.target.checked }))} />Even out the loudness of the whole video</label>
       <label className="check"><input type="checkbox" checked={project.duck_music} onChange={(e) => commit((p) => ({ ...p, duck_music: e.target.checked }))} />Lower the music while someone speaks</label>
       {project.duck_music && <Slider label="How much to lower" value={project.duck_amount} min={0} max={1} step={0.05} onChange={(v) => commit((p) => ({ ...p, duck_amount: v }), "da")} format={(v) => `${Math.round(v * 100)}%`} />}
-      <ProjectAI project={project} asset={asset} commit={commit} time={time} />
+      {!IS_WEB && <ProjectAI project={project} asset={asset} commit={commit} time={time} />}
       <p className="hint">Select a clip, text or audio block on the timeline to edit it.</p>
     </div>
   );
@@ -138,8 +140,8 @@ function ProjectAI({ project, asset, commit, time }: { project: Project; asset: 
   );
 }
 
-function ClipPanel({ clip, index, count, a, project, asset, commit, onDelete }: { clip: Clip; index: number; count: number; a: Asset | undefined; project: Project; asset: (id: string) => Asset | undefined; commit: Commit; onDelete: () => void }) {
-  const [tab, setTab] = useState<"clip" | "picture" | "color" | "fx" | "sound" | "ai">("clip");
+function ClipPanel({ clip, index, count, a, project, asset, commit, onDelete, onAddBackground }: { clip: Clip; index: number; count: number; a: Asset | undefined; project: Project; asset: (id: string) => Asset | undefined; commit: Commit; onDelete: () => void; onAddBackground: () => void }) {
+  const [tab, setTab] = useState<"clip" | "picture" | "screen" | "color" | "fx" | "sound" | "ai">("clip");
   const cat = useCatalog();
   const set = (patch: Partial<Clip>, key?: string) => commit((p) => ({ ...p, clips: p.clips.map((c) => (c.id === clip.id ? { ...c, ...patch } : c)) }), key ? `${clip.id}:${key}` : undefined);
   const adj = (patch: Partial<Clip["adjust"]>, key: string) => set({ adjust: { ...clip.adjust, ...patch } }, key);
@@ -149,7 +151,7 @@ function ClipPanel({ clip, index, count, a, project, asset, commit, onDelete }: 
   return (
     <div className="stack gap">
       <div className="row between gap"><h3 className="truncate">{a?.name ?? "Clip"}</h3><Button variant="ghost" small icon={I.trash} label="Delete clip" onClick={onDelete} /></div>
-      <Tabs label="Clip settings" value={tab} onChange={setTab} options={[{ id: "clip", label: "Clip" }, { id: "picture", label: "Picture" }, { id: "color", label: "Colour" }, { id: "fx", label: "Effects" }, { id: "sound", label: "Sound", disabled: isImage || !hasAudio }, { id: "ai", label: "AI ✨" }]} />
+      <Tabs label="Clip settings" value={tab} onChange={setTab} options={[{ id: "clip", label: "Clip" }, { id: "picture", label: "Picture" }, { id: "screen", label: "Green screen" }, { id: "color", label: "Colour" }, { id: "fx", label: "Effects" }, { id: "sound", label: "Sound", disabled: isImage || !hasAudio }, { id: "ai", label: "AI ✨" }]} />
       {tab === "clip" && (
         <>
           {isImage ? (
@@ -186,6 +188,7 @@ function ClipPanel({ clip, index, count, a, project, asset, commit, onDelete }: 
           </div>
         </>
       )}
+      {tab === "screen" && <ChromaControls chroma={clip.chroma} onChange={(chroma, key) => set({ chroma }, key)} onAddBackground={onAddBackground} />}
       {tab === "picture" && (
         <>
           <Field label="Fit in frame" htmlFor="fit">
@@ -226,7 +229,7 @@ function ClipPanel({ clip, index, count, a, project, asset, commit, onDelete }: 
               <div key={i} className="stack">
                 <div className="row gap">
                   <select className="select" aria-label={`Effect ${i + 1}`} value={e.type} onChange={(ev) => set({ effects: clip.effects.map((x, j) => (j === i ? { ...x, type: ev.target.value } : x)) })}>
-                    {cat.effects.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+                    {groupBy(cat.effects).map(([g, list]) => <optgroup key={g} label={g}>{list.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</optgroup>)}
                   </select>
                   <Button variant="ghost" small icon={I.trash} label="Remove effect" onClick={() => set({ effects: clip.effects.filter((_, j) => j !== i) })} />
                 </div>
@@ -317,7 +320,7 @@ function ClipAI({ clip, a, project, asset, commit, set }: { clip: Clip; a: Asset
   const installed = cat.whisper.find((w) => w.id === model)?.installed ?? false;
   return (
     <div className="stack gap">
-      {isVideo && (
+      {isVideo && !IS_WEB && (
         <div className="stack gap aicard">
           <b className="text-sm">Follow the person</b>
           <p className="text-xs">Keeps a person in frame by moving a crop window with them, for example turning a wide video into a vertical one that follows the speaker.</p>
@@ -329,7 +332,7 @@ function ClipAI({ clip, a, project, asset, commit, set }: { clip: Clip; a: Asset
           {clip.follow && <p className="text-xs">Tip: set the project size to Vertical 9:16 for a phone video. The Picture tab’s zoom and move are replaced while tracking is on.</p>}
         </div>
       )}
-      <div className="stack gap aicard">
+      {!IS_WEB && <div className="stack gap aicard">
         <b className="text-sm">Auto captions</b>
         <p className="text-xs">Listens to the speech and adds subtitles you can restyle. Runs on this PC.</p>
         <div className="stack gap">
@@ -341,7 +344,7 @@ function ClipAI({ clip, a, project, asset, commit, set }: { clip: Clip; a: Asset
         <Button small variant="secondary" icon={I.text} busy={busy === "captions"} disabled={!installed || !a.has_audio} onClick={captions}>Create captions</Button>
         {!installed && <p className="text-xs">Download this captions model first: Models page → “{cat.whisper.find((w) => w.id === model)?.label ?? "Captions model"}”. “Small” understands Tamil and Hindi best.</p>}
         {!a.has_audio && <p className="text-xs">This clip has no sound.</p>}
-      </div>
+      </div>}
       <div className="stack gap aicard">
         <b className="text-sm">Smart edits</b>
         <div className="row gap wrap">
@@ -355,7 +358,7 @@ function ClipAI({ clip, a, project, asset, commit, set }: { clip: Clip; a: Asset
   );
 }
 
-function TextPanel({ t, commit, onDelete }: { t: TextOverlay; commit: Commit; onDelete: () => void }) {
+function TextPanel({ t, commit, onDelete, time, onSeek }: { t: TextOverlay; commit: Commit; onDelete: () => void; time: number; onSeek: (t: number) => void }) {
   const cat = useCatalog();
   const [tab, setTab] = useState<"text" | "style" | "move">("text");
   const set = (patch: Partial<TextOverlay>, key?: string) => commit((p) => ({ ...p, texts: p.texts.map((x) => (x.id === t.id ? { ...x, ...patch } : x)) }), key ? `${t.id}:${key}` : undefined);
@@ -419,6 +422,8 @@ function TextPanel({ t, commit, onDelete }: { t: TextOverlay; commit: Commit; on
           <Field label="Goes out" htmlFor="aout"><select id="aout" className="select" value={t.anim_out} onChange={(e) => set({ anim_out: e.target.value })}>{cat.text_anim_out.map((a) => <option key={a} value={a}>{animLabel(a)}</option>)}</select></Field>
           <Slider label="Going-out time" value={t.fade_out} min={0} max={3} step={0.1} disabled={t.anim_out === "none"} onChange={(v) => set({ fade_out: v }, "fo")} format={sec} />
           <p className="hint">Animations show exactly in “Render preview” and the exported file; the live preview shows fades and slides roughly.</p>
+          <h4 className="kf-title">◆ Move across the screen</h4>
+          <KeyframeControls what="this text" keys={t.keys} start={t.start} length={t.duration} time={time} pose={{ ...itemRest(t), x: itemPose(t, time).x, y: itemPose(t, time).y }} onSeek={onSeek} onChange={(keys) => set({ keys })} />
         </>
       )}
     </div>
@@ -454,7 +459,7 @@ function AudioPanel({ ac, a, commit, onDelete }: { ac: AudioClip; a: Asset | und
   );
 }
 
-function ImagePanel({ im, a, commit, onDelete }: { im: ImageOverlay; a: Asset | undefined; commit: Commit; onDelete: () => void }) {
+function ImagePanel({ im, a, commit, onDelete, time, onSeek }: { im: ImageOverlay; a: Asset | undefined; commit: Commit; onDelete: () => void; time: number; onSeek: (t: number) => void }) {
   const set = (patch: Partial<ImageOverlay>, key?: string) => commit((p) => ({ ...p, images: p.images.map((x) => (x.id === im.id ? { ...x, ...patch } : x)) }), key ? `${im.id}:${key}` : undefined);
   return (
     <div className="stack gap">
@@ -469,6 +474,8 @@ function ImagePanel({ im, a, commit, onDelete }: { im: ImageOverlay; a: Asset | 
         <Field label="Appears at (s)" htmlFor="is"><input id="is" className="input" type="number" min={0} step={0.1} value={Number(im.start.toFixed(2))} onChange={(e) => set({ start: Math.max(0, Number(e.target.value) || 0) }, "s")} /></Field>
         <Field label="Stays for (s)" htmlFor="id"><input id="id" className="input" type="number" min={0.2} step={0.1} value={Number(im.duration.toFixed(2))} onChange={(e) => set({ duration: Math.max(0.2, Number(e.target.value) || 0.2) }, "d")} /></Field>
       </div>
+      <h4 className="kf-title">◆ Move across the screen</h4>
+      <KeyframeControls what="this picture" keys={im.keys} start={im.start} length={im.duration} time={time} pose={{ ...itemRest(im), x: itemPose(im, time).x, y: itemPose(im, time).y }} onSeek={onSeek} onChange={(keys) => set({ keys })} />
     </div>
   );
 }

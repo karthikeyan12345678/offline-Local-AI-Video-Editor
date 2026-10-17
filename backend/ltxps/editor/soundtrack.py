@@ -13,7 +13,8 @@ import wave
 from pathlib import Path
 from typing import Any, Callable
 
-from .ai import AIError, np, speak
+from . import voicecast
+from .ai import AIError, np, speak, tts_voices
 from .media import FfmpegError, probe, run_ffmpeg
 
 RATE = 44100
@@ -127,8 +128,33 @@ def wav_seconds(path: Path) -> float:
         return w.getnframes() / float(w.getframerate())
 
 
+def speak_as(text: str, raw: Path, persona: str = "", voice: str = "", rate: int = 0, voices: list[str] | None = None) -> dict[str, Any] | None:
+    """Speaks `text` into the WAV file `raw`. With a persona (girl, boy, woman, man, old_woman, old_man) the voice is picked and shaped to fit that person.
+    Returns the voice plan that was used (None without a persona)."""
+    if persona not in voicecast.PERSONAS:
+        speak(text, raw, voice, rate)
+        return None
+    cast = voicecast.plan(persona, tts_voices() if voices is None else voices, voice)
+    speak(text, raw, cast["voice"] or voice, max(-10, min(10, rate + cast["rate"])))
+    try:
+        with wave.open(str(raw), "rb") as w:
+            sr = w.getframerate()
+    except (OSError, wave.Error):
+        sr = 22050
+    filt = voicecast.audio_filter(cast, sr)
+    if filt:
+        shaped = raw.with_name(raw.stem + "_shaped.wav")
+        try:
+            run_ffmpeg(["-i", str(raw), "-af", filt, "-ar", str(sr), str(shaped)], 0)
+            shaped.replace(raw)
+        except FfmpegError:
+            shaped.unlink(missing_ok=True)  # keep the plain voice rather than lose the narration
+    return cast
+
+
 def build(video: Path, dest: Path, *, prompt: str = "", narration: str = "", voice: str = "", rate: int = 0, ambience: str = "auto",
-          music: bool = False, level: float = 0.5, keep_original: bool = True, work: Path | None = None, on_status: Callable[[str], None] | None = None) -> dict[str, Any]:
+          music: bool = False, level: float = 0.5, keep_original: bool = True, work: Path | None = None, on_status: Callable[[str], None] | None = None,
+          persona: str = "", voices: list[str] | None = None) -> dict[str, Any]:
     """Mixes voice, ambience and music into `video` and writes `dest` (video stream copied, new sound track).
 
     Returns what was added, plus warnings (for example a narration longer than the video, which is sped up or cut)."""
@@ -163,10 +189,13 @@ def build(video: Path, dest: Path, *, prompt: str = "", narration: str = "", voi
         inputs.append(p)
         chain.append(f"[{len(inputs)}:a]volume={0.35 * level + 0.03:.3f}[mus]")
         used.append("mus")
+    cast = None
     if narration.strip():
         say("Recording the voice")
         raw = work / f"_voice_{dest.stem}.wav"
-        speak(narration, raw, voice, rate)
+        cast = speak_as(narration, raw, persona, voice, rate, voices)
+        if cast and cast["note"]:
+            warnings.append(cast["note"])
         vsec = wav_seconds(raw) if raw.suffix == ".wav" else seconds
         inputs.append(raw)
         tempo = ""
@@ -198,4 +227,5 @@ def build(video: Path, dest: Path, *, prompt: str = "", narration: str = "", voi
     finally:
         for p in inputs:
             p.unlink(missing_ok=True)
-    return {"ambience": amb if "amb" in used else "none", "voice": "voc" in used, "music": "mus" in used or amb == "calm", "warnings": warnings}
+    return {"ambience": amb if "amb" in used else "none", "voice": "voc" in used, "music": "mus" in used or amb == "calm", "warnings": warnings,
+            "persona": cast["persona"] if cast else ""}
