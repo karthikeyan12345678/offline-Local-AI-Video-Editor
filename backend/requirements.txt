@@ -26,3 +26,5 @@ reportlab==5.0.1
 # Editor AI: follow a person (OpenCV + bundled face model) and automatic captions (Whisper)
 opencv-python-headless==5.0.0.93
 faster-whisper==1.2.1
+# Motion control, free local preview: finds the body in a picture and a video (MediaPipe)
+mediapipe==1.1.1

@@ -277,3 +277,34 @@ def test_prompt_enhance_route(client):
     r = client.post("/api/prompt/enhance", json={"prompt": "a car on a mountain road", "kind": "video"})
     assert r.status_code == 200 and "car" in r.json()["prompt"]
     assert client.get("/api/ai/advice").status_code in (200, 503)
+
+
+def test_example_text_is_not_accepted_as_a_fal_key(tmp_path):
+    import pytest
+    from ltxps.editor import motion
+
+    f = tmp_path / "motion.json"
+    f.write_text('{"fal_key": "PASTE_YOUR_KEY_HERE"}')
+    st = motion.MotionSettings(f)
+    assert st.get()["fal_key"] == "" and st.public()["has_key"] is False  # the box asks for a real key again
+    with pytest.raises(motion.MotionError, match="example text"):
+        st.update("PASTE_YOUR_KEY_HERE", None)
+
+
+def test_local_motion_route_makes_a_preview(client, media, monkeypatch):
+    from ltxps.editor import localmotion
+
+    pose = [(0.5, 0.15), (0.42, 0.28), (0.58, 0.28), (0.38, 0.42), (0.62, 0.42), (0.36, 0.55), (0.64, 0.55),
+            (0.45, 0.55), (0.55, 0.55), (0.45, 0.75), (0.55, 0.75), (0.45, 0.95), (0.55, 0.95)]
+    n = {"i": 0}
+
+    def detect(rgb):
+        n["i"] += 1
+        return [(x + 0.002 * n["i"] * (k in (5, 6)), y) for k, (x, y) in enumerate(pose)]
+
+    monkeypatch.setattr(localmotion, "ensure_model", lambda folder, download=None: folder / "m.task")
+    monkeypatch.setattr(localmotion, "mediapipe_detector", lambda f: detect)
+    img, vid = upload(client, media["image"]), upload(client, media["av"])
+    j = wait(client, client.post("/api/motion/local", json={"image_asset_id": img["id"], "video_asset_id": vid["id"]}).json())
+    assert j["status"] == "done" and j["result"]["asset_id"], j
+    assert client.post("/api/motion/local", json={"image_asset_id": vid["id"], "video_asset_id": vid["id"]}).status_code == 422

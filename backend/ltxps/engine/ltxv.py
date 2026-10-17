@@ -269,10 +269,13 @@ class LtxvEngine:
 
         # The cache stores bf16; the transformer may run in fp16 (pre-Ampere GPUs) or fp32.
         compute = dtype_of(plan.dtype)
+        # The cached prompt data lives on the CPU. The pipeline does NOT move embeddings you hand it, so they must already sit on the device the
+        # transformer runs on, or the first layer fails with "Expected all tensors to be on the same device".
+        dev = torch.device("cuda") if plan.device == "cuda" else torch.device("cpu")
 
         call: dict[str, Any] = dict(
-            prompt_embeds=enc[0][0].to(compute).unsqueeze(0),
-            prompt_attention_mask=enc[0][1].unsqueeze(0),
+            prompt_embeds=enc[0][0].to(dev, compute).unsqueeze(0),
+            prompt_attention_mask=enc[0][1].to(dev).unsqueeze(0),
             width=req.width,
             height=req.height,
             num_frames=req.frames,
@@ -287,8 +290,8 @@ class LtxvEngine:
             max_sequence_length=MAX_PROMPT_TOKENS,
         )
         if use_cfg:
-            call["negative_prompt_embeds"] = enc[1][0].to(compute).unsqueeze(0)
-            call["negative_prompt_attention_mask"] = enc[1][1].unsqueeze(0)
+            call["negative_prompt_embeds"] = enc[1][0].to(dev, compute).unsqueeze(0)
+            call["negative_prompt_attention_mask"] = enc[1][1].to(dev).unsqueeze(0)
         if req.mode == "i2v":
             if req.image_path is None:
                 raise UserFacingError("Choose a starting image for image-to-video.")

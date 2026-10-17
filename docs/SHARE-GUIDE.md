@@ -117,3 +117,9 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 - **Better picture engines**: FLUX on Hugging Face (free token), FLUX on Together AI (free model), OpenAI DALL·E 3 / GPT Image (paid, high quality). Midjourney has no public API, so it cannot be connected.
 - **"Which AI is best for my PC?"** pop-up in both apps: the best model to run on the PC (Ollama), the best free online service (Groq, Gemini, OpenRouter) and the best paid one (Claude, `claude-sonnet-5-5`).
 - **First-run tour** with Skip, in both apps. Replay it from Settings > Take the tour.
+
+## 1.2.12 – fixes and free local motion
+- **"Expected all tensors to be on the same device"** when making a video (start + end picture) is fixed. Now that the graphics card is used, the written prompt data was left on the CPU; it is moved to the card before the model runs.
+- **fal.ai "did not accept the key"**: the box held the example words `PASTE_YOUR_KEY_HERE`. The app now says so, and refuses example text. Paste your real key (fal.ai > Dashboard > Keys). Never put a real key in the README, a screenshot or GitHub.
+- **Motion control, free quick preview (MediaPipe)**: choose "Quick preview (free, on this PC)". MediaPipe finds the body in the picture and in the video, and the picture is bent to follow the movement. It is a rough puppet-style preview, not Kling quality. First use downloads a 6 MB body-finder file (`pose_landmarker_lite.task`) into `LTXStudioData/models/pose`; if there is no internet, download it once and put it in that folder. Existing installs get MediaPipe from Settings > Updates (modules).
+- Updated README with the new features.

@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..catalog import AUX, BASE_ID, MODELS
 from ..db import Asset, new_id
-from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, inpaint, motion, ops, soundtrack
+from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, inpaint, localmotion, motion, ops, soundtrack
 from ..editor.media import FfmpegError, run_ffmpeg
 from ..editor.project import TEXT_ANIM_IN, TEXT_ANIM_OUT, ExportOptions, Project
 from ..editor.render import AssetRef, PlanError, build_plan
@@ -705,6 +705,31 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
             return {"asset_id": made.id, **r}
 
         return ai_job("ai", f"Motion control: {img.name}", run)
+
+    class LocalMotionBody(BaseModel):
+        image_asset_id: str
+        video_asset_id: str
+
+    def make_detector() -> Any:  # a seam the tests replace
+        return localmotion.mediapipe_detector(localmotion.ensure_model(state.paths.root / "models" / "pose"))
+
+    @router.post("/motion/local")
+    def motion_local(body: LocalMotionBody) -> dict[str, Any]:
+        img, vid = asset_or_404(body.image_asset_id), asset_or_404(body.video_asset_id)
+        if img.kind != "image":
+            raise HTTPException(422, "The character must be a picture.")
+        if vid.kind != "video":
+            raise HTTPException(422, "The motion reference must be a video.")
+
+        def run(ctx: JobContext) -> dict[str, Any]:
+            ctx.update(0.02, "Loading the body finder")
+            detect = make_detector()
+            dest = state.paths.renders / f"{new_id()}_localmotion.mp4"
+            r = localmotion.run(Path(img.path), Path(vid.path), dest, detect, on_progress=lambda p, m: ctx.update(p, m), cancel=ctx.cancel)
+            made = state.library.register(dest, "edit", f"Quick motion preview · {img.name}", {"tool": "motion_local", "image": img.id, "video": vid.id})
+            return {"asset_id": made.id, **r}
+
+        return ai_job("ai", f"Quick motion preview: {img.name}", run)
 
     @router.get("/editor/ai/voices")
     def ai_voices() -> dict[str, Any]:

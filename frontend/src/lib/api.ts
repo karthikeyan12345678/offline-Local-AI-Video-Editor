@@ -85,6 +85,7 @@ export const api = {
   motionSettings: () => call<MotionSettings>("GET", "/motion/settings"),
   saveMotionSettings: (b: { fal_key?: string; mode?: "std" | "pro" }) => call<MotionSettings>("POST", "/motion/settings", b),
   motionRun: (b: MotionRequest) => call<Job>("POST", "/motion/run", b),
+  motionLocal: (b: { image_asset_id: string; video_asset_id: string }) => call<Job>("POST", "/motion/local", b),
   setupPlan: () => call<SetupPlan>("GET", "/setup/plan"),
   setupInstall: () => call<SetupPlan>("POST", "/setup/install"),
   moduleTable: () => call<{ online: boolean; modules: ModuleRow[] }>("GET", "/updates/modules"),

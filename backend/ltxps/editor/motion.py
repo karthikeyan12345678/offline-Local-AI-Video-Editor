@@ -51,9 +51,14 @@ def clean_key(raw: str) -> str:
     return text
 
 
+PLACEHOLDER = re.compile(r"(paste|your[_\-]?key|example|insert|here|xxxx)", re.I)
+
+
 def key_problem(key: str) -> str | None:
     if not key:
         return "Paste your fal.ai key first."
+    if PLACEHOLDER.search(key):
+        return "That is the example text from the instructions, not a real key. Open fal.ai → Dashboard → Keys, create a key, and paste the whole key here."
     if not KEY_SHAPE.match(key) or len(key) < 6:
         return "That does not look like a fal.ai key. It looks like abc123:secretvalue, with no spaces or quotes. Copy it again from fal.ai → Dashboard → Keys."
     return None
@@ -73,6 +78,8 @@ class MotionSettings:
             return {}
         if d.get("fal_key"):
             d["fal_key"] = clean_key(str(d["fal_key"]))  # repairs a key that was saved with JSON pasted around it
+            if PLACEHOLDER.search(d["fal_key"]):
+                d["fal_key"] = ""  # example text like PASTE_YOUR_KEY_HERE was saved by mistake: treat as "no key yet" so the box asks again
         return d
 
     def public(self) -> dict[str, Any]:
@@ -151,6 +158,8 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
         raise MotionError("The motion video must be at least 3 seconds long.")
     c = client or httpx.Client(timeout=httpx.Timeout(180.0, connect=20.0, write=900.0, pool=30.0))
     key = clean_key(key)
+    if PLACEHOLDER.search(key):
+        raise MotionError(key_problem(key) or "That is not a real key.")
     if not KEY_SHAPE.match(key):  # only characters that can never be in a key (they would also break the request header)
         raise MotionError(key_problem(key) or "That does not look like a fal.ai key.")
     headers = {"Authorization": f"Key {key}", "Content-Type": "application/json"}

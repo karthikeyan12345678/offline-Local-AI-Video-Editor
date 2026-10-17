@@ -18,6 +18,7 @@ export default function MotionControl({ goLibrary }: { goLibrary: () => void }) 
   const [prompt, setPrompt] = useState("");
   const [cfg, setCfg] = useState<MotionSettings | null>(null);
   const [key, setKey] = useState("");
+  const [engine, setEngine] = useState<"cloud" | "local">("cloud");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
   useEffect(() => { api.motionSettings().then((c) => { setCfg(c); setMode(c.mode); }).catch(() => {}); }, []);
@@ -33,10 +34,10 @@ export default function MotionControl({ goLibrary }: { goLibrary: () => void }) 
   const go = async () => {
     setBusy(true); setResult("");
     try {
-      const r = await ai.wait(await api.motionRun({ image_asset_id: img, video_asset_id: vid, orientation, mode, prompt, keep_sound: keep }));
+      const r = await ai.wait(engine === "local" ? await api.motionLocal({ image_asset_id: img, video_asset_id: vid }) : await api.motionRun({ image_asset_id: img, video_asset_id: vid, orientation, mode, prompt, keep_sound: keep }));
       await refreshAssets();
       setResult((r.asset_id as string) ?? "");
-      toast("Your motion-control video is ready.");
+      toast(engine === "local" ? "Your quick preview is ready." : "Your motion-control video is ready.");
     } catch (e) { toast(e instanceof Error ? e.message : "That did not work.", true); }
     finally { setBusy(false); }
   };
@@ -47,13 +48,20 @@ export default function MotionControl({ goLibrary }: { goLibrary: () => void }) 
         <div className="stack"><h1>Motion control</h1><p className="text-sm muted">Give a character picture and a video of someone moving. The character repeats the movement.</p></div>
         {cfg?.has_key ? <span className="gchip gchip--static"><span>fal.ai key saved</span><small className="mono">{cfg.key_hint} · <button type="button" className="linklike" onClick={() => setCfg({ ...cfg, has_key: false })}>change</button></small></span> : null}
       </div>
-      {!cfg?.has_key && (
+      {engine === "cloud" && !cfg?.has_key && (
         <div className="mc-key card row gap wrap center-v" aria-labelledby="mc-key">
           <div className="stack grow"><b id="mc-key" className="text-sm">Connect your fal.ai key</b><span className="text-xs muted">Get one at fal.ai → Dashboard → Keys and add a little credit. It stays in your data folder and is sent only to fal.ai.</span></div>
           <input className="input mc-key-input" type="password" autoComplete="off" aria-label="fal.ai key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="paste your key" />
           <Button small disabled={key.trim().length < 8} onClick={saveKey}>Save key</Button>
         </div>
       )}
+      <div className="stack" style={{ marginBottom: 12 }}>
+        <div className="seg" role="radiogroup" aria-label="Motion engine">
+          <button type="button" role="radio" aria-checked={engine === "cloud"} className={engine === "cloud" ? "on" : ""} onClick={() => setEngine("cloud")} title="Realistic. Uses your fal.ai key and credit.">Realistic (Kling, online)</button>
+          <button type="button" role="radio" aria-checked={engine === "local"} className={engine === "local" ? "on" : ""} onClick={() => setEngine("local")} title="Free, on this PC, no key. Rough puppet-style preview.">Quick preview (free, on this PC)</button>
+        </div>
+        {engine === "local" && <span className="text-xs muted">Free and private: MediaPipe finds the body and bends your picture to follow the movement. It is a rough preview (the picture is stretched, not re-drawn). First use downloads a small 6 MB body-finder file. For a realistic result use Kling.</span>}
+      </div>
       <div className="mc-grid">
         <section className="mc-in card stack gap" aria-label="Inputs">
           <div className="mc-slots">
@@ -62,6 +70,7 @@ export default function MotionControl({ goLibrary }: { goLibrary: () => void }) 
               {tooLong && <p className="error-text text-xs" role="alert">This video is {v!.duration.toFixed(0)} s. Trim it to {limit} s or less in the Editor, or switch to “follow the video”.</p>}
               {tooShort && <p className="error-text text-xs" role="alert">This video is shorter than 3 seconds.</p>}</div>
           </div>
+          {engine === "cloud" && <>
           <Field label="Extra instructions (optional)" hint="For example: a sunny beach in the background, wearing a red jacket.">
             <textarea className="input" rows={2} maxLength={500} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
           </Field>
@@ -78,8 +87,9 @@ export default function MotionControl({ goLibrary }: { goLibrary: () => void }) 
               </div></div>
             <label className="check"><input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />Keep the video’s sound</label>
           </div>
-          <Button icon={I.sparkle} busy={busy} disabled={!cfg?.has_key || !img || !vid || tooLong || tooShort} onClick={go}>Generate</Button>
-          {!cfg?.has_key ? <p className="text-xs muted">Connect your fal.ai key first.</p> : (!img || !vid) ? <p className="text-xs muted">Add a character picture and a motion video.</p> : null}
+          </>}
+          <Button icon={I.sparkle} busy={busy} disabled={(engine === "cloud" && !cfg?.has_key) || !img || !vid || (engine === "cloud" && tooLong) || tooShort} onClick={go}>Generate</Button>
+          {engine === "cloud" && !cfg?.has_key ? <p className="text-xs muted">Connect your fal.ai key first.</p> : (!img || !vid) ? <p className="text-xs muted">Add a character picture and a motion video.</p> : null}
         </section>
         <aside className="mc-out card stack gap" aria-label="Result" aria-live="polite">
           {result ? <><video className="player" controls autoPlay loop src={mediaUrl(result)} /><div className="row gap"><Button small variant="secondary" icon={I.download} onClick={() => saveAs(mediaUrl(result, "download"), "motion-control.mp4")}>Save as…</Button><Button small variant="secondary" onClick={goLibrary}>Open in Library</Button><Button small variant="ghost" onClick={() => setResult("")}>Clear</Button></div></>
