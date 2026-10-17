@@ -106,3 +106,14 @@ Think of **GitHub** as a big shared folder on the internet, and a **Release** as
 ## 1.2.10
 - **Faster videos on 6 GB graphics cards (RTX 4050, 3050, 2060…)**: these cards now use the Lite profile (8-bit weights). Before, the full-size weights filled the 6 GB and Windows quietly moved the overflow into normal RAM, which made each step take minutes. The profile names now read Lite (4-7 GB) and Balanced (8-11 GB).
 - The log file now records which memory strategy and graphics card each video used.
+
+## 1.2.11 – why videos took hours, and what is new
+- **Your graphics card was wrongly rejected.** Settings showed "no kernels for this GPU (compute 8.9)". The check wanted an exact `sm_89` match, but the CUDA 13 PyTorch build ships `sm_86` and `sm_90`, which an RTX 40-series card runs fine. The app then used the CPU, which is why a 4-second clip took hours. The check now follows NVIDIA's real compatibility rule and also runs a tiny kernel on the card to prove it works.
+- **Time estimate before you press Generate**, from your graphics card, memory and the chosen size, with tips when it would be too slow. Generate is switched off above your time limit (Settings, default 30 minutes; "Allow sizes and lengths beyond…" overrides it). A running video that passes the limit stops with an explanation.
+- **Live meters** for CPU, GPU, memory and graphics memory on the Make video page. A video that runs far too long shows why (graphics memory full, running on the CPU, or the card idle).
+- **Drop overlay** ("Drop to add to your Library") no longer stays on the screen after you drop a file into a picture or video slot.
+- **fal.ai key**: you can paste the bare key, `Key abc:def`, or a whole JSON line; the app cleans it. A broken saved key is repaired on read. Network errors now say what really happened (cannot connect, upload too slow, key refused). A big motion video is shrunk before it is uploaded.
+- **Improve prompt** button on Make video and an automatic detail boost for pictures in the AI Assistant (written by your AI if one is connected, otherwise by a built-in recipe).
+- **Better picture engines**: FLUX on Hugging Face (free token), FLUX on Together AI (free model), OpenAI DALL·E 3 / GPT Image (paid, high quality). Midjourney has no public API, so it cannot be connected.
+- **"Which AI is best for my PC?"** pop-up in both apps: the best model to run on the PC (Ollama), the best free online service (Groq, Gemini, OpenRouter) and the best paid one (Claude, `claude-sonnet-5-5`).
+- **First-run tour** with Skip, in both apps. Replay it from Settings > Take the tour.

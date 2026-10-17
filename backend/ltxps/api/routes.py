@@ -3,6 +3,7 @@
 import random
 import re
 import shutil
+import threading
 import time
 from pathlib import Path
 from typing import Any, Literal
@@ -21,9 +22,11 @@ from ..editor.render import AssetRef, PlanError, build_plan
 from .. import updates
 from ..engine.base import GenRequest
 from ..jobs import JobContext, UserFacingError
-from ..assistant import llm
+from ..assistant import llm, service as assistant_service
 from ..library import SUPPORTED, safe_name
-from ..profiles import PROFILES, LimitError, pick_profile, validate_request
+from ..estimate import estimate as estimate_seconds
+from ..profiles import PROFILES, LimitError, pick_profile, snap_frames, snap_side, validate_request
+from .. import usage
 from ..setup_plan import build_plan as build_setup_plan
 from ..state import AppState
 
@@ -82,6 +85,8 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         compute_dtype: Literal["auto", "bf16", "fp16", "fp32"] | None = None
         keep_loaded: bool | None = None
         output_fps: int | None = Field(None, ge=8, le=60)
+        time_limit_min: int | None = Field(None, ge=0, le=720)
+        tour_done: bool | None = None
 
     @router.put("/settings")
     def put_settings(patch: SettingsPatch) -> dict[str, Any]:
@@ -93,6 +98,26 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         updated = vars(state.settings.update(data))
         state.engine.unload()
         return updated
+
+    @router.get("/estimate")
+    def estimate_route(width: int = Query(512, ge=64, le=2048), height: int = Query(320, ge=64, le=2048), frames: int = Query(49, ge=9, le=513),
+                       model_id: str = "", steps: int | None = Query(None, ge=1, le=100), end_image: bool = False) -> dict[str, Any]:
+        info = state.system()
+        st = state.settings.get()
+        model = MODELS.get(model_id or st.default_model) or next(iter(MODELS.values()))
+        est = estimate_seconds(info, pick_profile(info, st.profile), model, snap_side(width), snap_side(height), snap_frames(frames), steps,
+                               has_end_image=end_image, keep_loaded_ready=False)
+        out = est.to_json()
+        out["limit_seconds"] = (st.time_limit_min or 0) * 60 or None
+        return out
+
+    @router.get("/usage")
+    def usage_route(job_id: str = "") -> dict[str, Any]:
+        s = usage.sample()
+        job = state.jobs.get(job_id) if job_id else None
+        if job and job.status == "running" and job.started:
+            s["why_slow"] = usage.diagnose(s, time.time() - job.started, job.expected or None)
+        return s
 
     @router.get("/limits")
     def limits() -> dict[str, Any]:
@@ -265,7 +290,21 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         def run(ctx: JobContext) -> dict[str, Any]:
             out = state.paths.outputs / f"{time.strftime('%Y%m%d-%H%M%S')}_{new_id()[:6]}_{safe_name(req.prompt)[:30]}.mp4"
             ctx.update(0.01, "Starting")
-            info = dict(state.engine.generate(req, out, ctx))
+            limit = (state.settings.get().time_limit_min or 0) * 60
+            watchdog = None
+            if limit:
+                def trip() -> None:
+                    ctx.job.note = (f"Stopped after {limit // 60} minutes. This size is too much for this PC. "
+                                    "Try a smaller size or shorter length, the Lite profile, or make it in the cloud (Motion control).")
+                    ctx.job.cancel.set()
+                watchdog = threading.Timer(limit, trip)
+                watchdog.daemon = True
+                watchdog.start()
+            try:
+                info = dict(state.engine.generate(req, out, ctx))
+            finally:
+                if watchdog:
+                    watchdog.cancel()
             engine_warnings = list(info.pop("warnings", []))
             sound_info = None
             if sound is not None:
@@ -283,6 +322,14 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
             return {"asset_id": asset.id, "warnings": engine_warnings + (sound_info or {}).get("warnings", [])}
 
         job = state.jobs.submit("generate", title, run, lane="gpu")
+        try:
+            info_now = state.system()
+            st_now = state.settings.get()
+            mdl = MODELS.get(req.model_id) or MODELS[st_now.default_model]
+            job.expected = estimate_seconds(info_now, pick_profile(info_now, st_now.profile), mdl, req.width, req.height, req.frames, req.steps,
+                                            has_end_image=bool(req.end_image_path)).seconds
+        except (KeyError, ValueError, TypeError):
+            job.expected = 0.0
         return job.to_json()
 
     def title_of(prompt: str) -> str:
@@ -625,7 +672,10 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
 
     @router.post("/motion/settings")
     def motion_set(body: MotionSettingsBody) -> dict[str, Any]:
-        motion_settings.update(body.fal_key, body.mode)
+        try:
+            motion_settings.update(body.fal_key, body.mode)
+        except motion.MotionError as exc:
+            raise HTTPException(422, str(exc)) from exc
         return motion_settings.public()
 
     class MotionBody(BaseModel):
@@ -763,6 +813,39 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         changed = bool(out["applied"]) and out["project"].model_dump() != body.project.model_dump()
         return {"reply": parsed["reply"], "project": out["project"].model_dump(), "applied": out["applied"], "skipped": out["skipped"], "tasks": out["tasks"], "changed": changed,
                 "focus": out["focus"], "understood": parsed["ok"]}
+
+    @router.get("/ai/advice")
+    def ai_advice() -> dict[str, Any]:
+        if assistant is None:
+            raise HTTPException(503, "The assistant is not available.")
+        info = state.system()
+        g = info.gpu
+        out = assistant_service.advice(assistant, round(info.ram_mb / 1024, 1), g.vram_gb if g.available else 0.0, g.name, bool(g.available and g.arch_supported is not False))
+        out["video"] = video_advice(info)
+        return out
+
+    class PromptBody(BaseModel):
+        prompt: str = Field(min_length=1, max_length=2000)
+        kind: Literal["image", "video"] = "video"
+
+    @router.post("/prompt/enhance")
+    def prompt_enhance(body: PromptBody) -> dict[str, Any]:
+        if assistant is None:
+            from ..assistant import enhance as _enh
+            better, how = _enh.enhance(body.prompt, body.kind, None)
+        else:
+            better, how = assistant_service.enhance_prompt(assistant, body.prompt, body.kind)
+        return {"prompt": better, "how": how}
+
+    def video_advice(info) -> dict[str, Any]:
+        st = state.settings.get()
+        prof = pick_profile(info, st.profile)
+        model = MODELS.get(st.default_model) or next(iter(MODELS.values()))
+        est = estimate_seconds(info, prof, model, prof.default_width, prof.default_height, prof.default_frames)
+        local = (f"{prof.default_width}x{prof.default_height}, {(prof.default_frames - 1) / st.output_fps:.0f} s with the {prof.label} profile: about {round(est.seconds / 60) or 1} min"
+                 if est.device == "gpu" else "No usable graphics card: local videos are tiny and slow.")
+        return {"local": local, "device": est.device, "cloud": "Kling through fal.ai (Motion control): about a minute per clip, pay per use, your own key stays on this PC.",
+                "profile": prof.label}
 
     @router.get("/editor/chat/status")
     def editor_chat_status() -> dict[str, Any]:

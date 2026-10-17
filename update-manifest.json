@@ -1,6 +1,6 @@
 {
-  "app_version": "1.2.10",
-  "notes": "Faster videos on 6 GB graphics cards",
+  "app_version": "1.2.11",
+  "notes": "1.2.11: GPU detection fix, time estimate and live meters, fal.ai key fixes, AI advisor, better image engines, guided tour",
   "download_url": "https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest",
   "modules": [
     {

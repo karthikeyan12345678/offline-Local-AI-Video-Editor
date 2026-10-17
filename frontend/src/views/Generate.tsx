@@ -5,6 +5,8 @@ import { useApp } from "../lib/store";
 import { Button, Field, Slider, Tabs, I } from "../ds";
 import MediaSlot from "./MediaSlot";
 import { saveAs } from "../lib/save";
+import Meters from "./Meters";
+import type { Estimate } from "../lib/types";
 
 type Mode = "t2v" | "i2v" | "extend";
 
@@ -66,6 +68,22 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
 
   useEffect(() => { if (!active) return; const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, [active]);
 
+  const [improving, setImproving] = useState(false);
+  const improve = async () => {
+    if (!prompt.trim()) return;
+    setImproving(true);
+    try { const r = await api.enhancePrompt(prompt.trim(), "video"); setPrompt(r.prompt); toast(r.how === "ai" ? "Your AI rewrote the prompt with more detail." : "Added cinematic detail. Connect an AI in the chat editor for smarter rewrites."); }
+    catch (e) { toast((e as Error).message, true); } finally { setImproving(false); }
+  };
+  const [est, setEst] = useState<Estimate | null>(null);
+  useEffect(() => {
+    if (!model) return;
+    const t = setTimeout(() => { api.estimate({ width, height, frames: nFrames, model_id: model.id, steps: model.distilled ? undefined : (steps ?? model.default_steps), end_image: mode !== "t2v" && !!endId }).then(setEst).catch(() => setEst(null)); }, 250);
+    return () => clearTimeout(t);
+  }, [width, height, nFrames, model, steps, mode, endId]);
+  const fmtEta = (sec: number) => (sec < 90 ? `${Math.round(sec)} seconds` : sec < 5400 ? `${Math.round(sec / 60)} minutes` : `${(sec / 3600).toFixed(1)} hours`);
+  const tooLong = !!est && !unlock && est.limit_seconds != null && est.seconds > est.limit_seconds;
+
   const toggleMini = () => { const v = !mini; setMini(v); try { localStorage.setItem("vk_gen_mini", v ? "1" : "0"); } catch { /* ignore */ } };
   const missing = mode === "i2v" && !imageId ? "Pick a starting picture below." : mode === "extend" && !sourceId ? "Pick the clip to continue below." : !prompt.trim() ? "Describe what should happen." : null;
 
@@ -87,6 +105,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
   };
 
   const elapsed = startedAt ? Math.max(job?.elapsed ?? 0, (now - startedAt) / 1000) : 0;
+  const overTime = !!job && job.status === "running" && !!job.expected && elapsed > Math.max(job.expected * 2, 600);
   const phase = (job?.phase || "").toLowerCase();
   const last = soundOn ? 4 : 3;
   const stage = !job || job.status === "queued" ? 0 : /librar|sav|writ/.test(phase) && job.progress >= 0.98 ? last : soundOn && /sound|voice|record|background/.test(phase) ? 3 : job.progress >= 0.95 && !soundOn ? last : /load|prepar|download/.test(phase) || job.progress === 0 ? 1 : 2;
@@ -119,7 +138,9 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
             <div className="run-timer"><span className="mono run-clock">{fmtDuration(elapsed)}</span><span className="text-sm">elapsed{job.eta != null ? ` · about ${fmtDuration(job.eta)} left` : " · estimating time…"}</span></div>
             <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(job.progress * 100)} aria-label="Video progress"><i className={job.progress === 0 ? "indet" : ""} style={{ width: `${Math.max(job.progress * 100, job.progress === 0 ? 30 : 2)}%` }} /></div>
             <ol className="flow" aria-label="Steps">{STAGES.map((n, i) => <li key={n} className={i < stage ? "done" : i === stage ? "now" : ""}><b>{i < stage ? "✓" : i + 1}</b><span>{n}</span></li>)}</ol>
-            <p className="text-xs run-sub">{job.phase || "Working…"} · {Math.round(job.progress * 100)}%{!system.gpu.available ? " · On the processor this is slow; the first run also loads the model." : ""}</p>
+            <p className="text-xs run-sub">{job.phase || "Working…"} · {Math.round(job.progress * 100)}%{!system.gpu.available ? " · On the processor this is slow; the first run also loads the model." : ""}{job.expected ? ` · expected about ${fmtEta(job.expected)}` : ""}</p>
+            {overTime && <div className="over" role="alert"><b>This is taking much longer than expected.</b><span className="text-sm">Normal for this size: about {fmtEta(job.expected ?? 0)}. It will stop by itself after {settings.time_limit_min || "no"} minutes. Watch the numbers below: they show what is slowing it down.</span></div>}
+            <Meters jobId={job.id} />
           </div>
         ) : result ? (
           <div className="stack gap">
@@ -137,6 +158,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
           <div className={`empty gen-empty${mini ? " gen-empty--mini" : ""}`}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d={I.film} /></svg><h3>What will you create?</h3><p className="text-sm">Describe a scene below. Finished videos are saved in your Library.</p></div>
         )}
         {job?.status === "error" && <p className="error-text" role="alert">{job.error}</p>}
+        {job?.status === "cancelled" && job.note && <p className="error-text" role="alert">{job.note}</p>}
       </section>
 
       <section className="composer" aria-label="Video settings">
@@ -161,9 +183,20 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
           <button type="button" className={`gchip${soundOn ? " gchip--on" : ""}`} aria-pressed={soundOn} onClick={() => setSoundOn(!soundOn)} title="Add a voice and background sound to the new video"><span>{soundOn ? "Sound on" : "Sound off"}</span><small>Voice · ambience</small></button>
           {soundOn && <button type="button" className="gchip" aria-expanded={soundOpen} onClick={() => setSoundOpen(!soundOpen)}><span>Voice &amp; sound</span><small>{soundOpen ? "Hide ▴" : "Edit ▾"}</small></button>}
           <button type="button" className="gchip" aria-expanded={showAdvanced} onClick={() => setShowAdvanced(!showAdvanced)}><span>{width}×{height} · {(nFrames / fps).toFixed(1)} s</span><small>Options ▾</small></button>
+          <button type="button" className="gchip" onClick={() => void improve()} disabled={improving || !prompt.trim()} title="Rewrite your idea as a detailed prompt: subject, camera, light, mood"><span>{improving ? "Improving…" : "Improve prompt"}</span><small>More detail</small></button>
           <span className="grow" />
-          <Button icon={I.sparkle} busy={submitting} disabled={!!missing || active || !modelsReady} onClick={submit}>{active ? "Generating…" : "Generate"}</Button>
+          <Button icon={I.sparkle} busy={submitting} disabled={!!missing || active || !modelsReady || tooLong} onClick={submit}>{active ? "Generating…" : "Generate"}</Button>
         </div>
+        {est && !active && (
+          <div className={`eta eta--${est.band}`} role="status">
+            <b>{est.device === "gpu" ? "On your graphics card" : "On the CPU"}: about {fmtEta(est.seconds)}</b>
+            <span className="text-xs run-sub">(usually {fmtEta(est.low)} to {fmtEta(est.high)}{est.device === "gpu" && system.gpu.name ? ` on ${system.gpu.name}` : ""})</span>
+            {(est.band === "too_long" || est.band === "slow" || est.notes.length > 0) && (
+              <ul className="text-xs">{[...est.notes, ...est.tips].map((n) => <li key={n}>{n}</li>)}</ul>
+            )}
+          </div>
+        )}
+        {tooLong && <p className="why-block text-sm" role="alert">This would take longer than your {settings.time_limit_min}-minute limit, so Generate is switched off. Pick a smaller size or shorter length, or tick “Allow sizes and lengths beyond what this PC can handle”.</p>}
         {(blocked || missing) && (
           <div className="why row gap wrap" role="status">
             <span className={blocked ? "why-block" : ""}>{blocked ?? missing}</span>
@@ -215,6 +248,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
           </div>
         )}
       </section>
+      {!active && !mini && <Meters compact />}
     </main>
   );
 }

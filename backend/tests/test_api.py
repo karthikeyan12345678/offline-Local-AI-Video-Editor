@@ -235,3 +235,45 @@ def test_settings_validation_and_persistence(client):
     r = client.put("/api/settings", json={"profile": "balanced", "hf_endpoint": "https://hf-mirror.example/"}).json()
     assert r["profile"] == "balanced" and r["hf_endpoint"] == "https://hf-mirror.example"
     assert client.get("/api/limits").json()["profile"]["id"] == "balanced"
+
+
+# ------------------------------------------------------------------ 1.2.11: key cleanup, estimate, usage, limits
+def test_fal_key_is_cleaned_and_validated(tmp_path):
+    from ltxps.editor import motion
+
+    assert motion.clean_key('abc123:secret_value') == "abc123:secret_value"
+    assert motion.clean_key('Key abc123:secret_value') == "abc123:secret_value"
+    assert motion.clean_key('{"fal_key": "abc123:secret_value", "mode": "std"}') == "abc123:secret_value"
+    assert motion.clean_key('"abc123:secret_value"}') == "abc123:secret_value"
+    assert motion.clean_key("FAL_KEY=abc123:secret_value\n") == "abc123:secret_value"
+    assert motion.key_problem("hello world") is not None
+    st = motion.MotionSettings(tmp_path / "motion.json")
+    (tmp_path / "motion.json").write_text('{"fal_key": "{\\"fal_key\\": \\"abc123:secret_value\\"}"}')  # the broken file the app used to save
+    assert st.get()["fal_key"] == "abc123:secret_value"
+    import pytest
+
+    with pytest.raises(motion.MotionError):
+        st.update("not a key at all", None)
+
+
+def test_motion_settings_route_rejects_garbage(client):
+    r = client.post("/api/motion/settings", json={"fal_key": "this is not a key"})
+    assert r.status_code == 422 and "fal.ai key" in r.json()["detail"]
+    ok = client.post("/api/motion/settings", json={"fal_key": '{"fal_key": "abc123:secret_value"}'})
+    assert ok.status_code == 200 and ok.json()["has_key"] and ok.json()["key_hint"].endswith("alue")
+
+
+def test_estimate_and_usage_routes(client):
+    e = client.get("/api/estimate", params={"width": 512, "height": 320, "frames": 49}).json()
+    assert e["seconds"] > 0 and e["band"] in ("fast", "ok", "slow", "too_long") and e["limit_seconds"] == 1800
+    u = client.get("/api/usage").json()
+    assert "cpu" in u and "vram_used_gb" in u
+    s = client.put("/api/settings", json={"time_limit_min": 10, "tour_done": True}).json()
+    assert s["time_limit_min"] == 10 and s["tour_done"] is True
+    assert client.get("/api/estimate", params={"width": 512, "height": 320, "frames": 49}).json()["limit_seconds"] == 600
+
+
+def test_prompt_enhance_route(client):
+    r = client.post("/api/prompt/enhance", json={"prompt": "a car on a mountain road", "kind": "video"})
+    assert r.status_code == 200 and "car" in r.json()["prompt"]
+    assert client.get("/api/ai/advice").status_code in (200, 503)

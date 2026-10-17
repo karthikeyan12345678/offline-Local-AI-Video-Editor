@@ -86,6 +86,10 @@ class Settings:
     # Keep the DiT in memory between jobs (faster, uses RAM)
     keep_loaded: bool = False
     output_fps: int = 24
+    # A video that runs longer than this many minutes is stopped with an explanation (0 = never stop)
+    time_limit_min: int = 30
+    # The first-run tour has been shown or skipped
+    tour_done: bool = False
 
 
 class SettingsStore:

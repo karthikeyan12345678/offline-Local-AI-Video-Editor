@@ -6,6 +6,7 @@ import { uid } from "../lib/format";
 import { layout, newText, upgradeProject } from "./model";
 import { useAI } from "./useAI";
 import MediaPicker from "./MediaPicker";
+import AdvisorDialog from "./AdvisorDialog";
 import type { Asset, Project, TextOverlay } from "../lib/types";
 
 interface Bubble { id: string; role: "user" | "assistant"; text: string; images?: string[]; notes?: string[]; error?: boolean; result?: "changed" | "same" | "later"; focus?: number | null; undone?: boolean }
@@ -31,6 +32,8 @@ function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => 
   const [key, setKey] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [adv, setAdv] = useState(() => { try { return sessionStorage.getItem("vk_adv_seen") !== "1"; } catch { return true; } });
+  useEffect(() => { if (adv) { try { sessionStorage.setItem("vk_adv_seen", "1"); } catch { /* ignore */ } } }, [adv]);
   useEffect(() => {
     api.llmInfo().then(setInfo).catch(() => {});
     api.llmSettings().then((s) => { setProvider(s.provider || "ollama"); setModel(s.providers?.[s.provider]?.model ?? ""); }).catch(() => {});
@@ -56,7 +59,9 @@ function Setup({ status, onReady }: { status: ChatStatus | null; onReady: () => 
   };
   return (
     <div className="chat-setup stack gap">
+      {adv && <AdvisorDialog load={api.advice} onClose={() => setAdv(false)} onPick={(id, m) => { setAdv(false); setProvider(id); setModel(m); setKey(""); setMsg(""); if (id === "pollinations") setTimeout(() => void save("pollinations"), 0); }} />}
       <b>Connect an AI helper</b>
+      <Button variant="secondary" onClick={() => setAdv(true)}>Which AI is best for my PC?</Button>
       <Button variant="secondary" onClick={() => { setProvider("pollinations"); setModel(""); setKey(""); setTimeout(() => void save("pollinations"), 0); }}>Use the free online AI (easiest)</Button>
       <p className="text-sm">{status?.why === "key" ? "This AI needs a key (a password for the service)." : "The chat needs an AI brain. Pick one — free choices are marked."}</p>
       <label className="field"><span>Which AI?</span>

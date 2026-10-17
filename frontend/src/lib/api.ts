@@ -1,4 +1,4 @@
-import type { UpdateInfo, Adjust, Asset, Catalog, ExportOptions, Job, Limits, ModelRow, Project, Settings, SystemInfo, ToolInfo } from "./types";
+import type { Estimate, Usage, UpdateInfo, Adjust, Asset, Catalog, ExportOptions, Job, Limits, ModelRow, Project, Settings, SystemInfo, ToolInfo } from "./types";
 
 function readToken(): string {
   try {
@@ -79,6 +79,9 @@ export interface MotionSettings { has_key: boolean; key_hint: string; mode: "std
 export interface MotionRequest { image_asset_id: string; video_asset_id: string; orientation: "image" | "video"; mode: "std" | "pro"; prompt: string; keep_sound: boolean }
 
 export const api = {
+  estimate: (q: { width: number; height: number; frames: number; model_id?: string; steps?: number; end_image?: boolean }) =>
+    call<Estimate>("GET", `/estimate?width=${q.width}&height=${q.height}&frames=${q.frames}&model_id=${encodeURIComponent(q.model_id ?? "")}${q.steps ? `&steps=${q.steps}` : ""}&end_image=${q.end_image ? "true" : "false"}`),
+  usage: (jobId = "") => call<Usage>("GET", `/usage?job_id=${encodeURIComponent(jobId)}`),
   motionSettings: () => call<MotionSettings>("GET", "/motion/settings"),
   saveMotionSettings: (b: { fal_key?: string; mode?: "std" | "pro" }) => call<MotionSettings>("POST", "/motion/settings", b),
   motionRun: (b: MotionRequest) => call<Job>("POST", "/motion/run", b),
@@ -89,6 +92,8 @@ export const api = {
   installModule: (name: string, version: string) => call<Job>("POST", "/updates/modules/install", { name, version }),
 
   chat: (messages: ChatMsg[], project: Project) => call<ChatResult>("POST", "/editor/chat", { messages, project }),
+  advice: () => call<import("../editor/AdvisorDialog").Advice>("GET", "/ai/advice"),
+  enhancePrompt: (prompt: string, kind: "image" | "video") => call<{ prompt: string; how: string }>("POST", "/prompt/enhance", { prompt, kind }),
   chatStatus: () => call<ChatStatus>("GET", "/editor/chat/status"),
   llmInfo: () => call<AssistantInfo>("GET", "/assistant/info"),
   llmSettings: () => call<AssistantSettings>("GET", "/assistant/settings"),

@@ -376,3 +376,45 @@
 .gchip--static { cursor: default; }
 @media (max-width: 900px) { .mc-grid { grid-template-columns: minmax(0, 1fr); } .mc-out { position: static; } }
 .slot-btn { white-space: nowrap; }
+
+/* 1.2.11 live meters, estimate, over-time panel */
+.meters { display: grid; gap: var(--space-2, 8px); padding: 12px 14px; border: 1px solid var(--color-border, #2a2a2a); border-radius: 14px; background: var(--color-surface, #141414); }
+.meters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 16px; }
+.meter { display: grid; gap: 4px; }
+.bar--hot > i { background: #f59e0b; }
+.meters-why { margin: 0; padding: 8px 10px; border-radius: 10px; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.4); font-size: .85rem; }
+.eta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--color-border, #2a2a2a); font-size: .88rem; }
+.eta--fast { border-color: rgba(110,231,60,.5); }
+.eta--slow { border-color: rgba(245,158,11,.6); background: rgba(245,158,11,.08); }
+.eta--too_long { border-color: rgba(239,68,68,.65); background: rgba(239,68,68,.09); }
+.eta ul { margin: 4px 0 0 18px; padding: 0; width: 100%; }
+.over { border: 1px solid rgba(245,158,11,.6); background: rgba(245,158,11,.08); border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+
+/* 1.2.11 AI advisor pop-up */
+.adv-veil { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(0,0,0,.65); padding: 16px; }
+.adv { width: min(640px, 100%); max-height: 90vh; overflow: auto; background: var(--color-surface, #181818); color: inherit; border: 1px solid rgba(255,255,255,.14); border-radius: 18px; padding: 18px 20px; display: grid; gap: 8px; }
+.adv h2 { margin: 0; font-size: 1.15rem; } .adv h3 { margin: 10px 0 2px; font-size: .9rem; opacity: .85; }
+.adv-head { display: flex; justify-content: space-between; align-items: center; }
+.adv-x { background: none; border: 0; color: inherit; font-size: 1.1rem; cursor: pointer; padding: 4px 8px; }
+.adv-pc { margin: 0; } .adv-sub { font-size: .8rem; opacity: .7; } .adv-why { font-size: .86rem; }
+.adv-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; }
+.adv-row--best { border-color: #6ee73c; background: rgba(110,231,60,.07); }
+.adv-text { display: grid; gap: 2px; min-width: 0; }
+.adv-how { font-size: .78rem; padding: 4px 6px; border-radius: 6px; background: rgba(255,255,255,.07); overflow-wrap: anywhere; }
+.adv-btn { border: 1px solid rgba(255,255,255,.25); background: transparent; color: inherit; border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+.adv-btn--on { background: #6ee73c; color: #0b1a05; border-color: #6ee73c; font-weight: 600; }
+.adv-foot { display: flex; justify-content: flex-end; margin-top: 6px; }
+
+
+/* 1.2.11 guided tour */
+.tour { position: fixed; inset: 0; z-index: 100; }
+.tour-dim { position: absolute; inset: 0; background: rgba(0,0,0,.7); }
+.tour-spot { position: absolute; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0,0,0,.7); outline: 2px solid #6ee73c; pointer-events: none; transition: all .2s ease; }
+.tour-card { position: absolute; width: min(320px, calc(100vw - 24px)); background: #181818; color: #f2f2f2; border: 1px solid rgba(255,255,255,.18); border-radius: 16px; padding: 14px 16px; display: grid; gap: 8px; box-shadow: 0 18px 50px rgba(0,0,0,.6); }
+.tour-card h3 { margin: 0; font-size: 1.05rem; } .tour-card p { margin: 0; font-size: .9rem; line-height: 1.45; }
+.tour-top { display: flex; justify-content: space-between; align-items: center; font-size: .78rem; opacity: .85; }
+.tour-skip { background: none; border: 0; color: #6ee73c; cursor: pointer; font-weight: 600; padding: 2px 4px; }
+.tour-dots { display: flex; gap: 5px; } .tour-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.25); } .tour-dots i.on { background: #6ee73c; }
+.tour-nav { display: flex; justify-content: space-between; }
+.adv-btn:disabled { opacity: .4; cursor: default; }
+

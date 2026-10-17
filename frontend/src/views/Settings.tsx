@@ -85,6 +85,10 @@ export default function Settings() {
         <Field label="Frames per second of new videos" htmlFor="fps">
           <input id="fps" className="input" type="number" min={8} max={60} value={settings.output_fps} onChange={(e) => setSettings({ output_fps: Number(e.target.value) || 24 })} />
         </Field>
+        <div className="row"><Button variant="secondary" onClick={() => window.dispatchEvent(new Event("vk-tour"))}>Take the tour</Button></div>
+        <Field label="Stop a video that runs longer than (minutes)" htmlFor="tl" hint="0 = never stop. Protects you from a video that would take hours.">
+          <input id="tl" className="input" type="number" min={0} max={720} value={settings.time_limit_min} onChange={(e) => setSettings({ time_limit_min: Math.max(0, Number(e.target.value) || 0) })} />
+        </Field>
         <label className="check"><input type="checkbox" checked={settings.keep_loaded} onChange={(e) => setSettings({ keep_loaded: e.target.checked })} />Keep the model in memory between videos (faster next time, uses more memory)</label>
       </section>
 

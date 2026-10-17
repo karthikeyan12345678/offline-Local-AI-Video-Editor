@@ -102,6 +102,8 @@ export async function streamChat(body: { conversation_id: string; text: string; 
 }
 
 export const api = {
+  advice: () => call<import("../AdvisorDialog").Advice>("GET", "/ai/advice"),
+  enhancePrompt: (prompt: string, kind: "image" | "video") => call<{ prompt: string; how: string }>("POST", "/prompt/enhance", { prompt, kind }),
   info: () => call<Info>("GET", "/info"),
   settings: () => call<SettingsData>("GET", "/settings"),
   saveSettings: (patch: unknown) => call<SettingsData>("PUT", "/settings", patch),

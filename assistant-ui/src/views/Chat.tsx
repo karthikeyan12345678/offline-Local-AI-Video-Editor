@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import AdvisorDialog from "../AdvisorDialog";
 import { api, streamChat, ApiError } from "../lib/api";
 import type { Card, FileRef, Message } from "../lib/types";
 import { RenderCard } from "../cards";
@@ -83,6 +84,9 @@ export default function Chat({ conversationId, onConversation, onTitle, goSettin
 
   const stop = () => abort.current?.abort();
   const needsSetup = /model|Settings|Cannot reach|API key/i.test(error);
+  const [adv, setAdv] = useState(false);
+  const advShown = useRef(false);
+  useEffect(() => { if (needsSetup && !advShown.current) { advShown.current = true; setAdv(true); } }, [needsSetup]);  // the first time no AI answers: say which one suits this PC
 
   return (
     <div className="chat">
@@ -114,7 +118,8 @@ export default function Chat({ conversationId, onConversation, onTitle, goSettin
         <div ref={bottom} />
       </div>
       <div className="composer-wrap">
-        {error && <Banner kind="error" onClose={() => setError("")}>{error} {needsSetup && <Button variant="secondary" size="sm" onClick={goSettings}>Open settings</Button>}</Banner>}
+        {error && <Banner kind="error" onClose={() => setError("")}>{error} {needsSetup && <><Button variant="secondary" size="sm" onClick={() => setAdv(true)}>Which AI is best for my PC?</Button> <Button variant="secondary" size="sm" onClick={goSettings}>Open settings</Button></>}</Banner>}
+        {adv && <AdvisorDialog load={api.advice} onClose={() => setAdv(false)} onPick={(id, model) => { setAdv(false); void api.saveSettings({ provider: id, providers: { [id]: { model } } }).then(() => { setError(""); goSettings(); }).catch(() => goSettings()); }} />}
         {files.length > 0 && <div className="chips" style={{ marginBottom: 8 }}>{files.map((f) => (
           <span key={f.id} className="chip"><Ico name="clip" size={14} /> <span className="truncate" style={{ maxWidth: 180 }}>{f.name}</span>
             <button className="chip-x" aria-label={`Remove ${f.name}`} onClick={() => setFiles(files.filter((x) => x.id !== f.id))}><Ico name="x" size={12} /></button></span>))}</div>}

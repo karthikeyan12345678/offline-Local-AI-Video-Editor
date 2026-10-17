@@ -9,6 +9,9 @@ from __future__ import annotations
 import base64
 import json
 import mimetypes
+import re
+import subprocess
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -29,6 +32,33 @@ class MotionError(AIError):
     """Message is safe to show to the user."""
 
 
+KEY_SHAPE = re.compile(r"^[^\s\"'{}<>\[\]]+$")  # no spaces, quotes or brackets: those can never be part of a key (and would break the request header)
+
+
+def clean_key(raw: str) -> str:
+    """Accept what people really paste: the bare key, `Key abc:def`, quoted text, or a whole JSON line like {"fal_key": "abc:def"}."""
+    text = (raw or "").strip()
+    if text.startswith("{"):
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict):
+                text = str(data.get("fal_key") or data.get("key") or data.get("FAL_KEY") or "")
+        except ValueError:
+            m = re.search(r'"?(?:fal_key|key|FAL_KEY)"?\s*[:=]\s*"([^"]+)"', text)
+            text = m.group(1) if m else text
+    text = re.sub(r"^(?:FAL_KEY\s*=\s*|Key\s+)", "", text.strip(), flags=re.I)
+    text = text.strip().strip("\"'`{}[]() \t\r\n")
+    return text
+
+
+def key_problem(key: str) -> str | None:
+    if not key:
+        return "Paste your fal.ai key first."
+    if not KEY_SHAPE.match(key) or len(key) < 6:
+        return "That does not look like a fal.ai key. It looks like abc123:secretvalue, with no spaces or quotes. Copy it again from fal.ai → Dashboard → Keys."
+    return None
+
+
 class MotionSettings:
     """The fal.ai key lives in one small file in the data folder; it is never sent anywhere except to fal.ai."""
 
@@ -38,9 +68,12 @@ class MotionSettings:
     def get(self) -> dict[str, Any]:
         try:
             d = json.loads(self.path.read_text(encoding="utf-8"))
-            return d if isinstance(d, dict) else {}
+            d = d if isinstance(d, dict) else {}
         except (OSError, ValueError):
             return {}
+        if d.get("fal_key"):
+            d["fal_key"] = clean_key(str(d["fal_key"]))  # repairs a key that was saved with JSON pasted around it
+        return d
 
     def public(self) -> dict[str, Any]:
         d = self.get()
@@ -50,7 +83,12 @@ class MotionSettings:
     def update(self, key: str | None, mode: str | None) -> None:
         d = self.get()
         if key is not None and not key.startswith("•"):
-            d["fal_key"] = key.strip()
+            fixed = clean_key(key)
+            if fixed:
+                bad = key_problem(fixed)
+                if bad:
+                    raise MotionError(bad)
+            d["fal_key"] = fixed
         if mode in ("std", "pro"):
             d["mode"] = mode
         self.path.write_text(json.dumps(d), encoding="utf-8")
@@ -58,6 +96,25 @@ class MotionSettings:
             self.path.chmod(0o600)
         except OSError:
             pass
+
+
+def _shrunk(path: Path, limit: int = 12 * 1024 * 1024) -> Path | None:
+    """A phone video can be 50 MB. The service does not need that much, so squeeze it (same length) before the upload. None = leave as is."""
+    try:
+        if path.stat().st_size <= limit:
+            return None
+        from ..system import ffmpeg_path
+
+        ff = ffmpeg_path()
+        if not ff:
+            return None
+        out = Path(tempfile.mkdtemp(prefix="vk-motion-")) / "small.mp4"
+        cmd = [ff, "-y", "-i", str(path), "-vf", "scale='if(gt(iw,ih),-2,min(720,iw))':'if(gt(iw,ih),min(720,ih),-2)'", "-c:v", "libx264", "-crf", "27",
+               "-preset", "veryfast", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(out)]
+        subprocess.run(cmd, capture_output=True, timeout=300, check=True)
+        return out if out.exists() and 0 < out.stat().st_size < path.stat().st_size else None
+    except (OSError, subprocess.SubprocessError):
+        return None
 
 
 def _data_uri(path: Path, fallback: str) -> str:
@@ -92,9 +149,12 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
         raise MotionError(f"The motion video is {video_seconds:.0f} s. With “keep the picture's own pose/camera” it must be {limit:.0f} s or shorter; with “follow the video” {30:.0f} s. Trim it in the editor first.")
     if video_seconds and video_seconds < 2.9:
         raise MotionError("The motion video must be at least 3 seconds long.")
-    c = client or httpx.Client(timeout=httpx.Timeout(120.0, connect=10.0))
+    c = client or httpx.Client(timeout=httpx.Timeout(180.0, connect=20.0, write=900.0, pool=30.0))
+    key = clean_key(key)
+    if not KEY_SHAPE.match(key):  # only characters that can never be in a key (they would also break the request header)
+        raise MotionError(key_problem(key) or "That does not look like a fal.ai key.")
     headers = {"Authorization": f"Key {key}", "Content-Type": "application/json"}
-    body: dict[str, Any] = {"image_url": _data_uri(image, "image/png"), "video_url": _data_uri(video, "video/mp4"), "character_orientation": orientation,
+    body: dict[str, Any] = {"image_url": _data_uri(image, "image/png"), "video_url": _data_uri(_shrunk(video) or video, "video/mp4"), "character_orientation": orientation,
                             "keep_original_sound": bool(keep_sound)}
     if prompt.strip():
         body["prompt"] = prompt.strip()[:500]
@@ -111,8 +171,12 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
         status_url, result_url = sub["status_url"], sub["response_url"]
     except MotionError:
         raise
+    except httpx.ConnectError as exc:
+        raise MotionError("Cannot connect to fal.ai. Check your internet, VPN or firewall, and that queue.fal.run is not blocked.") from exc
+    except (httpx.WriteTimeout, httpx.ReadTimeout, httpx.WriteError, httpx.ReadError, httpx.RemoteProtocolError) as exc:
+        raise MotionError(f"The upload did not finish ({type(exc).__name__}). The two files are large for your connection: trim the motion video to 5-10 seconds in the editor and try again.") from exc
     except httpx.HTTPError as exc:
-        raise MotionError("Cannot reach fal.ai. Check your internet connection (the upload can be large).") from exc
+        raise MotionError(f"Could not talk to fal.ai ({type(exc).__name__}: {str(exc)[:120]}).") from exc
     except (ValueError, KeyError, TypeError) as exc:
         raise MotionError("fal.ai sent an answer this app does not understand.") from exc
     started = time.time()

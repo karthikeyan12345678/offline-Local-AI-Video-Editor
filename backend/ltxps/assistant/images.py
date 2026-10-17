@@ -18,8 +18,13 @@ IMAGE_PROVIDERS: dict[str, dict[str, Any]] = {
               "help": "Free community service. No account, no watermark. Pictures can take from 20 seconds to a few minutes when it is busy."},
     "pollinations": {"name": "Pollinations (free, online, adds a small logo)", "needs_key": False, "base_url": "https://image.pollinations.ai", "model": "flux",
                      "help": "Quick, but the free tier stamps a pollinations.ai logo and limits how many pictures you can make."},
-    "openai": {"name": "OpenAI-compatible API", "needs_key": True, "base_url": "https://api.openai.com/v1", "model": "gpt-image-1",
-               "help": "OpenAI or any server with /images/generations (set the address, key and model)."},
+    "huggingface": {"name": "FLUX on Hugging Face (free token, sharp detail)", "needs_key": True, "base_url": "https://router.huggingface.co/hf-inference/models",
+                    "model": "black-forest-labs/FLUX.1-schnell",
+                    "help": "Free monthly credits. Make a token at huggingface.co/settings/tokens (allow “Inference”). FLUX makes far more detailed pictures than the quick engines."},
+    "together": {"name": "FLUX on Together AI (free model, sharp detail)", "needs_key": True, "base_url": "https://api.together.xyz/v1",
+                 "model": "black-forest-labs/FLUX.1-schnell-Free", "help": "Free FLUX model with a free key from api.together.ai. Very detailed pictures."},
+    "openai": {"name": "OpenAI: DALL·E 3 / GPT Image (paid)", "needs_key": True, "base_url": "https://api.openai.com/v1", "model": "gpt-image-1",
+               "help": "Paid per picture. Set the model to gpt-image-1 (best detail) or dall-e-3. Midjourney has no public API, so it cannot be connected."},
     "local": {"name": "On this PC (Stable Diffusion Turbo)", "needs_key": False, "base_url": "", "model": "stabilityai/sd-turbo",
               "help": "Private and offline after a one-time ~2.5 GB download. Works on a 4 GB graphics card (slower on CPU)."},
 }
@@ -76,8 +81,17 @@ def _remote_openai(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: i
     if cfg.api_key:
         headers["authorization"] = f"Bearer {cfg.api_key}"
     body: dict[str, Any] = {"model": cfg.model, "prompt": prompt, "n": 1, "size": wanted}
-    if cfg.model.startswith("dall-e"):
+    if cfg.model == "dall-e-3":
+        body["size"] = {"1536x1024": "1792x1024", "1024x1536": "1024x1792"}.get(wanted, wanted)
+        body["quality"] = "hd"
         body["response_format"] = "b64_json"
+    elif cfg.model.startswith("dall-e"):
+        body["response_format"] = "b64_json"
+    elif cfg.model.startswith("gpt-image"):
+        body["quality"] = "high"
+    if "together" in cfg.base_url:  # Together takes pixel sizes and a step count instead of a named size
+        body.pop("size", None)
+        body.update(width=min(1024, size[0]), height=min(1024, size[1]), steps=4, response_format="b64_json")
     try:
         r = httpx.post(cfg.base_url + "/images/generations", headers=headers, json=body, timeout=httpx.Timeout(180.0, connect=8.0))
     except httpx.ConnectError as exc:
@@ -108,8 +122,34 @@ def _remote_openai(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: i
     raise ImageError("The image service returned no picture.")
 
 
+def _huggingface(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: int | None) -> bytes:
+    if not cfg.api_key:
+        raise ImageError("Add your free Hugging Face token in Settings (huggingface.co/settings/tokens).")
+    model = cfg.model or "black-forest-labs/FLUX.1-schnell"
+    params: dict[str, Any] = {"width": min(1024, size[0] // 16 * 16), "height": min(1024, size[1] // 16 * 16), "num_inference_steps": 4 if "schnell" in model else 28}
+    if seed is not None:
+        params["seed"] = seed
+    try:
+        r = httpx.post(f"{(cfg.base_url or 'https://router.huggingface.co/hf-inference/models').rstrip('/')}/{model}",
+                       headers={"authorization": f"Bearer {cfg.api_key}", "accept": "image/png"}, json={"inputs": prompt, "parameters": params},
+                       timeout=httpx.Timeout(180.0, connect=8.0))
+    except httpx.ConnectError as exc:
+        raise ImageError("Cannot reach Hugging Face. Check your internet connection.") from exc
+    except httpx.HTTPError as exc:
+        raise ImageError(f"Hugging Face did not answer in time: {exc}") from exc
+    if r.status_code in (401, 403):
+        raise ImageError("Hugging Face did not accept the token. Make one with the “Inference” permission and paste it in Settings.")
+    if r.status_code == 402 or r.status_code == 429:
+        raise ImageError("The free Hugging Face credits for this month are used up, or you are going too fast. Wait, or switch engine.")
+    if r.status_code == 503:
+        raise ImageError("The Hugging Face model is waking up. Try again in a minute.")
+    if r.status_code >= 400:
+        raise ImageError(f"Hugging Face refused the request ({r.status_code}). {r.text[:160]}".strip())
+    return r.content
+
+
 def _pollinations(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: int | None) -> bytes:
-    q = {"width": size[0], "height": size[1], "nologo": "true", "model": cfg.model or "flux"}
+    q = {"width": size[0], "height": size[1], "nologo": "true", "model": cfg.model or "flux", "enhance": "true"}
     if seed is not None:
         q["seed"] = seed
     url = f"{cfg.base_url or 'https://image.pollinations.ai'}/prompt/{urllib.parse.quote(prompt, safe='')}?{urllib.parse.urlencode(q)}"
@@ -255,7 +295,7 @@ def _local(cfg: ImageConfig, prompt: str, size: tuple[int, int], seed: int | Non
     h = min(768, max(256, size[1] // 64 * 64 // (2 if size[1] > 768 else 1)))
     gen = torch.Generator("cuda" if cuda else "cpu").manual_seed(seed if seed is not None else int(time.time()) % 2**31)
     try:
-        img = _local_pipe(prompt, num_inference_steps=2, guidance_scale=0.0, width=w, height=h, generator=gen).images[0]
+        img = _local_pipe(prompt, num_inference_steps=4, guidance_scale=0.0, width=w, height=h, generator=gen).images[0]
     except torch.cuda.OutOfMemoryError as exc:  # type: ignore[attr-defined]
         torch.cuda.empty_cache()
         raise ImageError("The graphics card ran out of memory. Pick the square size or close other programs.") from exc
@@ -281,6 +321,8 @@ def generate_image(cfg: ImageConfig, prompt: str, out_dir: Path, shape: str = "s
     order = [cfg.provider]
     if cfg.provider in ("horde", "pollinations"):  # online engines back each other up; the logo-free one always goes first
         order += [p for p in ("horde", "pollinations") if p != cfg.provider]
+    if cfg.provider in ("huggingface", "together"):
+        order += ["horde", "pollinations"]  # a free key can run out of credit: the no-key engines take over and say why
     if cfg.provider == "local":
         order += ["horde", "pollinations"]  # the model on this PC failed (or is not usable): the free online engines take over
     if cfg.local_dir and cfg.provider != "local" and local_available()[0]:
@@ -288,7 +330,9 @@ def generate_image(cfg: ImageConfig, prompt: str, out_dir: Path, shape: str = "s
     used, errors, raw = "", [], b""
     for prov in dict.fromkeys(order):
         try:
-            if prov == "openai":
+            if prov == "huggingface":
+                raw = _huggingface(cfg, prompt, size, seed)
+            elif prov in ("openai", "together"):
                 if not cfg.base_url:
                     raise ImageError("No image server address is set. Open Settings.")
                 raw = _remote_openai(cfg, prompt, size, seed)

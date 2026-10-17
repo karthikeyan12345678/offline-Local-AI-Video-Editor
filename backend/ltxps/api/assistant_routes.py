@@ -3,7 +3,8 @@
 import re
 import shutil
 from pathlib import Path
-from typing import Any
+from functools import lru_cache
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
@@ -13,6 +14,7 @@ from .. import __version__
 from ..assistant import analytics, ats, compare, images, llm
 from ..assistant.documents import FORMATS
 from ..assistant.extract import SUPPORTED, ExtractError
+from ..assistant import service
 from ..assistant.service import AssistantState, make_document, run_turn
 from ..assistant.themes import catalog, get_theme, recommend
 
@@ -62,6 +64,16 @@ class ImageBody(BaseModel):
     seed: int | None = None
 
 
+@lru_cache(maxsize=1)
+def hardware() -> tuple[float, float, str, bool]:
+    """(RAM GB, VRAM GB, graphics card name, usable) of this PC, looked up once."""
+    from ..system import detect_system
+
+    info = detect_system()
+    g = info.gpu
+    return round(info.ram_mb / 1024, 1), g.vram_gb if g.available else 0.0, g.name, bool(g.available and g.arch_supported is not False)
+
+
 class RenameBody(BaseModel):
     title: str = Field(min_length=1, max_length=120)
 
@@ -85,6 +97,21 @@ def make_assistant_router(a: AssistantState) -> APIRouter:
         ok, why = images.local_available()
         return {"version": __version__, "formats": list(FORMATS), "providers": llm.PRESETS, "image_providers": images.IMAGE_PROVIDERS,
                 "local_image": {"available": ok, "reason": why}, "supported_uploads": sorted(SUPPORTED | IMAGE_EXT), "themes": len(catalog())}
+
+    # ---------------------------------------------------------------- advice and prompt help
+    @r.get("/ai/advice")
+    def ai_advice() -> dict[str, Any]:
+        ram, vram, name, ok = hardware()
+        return service.advice(a, ram, vram, name, ok)
+
+    class EnhanceBody(BaseModel):
+        prompt: str = Field(min_length=1, max_length=2000)
+        kind: Literal["image", "video"] = "image"
+
+    @r.post("/prompt/enhance")
+    def prompt_enhance(body: EnhanceBody) -> dict[str, Any]:
+        better, how = service.enhance_prompt(a, body.prompt, body.kind)
+        return {"prompt": better, "how": how}
 
     # ---------------------------------------------------------------- settings
     @r.get("/settings")

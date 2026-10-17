@@ -11,8 +11,11 @@ export interface Job {
   status: "queued" | "running" | "done" | "error" | "cancelled";
   progress: number; phase: string; // eslint-disable-next-line @typescript-eslint/no-explicit-any
   result: Record<string, any> | null;
-  error: string | null; created: number; elapsed: number; eta: number | null;
+  error: string | null; created: number; elapsed: number; eta: number | null; expected?: number; note?: string;
 }
+
+export interface Estimate { seconds: number; low: number; high: number; device: "gpu" | "cpu"; band: "fast" | "ok" | "slow" | "too_long"; notes: string[]; tips: string[]; limit_seconds: number | null }
+export interface Usage { cpu: number | null; ram_used_gb: number | null; ram_total_gb: number | null; gpu: number | null; vram_used_gb: number | null; vram_total_gb: number | null; gpu_temp_c?: number | null; why_slow?: string | null }
 
 export interface SystemInfo {
   version: string; os: string; cpu_count: number; ram_gb: number;
@@ -23,7 +26,7 @@ export interface SystemInfo {
 
 export interface Settings {
   profile: string; memory_mode: string; hf_endpoint: string; default_model: string;
-  compute_dtype: string; keep_loaded: boolean; output_fps: number;
+  compute_dtype: string; keep_loaded: boolean; output_fps: number; time_limit_min: number; tour_done: boolean;
 }
 
 export interface Limits {
