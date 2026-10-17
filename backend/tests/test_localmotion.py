@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -31,14 +33,38 @@ def _image(path):
     cv2.imwrite(str(path), img)
 
 
-def test_warp_moves_points_and_keeps_far_pixels():
-    img = np.zeros((100, 100, 3), np.uint8)
-    img[40:50, 60:70] = 255
-    src = np.array([[65, 45]] * 13, np.float32)
-    dst = src + np.array([-20, 0], np.float32)
-    out = localmotion.warp(img, src, dst)
-    assert out[45, 45].sum() > out[45, 65].sum()  # the white patch moved left
-    assert out[2, 2].sum() == 0 and out[97, 97].sum() == 0  # corners untouched
+def test_arm_turns_instead_of_stretching():
+    base = np.array([(x * 100, y * 200) for x, y in _pose()], np.float32)
+    cur = base.copy()
+    # in the video the right forearm (elbow 4 -> wrist 6) swings 90 degrees
+    v = cur[6] - cur[4]
+    cur[6] = cur[4] + np.array([-v[1], v[0]], np.float32)
+    out = localmotion.pose_to(base, base, cur, 1.0)
+    assert np.allclose(np.linalg.norm(out[6] - out[4]), np.linalg.norm(base[6] - base[4]), atol=0.5)  # same length
+    assert np.allclose(out[6], cur[6], atol=0.5)  # and now points where the real forearm points
+    assert np.allclose(out[4], base[4], atol=0.5)  # the elbow did not move
+    still = localmotion.pose_to(base, base, base, 1.0)
+    assert np.allclose(still, base, atol=1e-3)
+
+
+def test_render_moves_the_person_but_not_the_background():
+    h, w = 200, 100
+    img = np.full((h, w, 3), (40, 120, 40), np.uint8)
+    img[:, :60] = (200, 160, 60)  # a different background on the left, away from the body
+    base = np.array([(x * w, y * h) for x, y in _pose()], np.float32)
+    mask = np.zeros((h, w), np.float32)
+    cv2.line(mask, tuple(int(v) for v in base[2]), tuple(int(v) for v in base[6]), 1.0, 7)  # the right arm only
+    img2 = img.copy()
+    img2[mask > 0] = (255, 255, 255)
+    plate = localmotion._plate(img2, mask)
+    cur = base.copy()
+    v = cur[6] - cur[4]
+    cur[6] = cur[4] + np.array([-v[1], v[0]], np.float32)
+    dst = localmotion.pose_to(base, base, cur, 1.0)
+    out = localmotion.render(img2, mask, plate, base, dst)
+    assert out.shape == img2.shape
+    assert not np.array_equal(out, localmotion.render(img2, mask, plate, base, base))  # the arm moved
+    assert np.array_equal(out[:20, :20], img2[:20, :20])  # a corner far from the body is untouched
 
 
 def test_run_makes_a_video_from_fake_poses(tmp_path):
@@ -87,3 +113,38 @@ def test_model_download_failure_gives_plain_steps(tmp_path):
 
     assert localmotion.ensure_model(tmp_path / "pose", ok).exists()
     assert localmotion.ensure_model(tmp_path / "pose", boom).exists()  # already there: no download
+
+
+class FakeInterpreter:
+    """Stands in for TensorFlow Lite: returns MoveNet's (y, x, score) rows for a person standing in the left half of a 100x50 picture."""
+
+    def __init__(self, score=0.9):
+        self.score, self.fed = score, None
+
+    def allocate_tensors(self): ...
+    def get_input_details(self): return [{"index": 0, "shape": [1, 192, 192, 3], "dtype": np.uint8}]
+    def get_output_details(self): return [{"index": 1}]
+    def set_tensor(self, i, v): self.fed = v
+    def invoke(self): ...
+
+    def get_tensor(self, i):
+        kp = np.zeros((1, 1, 17, 3), np.float32)
+        kp[0, 0, :, 0], kp[0, 0, :, 1], kp[0, 0, :, 2] = 0.25, 0.25, self.score  # y, x in the padded 100x100 square
+        return kp
+
+
+def test_movenet_points_are_mapped_back_to_the_picture():
+    it = FakeInterpreter()
+    detect = localmotion.tensorflow_detector(Path("unused"), interpreter=it)
+    pts = detect(np.zeros((50, 100, 3), np.uint8))  # wide picture: the square padding is 100x100
+    assert len(pts) == 13 and it.fed.shape == (1, 192, 192, 3) and it.fed.dtype == np.uint8
+    assert abs(pts[0][0] - 0.25) < 1e-6 and abs(pts[0][1] - 0.5) < 1e-6  # y 0.25 of 100 px = 25 px = 0.5 of the 50 px height
+    assert localmotion.tensorflow_detector(Path("unused"), interpreter=FakeInterpreter(0.05))(np.zeros((50, 100, 3), np.uint8)) is None
+
+
+def test_movenet_download_failure_gives_plain_steps(tmp_path):
+    def boom(url, target):
+        raise OSError("offline")
+
+    with pytest.raises(localmotion.LocalMotionError, match="MoveNet"):
+        localmotion.ensure_movenet(tmp_path / "pose", boom)

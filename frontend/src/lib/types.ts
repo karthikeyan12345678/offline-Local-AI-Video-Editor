@@ -26,7 +26,7 @@ export interface SystemInfo {
 
 export interface Settings {
   profile: string; memory_mode: string; hf_endpoint: string; default_model: string;
-  compute_dtype: string; keep_loaded: boolean; output_fps: number; time_limit_min: number; tour_done: boolean;
+  compute_dtype: string; keep_loaded: boolean; output_fps: number; time_limit_min: number; tour_done: boolean; sharpen_output: boolean;
 }
 
 export interface Limits {

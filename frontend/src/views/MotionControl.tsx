@@ -19,6 +19,15 @@ export default function MotionControl({ goLibrary }: { goLibrary: () => void }) 
   const [cfg, setCfg] = useState<MotionSettings | null>(null);
   const [key, setKey] = useState("");
   const [engine, setEngine] = useState<"cloud" | "local">("cloud");
+  const [pose, setPose] = useState<"mediapipe" | "tensorflow">("mediapipe");
+  const [have, setHave] = useState<{ mediapipe: boolean; tensorflow: boolean } | null>(null);
+  const [installing, setInstalling] = useState(false);
+  useEffect(() => { api.motionLocalStatus().then(setHave).catch(() => {}); }, []);
+  const installTf = async () => {
+    setInstalling(true);
+    try { await ai.wait(await api.installTensorflow()); setHave(await api.motionLocalStatus()); toast("TensorFlow installed. Close and reopen the app once, then press Generate."); }
+    catch (e) { toast(e instanceof Error ? e.message : "Could not install.", true); } finally { setInstalling(false); }
+  };
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
   useEffect(() => { api.motionSettings().then((c) => { setCfg(c); setMode(c.mode); }).catch(() => {}); }, []);
@@ -34,7 +43,7 @@ export default function MotionControl({ goLibrary }: { goLibrary: () => void }) 
   const go = async () => {
     setBusy(true); setResult("");
     try {
-      const r = await ai.wait(engine === "local" ? await api.motionLocal({ image_asset_id: img, video_asset_id: vid }) : await api.motionRun({ image_asset_id: img, video_asset_id: vid, orientation, mode, prompt, keep_sound: keep }));
+      const r = await ai.wait(engine === "local" ? await api.motionLocal({ image_asset_id: img, video_asset_id: vid, engine: pose }) : await api.motionRun({ image_asset_id: img, video_asset_id: vid, orientation, mode, prompt, keep_sound: keep }));
       await refreshAssets();
       setResult((r.asset_id as string) ?? "");
       toast(engine === "local" ? "Your quick preview is ready." : "Your motion-control video is ready.");
@@ -56,11 +65,20 @@ export default function MotionControl({ goLibrary }: { goLibrary: () => void }) 
         </div>
       )}
       <div className="stack" style={{ marginBottom: 12 }}>
-        <div className="seg" role="radiogroup" aria-label="Motion engine">
+        <div className="seg" style={{ alignSelf: "flex-start" }} role="radiogroup" aria-label="Motion engine">
           <button type="button" role="radio" aria-checked={engine === "cloud"} className={engine === "cloud" ? "on" : ""} onClick={() => setEngine("cloud")} title="Realistic. Uses your fal.ai key and credit.">Realistic (Kling, online)</button>
           <button type="button" role="radio" aria-checked={engine === "local"} className={engine === "local" ? "on" : ""} onClick={() => setEngine("local")} title="Free, on this PC, no key. Rough puppet-style preview.">Quick preview (free, on this PC)</button>
         </div>
-        {engine === "local" && <span className="text-xs muted">Free and private: MediaPipe finds the body and bends your picture to follow the movement. It is a rough preview (the picture is stretched, not re-drawn). First use downloads a small 6 MB body-finder file. For a realistic result use Kling.</span>}
+        {engine === "local" && (
+          <div className="seg" style={{ alignSelf: "flex-start" }} role="radiogroup" aria-label="Body tracking engine">
+            <button type="button" role="radio" aria-checked={pose === "mediapipe"} className={pose === "mediapipe" ? "on" : ""} onClick={() => setPose("mediapipe")} title="Google MediaPipe (TensorFlow Lite models inside). Small and fast.">MediaPipe</button>
+            <button type="button" role="radio" aria-checked={pose === "tensorflow"} className={pose === "tensorflow" ? "on" : ""} onClick={() => setPose("tensorflow")} title="TensorFlow with the MoveNet model from Google.">TensorFlow (MoveNet)</button>
+          </div>
+        )}
+        {engine === "local" && pose === "tensorflow" && have && !have.tensorflow && (
+          <div className="row gap wrap center-v"><span className="text-xs muted">TensorFlow is not installed yet (about 350 MB, once).</span><Button small variant="secondary" busy={installing} onClick={installTf}>Install TensorFlow</Button></div>
+        )}
+        {engine === "local" && <span className="text-xs muted">Free and private: The body is found in your picture and in the video, the person is cut out, and the arms and legs turn like real limbs while the background stays still. It is still a preview: the picture is moved, not re-drawn. First use downloads a small body-finder file. For a realistic result use Kling.</span>}
       </div>
       <div className="mc-grid">
         <section className="mc-in card stack gap" aria-label="Inputs">

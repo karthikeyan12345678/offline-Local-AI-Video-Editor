@@ -68,6 +68,23 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
 
   useEffect(() => { if (!active) return; const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, [active]);
 
+  const [cloudOpen, setCloudOpen] = useState(false);
+  const [cDur, setCDur] = useState<6 | 8 | 10>(6);
+  const [cRes, setCRes] = useState<"1080p" | "1440p" | "2160p">("1080p");
+  const [cAudio, setCAudio] = useState(true);
+  const cloudCost = cDur * ({ "1080p": 0.08, "1440p": 0.16, "2160p": 0.32 }[cRes]);
+  const makeCloud = async () => {
+    if (!prompt.trim()) { toast("Describe what should happen.", true); return; }
+    if (mode === "extend") { toast("Cloud video starts from text or a start picture. Switch to Text or Picture.", true); return; }
+    if (mode === "i2v" && !imageId) { toast("Pick a starting picture first.", true); return; }
+    setSubmitting(true); setResultId(null); setStartedAt(Date.now()); setNow(Date.now());
+    try {
+      const j = await api.cloudVideo({ prompt: prompt.trim(), start_asset_id: mode === "i2v" ? imageId ?? undefined : undefined, end_asset_id: mode === "i2v" ? endId ?? undefined : undefined,
+        duration: cDur, resolution: cRes, aspect_ratio: aspect === "9:16" ? "9:16" : "16:9", audio: cAudio });
+      setJobId(j.id);
+      watchJob(j, (done) => { if (done.status === "done" && done.result?.asset_id) setResultId(done.result.asset_id as string); });
+    } catch (e) { toast((e as Error).message, true); } finally { setSubmitting(false); }
+  };
   const [improving, setImproving] = useState(false);
   const improve = async () => {
     if (!prompt.trim()) return;
@@ -184,6 +201,7 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
           {soundOn && <button type="button" className="gchip" aria-expanded={soundOpen} onClick={() => setSoundOpen(!soundOpen)}><span>Voice &amp; sound</span><small>{soundOpen ? "Hide ▴" : "Edit ▾"}</small></button>}
           <button type="button" className="gchip" aria-expanded={showAdvanced} onClick={() => setShowAdvanced(!showAdvanced)}><span>{width}×{height} · {(nFrames / fps).toFixed(1)} s</span><small>Options ▾</small></button>
           <button type="button" className="gchip" onClick={() => void improve()} disabled={improving || !prompt.trim()} title="Rewrite your idea as a detailed prompt: subject, camera, light, mood"><span>{improving ? "Improving…" : "Improve prompt"}</span><small>More detail</small></button>
+          <button type="button" className={`gchip${cloudOpen ? " gchip--on" : ""}`} aria-expanded={cloudOpen} onClick={() => setCloudOpen(!cloudOpen)} title="Sharp 1080p+ video with sound, made online with LTX-2.3 (your fal.ai key)"><span>Sharp cloud video</span><small>LTX-2.3 · 1080p+</small></button>
           <span className="grow" />
           <Button icon={I.sparkle} busy={submitting} disabled={!!missing || active || !modelsReady || tooLong} onClick={submit}>{active ? "Generating…" : "Generate"}</Button>
         </div>
@@ -202,6 +220,18 @@ export default function Generate({ goLibrary, goSettings }: { goLibrary: () => v
             <span className={blocked ? "why-block" : ""}>{blocked ?? missing}</span>
             {blocked && <Button variant="secondary" small onClick={goSettings}>{downloading ? "See downloads" : "Download models"}</Button>}
             {blocked && downloading && <div className="bar bar--thin" aria-hidden="true"><i style={{ width: `${dlPct}%` }} /></div>}
+          </div>
+        )}
+        {cloudOpen && (
+          <div className="pop stack gap" aria-label="Sharp cloud video">
+            <div className="row gap wrap center-v"><b className="text-sm">Sharp cloud video (LTX-2.3)</b><span className="text-xs run-sub">A 22-billion-parameter model, far larger than a laptop card can run. It makes crisp 1080p video with sound in about a minute or two. Uses your fal.ai key (Motion control → Connect) and costs about ${cloudCost.toFixed(2)} for this clip.</span></div>
+            <div className="grid-2">
+              <Field label="Length" htmlFor="cdur"><select id="cdur" className="select" value={cDur} onChange={(e) => setCDur(Number(e.target.value) as 6 | 8 | 10)}><option value={6}>6 seconds</option><option value={8}>8 seconds</option><option value={10}>10 seconds</option></select></Field>
+              <Field label="Sharpness" htmlFor="cres"><select id="cres" className="select" value={cRes} onChange={(e) => setCRes(e.target.value as "1080p" | "1440p" | "2160p")}><option value="1080p">1080p ($0.08 per second)</option><option value="1440p">1440p ($0.16 per second)</option><option value="2160p">4K ($0.32 per second)</option></select></Field>
+            </div>
+            <label className="check"><input type="checkbox" checked={cAudio} onChange={(e) => setCAudio(e.target.checked)} />Let the model make sound too</label>
+            {(aspect === "1:1" || aspect === "4:5") && <p className="hint">Cloud video supports 16:9 and 9:16 only; 16:9 will be used.</p>}
+            <div className="row"><Button icon={I.sparkle} busy={submitting} disabled={active || !prompt.trim()} onClick={makeCloud}>Make it in the cloud</Button></div>
           </div>
         )}
         {soundOn && soundOpen && !mini && (

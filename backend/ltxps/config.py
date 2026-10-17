@@ -90,6 +90,7 @@ class Settings:
     time_limit_min: int = 30
     # The first-run tour has been shown or skipped
     tour_done: bool = False
+    sharpen_output: bool = True  # clean, enlarge and sharpen finished videos (they look soft at small sizes)
 
 
 class SettingsStore:

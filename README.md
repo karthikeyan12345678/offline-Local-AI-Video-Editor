@@ -8,9 +8,9 @@
 
 <br>
 
-[![Download VKEditor for Windows](https://img.shields.io/badge/⬇_Download-VKEditor_1.2.12_for_Windows-72E528?style=for-the-badge&labelColor=1a1a1a)](https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/download/v1.2.12/VKEditor-1.2.12-portable.exe)
+[![Download VKEditor for Windows](https://img.shields.io/badge/⬇_Download-VKEditor_1.2.13_for_Windows-72E528?style=for-the-badge&labelColor=1a1a1a)](https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/download/v1.2.13/VKEditor-1.2.13-portable.exe)
 
-**Direct link:** https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/download/v1.2.12/VKEditor-1.2.12-portable.exe
+**Direct link:** https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/download/v1.2.13/VKEditor-1.2.13-portable.exe
 
 *(If the button says "not found", open the [Releases page](https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest) and click the file that ends in `-portable.exe`.)*
 
@@ -36,10 +36,15 @@ It all runs **on your own computer**. No account. No monthly fee.
 
 ---
 
-## ✨ What's new in 1.2.12
+## ✨ What's new in 1.2.13
 
 | New | What it means for you |
 | --- | --- |
+| 🎞 **Sharp cloud video (LTX-2.3)** | On Make video press **Sharp cloud video**: a 22-billion-parameter model on fal.ai makes crisp **1080p / 1440p / 4K** video with sound in 1-2 minutes (about $0.08 per second at 1080p). Uses your own fal.ai key. This model is too big for a laptop card, so it runs online |
+| 🔍 **Sharpen finished videos** | Videos made on your PC are cleaned, enlarged 2× and sharpened automatically (switch off in Settings). It looks crisper but cannot add detail the small model never drew |
+| 🕺 **Much better free Motion preview** | The person is cut out, arms and legs now **turn like real limbs** (no more stretching) and the **background stays still** |
+| 🧠 **TensorFlow body tracking** | In Motion control → Quick preview choose **MediaPipe** or **TensorFlow (MoveNet)**. TensorFlow installs with one button |
+| 🔑 **Key check** | When you save a fal.ai key the app asks fal.ai if it is accepted and tells you right away |
 | ⏱ **Time estimate** | Before you press Generate you see "about 4 minutes" worked out from *your* graphics card and memory. If it would be too slow, the app says why and suggests a smaller size |
 | 📊 **Live meters** | CPU, graphics card, memory and graphics memory (VRAM) are shown while a video is made |
 | ⛔ **30-minute limit** | A video that runs longer than your limit (Settings, default 30 minutes) stops and explains what was slow |
@@ -70,7 +75,7 @@ It all runs **on your own computer**. No account. No monthly fee.
 
 ### Step 1 — Download
 1. Click the big green **Download** button above.
-2. Wait for the file `VKEditor-1.2.12-portable.exe` (about 85 MB) to finish.
+2. Wait for the file `VKEditor-1.2.13-portable.exe` (about 85 MB) to finish.
 
 ### Step 2 — Put it in its own folder
 1. Make a new folder, for example `F:\VKEditor` (any drive is fine).
@@ -79,7 +84,7 @@ It all runs **on your own computer**. No account. No monthly fee.
 > 💡 **Why a folder?** The app saves your videos, settings and keys in a folder called `LTXStudioData` **next to the exe**. Keep it there and never delete it, or you lose your work.
 
 ### Step 3 — Open it
-1. **Double-click** `VKEditor-1.2.12-portable.exe`.
+1. **Double-click** `VKEditor-1.2.13-portable.exe`.
 2. Windows may show a blue box: **"Windows protected your PC"**. This is normal for new apps from independent makers.
    - Click **More info**
    - Click **Run anyway**
@@ -109,6 +114,8 @@ On the Welcome screen press **Install everything (one click)**. The app looks at
 6. Press **Generate**. You see a progress bar, the time passed, the time left and the live **CPU / GPU / memory** meters.
 7. Made a mistake? Press the round **×** on a picture to remove it, or **Upload another**.
 
+> 🎞 **Want sharper video?** A small model on a 6 GB card makes soft pictures. Pick a bigger size in *Options*, keep *Sharpen finished videos* on, or use **Sharp cloud video** for real 1080p.
+
 > ⏱ **How long does it take?** On a 6 GB laptop card with the graphics card switched on, a short clip takes a few minutes. If it takes much longer, open **Settings → This PC**: it must say your graphics card is working. Videos are saved in the **Library** automatically.
 
 ---
@@ -133,14 +140,14 @@ Add a **Character picture** (one person, head to toe) and a **Motion video** (3�
 | Engine | Quality | Cost | Needs |
 | --- | --- | --- | --- |
 | **Realistic (Kling, online)** | Looks like a real video | Pay per video on your fal.ai account | A fal.ai key |
-| **Quick preview (free, on this PC)** | Rough "puppet" preview: your picture is bent to follow the body movement. Clothes and face are stretched, not re-drawn | Free | Nothing. The first use downloads a small 6 MB body-finder file |
+| **Quick preview (free, on this PC)** | Preview: the person is cut out and their arms and legs turn to follow the video while the background stays still. Clothes and face are moved, not re-drawn | Free | Nothing for MediaPipe (small file downloaded on first use). TensorFlow is optional (button installs it, about 350 MB) |
 
 **Using Kling (fal.ai):**
 1. Make an account at [fal.ai](https://fal.ai), add a little credit, then open **Dashboard → Keys → Create key**.
 2. Copy the **real** key. It looks like `abc123…:def456…`. (Not the words "paste your key".)
 3. In the app: **Motion control** → paste it → **Save key** → **Generate**.
 
-**Using the free Quick preview:** choose *Quick preview*, add the two files, press **Generate**. It uses Google's MediaPipe to find the body. If it says it cannot download the body-finder file, download it once from the link in the message and put it in `LTXStudioData\models\pose`.
+**Using the free Quick preview:** choose *Quick preview*, pick **MediaPipe** (default) or **TensorFlow (MoveNet)**, add the two files, press **Generate**. If it says it cannot download the body-finder file, download it once from the link in the message and put it in `LTXStudioData\models\pose`.
 
 <img width="1456" height="834" alt="Motion control screen" src="https://github.com/user-attachments/assets/c746ea30-ea6a-4f34-b8c2-9bccc91fb9ac" />
 
@@ -203,7 +210,7 @@ Small parts (captions, MediaPipe, OpenCV…) can also be refreshed in **Settings
 | "Windows protected your PC" | More info → **Run anyway** |
 | Setup stuck | Close the app and open it again — it continues |
 | Video takes hours | Open **Settings → This PC**. If the graphics card is not used, update your NVIDIA driver and use the graphics card fix. Choose a smaller size; the estimate under Generate shows the time |
-| "Expected all tensors to be on the same device" | Fixed in 1.2.12. Update the app |
+| "Expected all tensors to be on the same device" | Fixed in 1.2.13. Update the app |
 | fal.ai "did not accept the key" | You pasted example text or a wrong key. Create a key at fal.ai → Dashboard → Keys and paste the real one |
 | Motion Quick preview says no person found | Use a clear picture of one person, head to toe, and a video where one person is fully visible |
 | Generate button is grey | The line under it tells you why (for example models still downloading or the video is too long) |
@@ -227,7 +234,8 @@ Small parts (captions, MediaPipe, OpenCV…) can also be refreshed in **Settings
 
 - This is a personal project, **free for everyone to use**. It comes **without any guarantee**.
 - Time estimates are a guide (usually within a factor of two).
-- The free Motion *Quick preview* is a rough preview, not a realistic video.
+- The free Motion *Quick preview* is a preview, not a realistic video. Kling (online) is the realistic one.
+- Videos made on your PC use a small 2-billion-parameter model. Newer models such as LTX-2 (22 billion parameters, about 66 GB of files) need a very large graphics card, so they are offered online instead.
 - AI can make mistakes. Check videos, files and resumes before you share them.
 - The AI models you download have their own licences from their makers.
 - ATS scores are an estimate, not the real score of any company's system.

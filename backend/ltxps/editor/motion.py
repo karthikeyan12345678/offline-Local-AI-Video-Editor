@@ -87,12 +87,12 @@ class MotionSettings:
         k = str(d.get("fal_key", ""))
         return {"has_key": bool(k), "key_hint": ("•" * 6 + k[-4:]) if len(k) >= 8 else ("•" * len(k)), "mode": d.get("mode", "std")}
 
-    def update(self, key: str | None, mode: str | None) -> None:
+    def update(self, key: str | None, mode: str | None, verify: Callable[[str], str | None] | None = None) -> None:
         d = self.get()
         if key is not None and not key.startswith("•"):
             fixed = clean_key(key)
             if fixed:
-                bad = key_problem(fixed)
+                bad = key_problem(fixed) or (verify(fixed) if verify else None)
                 if bad:
                     raise MotionError(bad)
             d["fal_key"] = fixed
@@ -167,9 +167,16 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
                             "keep_original_sound": bool(keep_sound)}
     if prompt.strip():
         body["prompt"] = prompt.strip()[:500]
-    say(0.05, "Sending the two files")
+    size = queue_run(c, headers, MODELS.get(mode, MODELS["std"]), body, dest, say, cancel, poll, "Sending the two files", "Animating your picture")
+    return {"mode": mode, "orientation": orientation, "bytes": size}
+
+
+def queue_run(c: httpx.Client, headers: dict[str, str], model: str, body: dict[str, Any], dest: Path, say: Progress, cancel: threading.Event | None, poll: float,
+              sending: str = "Sending your files", working: str = "Working on it") -> int:
+    """Submit to the fal.ai queue, wait, download the video to `dest`. Returns the size in bytes."""
+    say(0.05, sending)
     try:
-        r = c.post(f"{QUEUE}/{MODELS.get(mode, MODELS['std'])}", headers=headers, content=json.dumps(body))
+        r = c.post(f"{QUEUE}/{model}", headers=headers, content=json.dumps(body))
         if r.status_code in (401, 403):
             raise MotionError("fal.ai did not accept the key, or the account has no credit left. Check the key and your balance on fal.ai.")
         if r.status_code == 422:
@@ -183,7 +190,7 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
     except httpx.ConnectError as exc:
         raise MotionError("Cannot connect to fal.ai. Check your internet, VPN or firewall, and that queue.fal.run is not blocked.") from exc
     except (httpx.WriteTimeout, httpx.ReadTimeout, httpx.WriteError, httpx.ReadError, httpx.RemoteProtocolError) as exc:
-        raise MotionError(f"The upload did not finish ({type(exc).__name__}). The two files are large for your connection: trim the motion video to 5-10 seconds in the editor and try again.") from exc
+        raise MotionError(f"The upload did not finish ({type(exc).__name__}). The upload is large for your connection: try smaller files.") from exc
     except httpx.HTTPError as exc:
         raise MotionError(f"Could not talk to fal.ai ({type(exc).__name__}: {str(exc)[:120]}).") from exc
     except (ValueError, KeyError, TypeError) as exc:
@@ -207,9 +214,9 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
             if state in ("FAILED", "ERROR"):
                 raise MotionError("The service could not make this video: " + str(info.get("error") or info.get("detail") or "unknown reason")[:200])
             pos = info.get("queue_position")
-            say(min(0.9, 0.1 + (time.time() - started) / 400), "Waiting in line" + (f" (position {pos})" if pos is not None else "") if state == "IN_QUEUE" else "Animating your picture")
+            say(min(0.9, 0.1 + (time.time() - started) / 400), "Waiting in line" + (f" (position {pos})" if pos is not None else "") if state == "IN_QUEUE" else working)
             if time.time() - started > WAIT_SECONDS:
-                raise MotionError("It is taking too long (over 20 minutes). Try again later, or use the standard mode.")
+                raise MotionError("It is taking too long (over 20 minutes). Try again later.")
             time.sleep(poll)
         res = c.get(result_url, headers=headers)
         if res.status_code >= 400:
@@ -229,4 +236,62 @@ def run(key: str, image: Path, video: Path, dest: Path, *, orientation: str = "v
         raise MotionError("The connection to fal.ai broke while waiting. Try again.") from exc
     except (ValueError, KeyError, TypeError) as exc:
         raise MotionError("fal.ai sent an answer this app does not understand.") from exc
-    return {"mode": mode, "orientation": orientation, "bytes": dest.stat().st_size}
+    return dest.stat().st_size
+
+
+# ---- Sharp cloud video: LTX-2.3 (22B parameters, 1080p and up, with sound) on fal.ai. Far too large for a laptop card, so it runs in the cloud.
+VIDEO_MODELS = {"text": "fal-ai/ltx-2.3/text-to-video", "image": "fal-ai/ltx-2.3/image-to-video"}
+PRICE_PER_SECOND = {"1080p": 0.08, "1440p": 0.16, "2160p": 0.32}
+
+
+def video_cost(seconds: int, resolution: str) -> float:
+    return round(seconds * PRICE_PER_SECOND.get(resolution, 0.08), 2)
+
+
+def run_video(key: str, prompt: str, dest: Path, *, image: Path | None = None, end_image: Path | None = None, duration: int = 6, resolution: str = "1080p",
+              aspect_ratio: str = "16:9", audio: bool = True, on_progress: Progress | None = None, cancel: threading.Event | None = None,
+              client: httpx.Client | None = None, poll: float = 4.0) -> dict[str, Any]:
+    say = on_progress or (lambda p, m: None)
+    key = clean_key(key)
+    if not key:
+        raise MotionError("Add your fal.ai key first (Motion control page → Connect). The same key works for sharp cloud video.")
+    bad = key_problem(key)
+    if bad:
+        raise MotionError(bad)
+    if not prompt.strip():
+        raise MotionError("Describe the video first.")
+    if duration not in (6, 8, 10):
+        raise MotionError("Choose 6, 8 or 10 seconds.")
+    if resolution not in PRICE_PER_SECOND:
+        raise MotionError("Choose 1080p, 1440p or 2160p.")
+    if end_image is not None and image is None:
+        raise MotionError("An end picture needs a start picture too.")
+    body: dict[str, Any] = {"prompt": prompt.strip()[:2000], "duration": duration, "resolution": resolution, "generate_audio": bool(audio)}
+    if image is not None:
+        body["image_url"] = _data_uri(image, "image/png")
+        body["aspect_ratio"] = aspect_ratio if aspect_ratio in ("16:9", "9:16") else "auto"
+        if end_image is not None:
+            body["end_image_url"] = _data_uri(end_image, "image/png")
+        model = VIDEO_MODELS["image"]
+    else:
+        body["aspect_ratio"] = aspect_ratio if aspect_ratio in ("16:9", "9:16") else "16:9"
+        model = VIDEO_MODELS["text"]
+    c = client or httpx.Client(timeout=httpx.Timeout(180.0, connect=20.0, write=900.0, pool=30.0))
+    headers = {"Authorization": f"Key {key}", "Content-Type": "application/json"}
+    size = queue_run(c, headers, model, body, dest, say, cancel, poll, "Sending your request", "Making your video in the cloud")
+    return {"model": model, "bytes": size, "cost_usd": video_cost(duration, resolution)}
+
+
+def _check_key(key: str, client: httpx.Client | None = None) -> str | None:
+    """Asks fal.ai whether the key is accepted (GET /v1/models?limit=1). Returns a plain message when it is refused, None when fine or when the check cannot be made."""
+    try:
+        c = client or httpx.Client(timeout=httpx.Timeout(10.0, connect=6.0))
+        r = c.get("https://api.fal.ai/v1/models", params={"limit": 1}, headers={"Authorization": f"Key {key}"})
+    except httpx.HTTPError:
+        return None  # offline: save the key anyway
+    if r.status_code in (401, 403):
+        return "fal.ai says this key is not valid (it was refused). Create a new key on fal.ai → Dashboard → Keys with the “API” preset and paste the whole key."
+    return None
+
+
+check_key = _check_key  # the tests replace this name so they never reach fal.ai

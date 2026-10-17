@@ -16,6 +16,7 @@ def client(data_dir, monkeypatch):
     monkeypatch.setenv("LTXPS_ENGINE", "fake")
     monkeypatch.setenv("LTXPS_FAKE_VRAM_MB", "4096")
     state = build_state(TOKEN)
+    state.settings.update({"sharpen_output": False})  # most tests check the size the engine made; the sharpening has its own test
     with TestClient(create_app(state), headers={"Authorization": f"Bearer {TOKEN}"}) as c:
         c.state = state  # type: ignore[attr-defined]
         yield c
@@ -308,3 +309,61 @@ def test_local_motion_route_makes_a_preview(client, media, monkeypatch):
     j = wait(client, client.post("/api/motion/local", json={"image_asset_id": img["id"], "video_asset_id": vid["id"]}).json())
     assert j["status"] == "done" and j["result"]["asset_id"], j
     assert client.post("/api/motion/local", json={"image_asset_id": vid["id"], "video_asset_id": vid["id"]}).status_code == 422
+
+
+def test_local_motion_tensorflow_engine_status_and_install(client, media, monkeypatch):
+    from ltxps import updates
+    from ltxps.editor import localmotion
+
+    st = client.get("/api/motion/local/status").json()
+    assert set(st) == {"mediapipe", "tensorflow"}
+    seen = {}
+    monkeypatch.setattr(updates, "pip_install", lambda specs, on_line, cancel=None: seen.setdefault("specs", specs))
+    j = wait(client, client.post("/api/motion/local/install-tensorflow").json())
+    assert j["status"] == "done" and seen["specs"][0].startswith("tensorflow"), j
+    pose = [(0.5, 0.15), (0.42, 0.28), (0.58, 0.28), (0.38, 0.42), (0.62, 0.42), (0.36, 0.55), (0.64, 0.55),
+            (0.45, 0.55), (0.55, 0.55), (0.45, 0.75), (0.55, 0.75), (0.45, 0.95), (0.55, 0.95)]
+    chosen = {}
+
+    def fake_tf(model):
+        chosen["tf"] = True
+        return lambda rgb: pose
+
+    monkeypatch.setattr(localmotion, "ensure_movenet", lambda folder, download=None: folder / "m.tflite")
+    monkeypatch.setattr(localmotion, "tensorflow_detector", fake_tf)
+    img, vid = upload(client, media["image"]), upload(client, media["av"])
+    j = wait(client, client.post("/api/motion/local", json={"image_asset_id": img["id"], "video_asset_id": vid["id"], "engine": "tensorflow"}).json())
+    assert j["status"] == "done" and chosen.get("tf"), j
+
+
+def test_cloud_video_route(client, media, monkeypatch):
+    from ltxps.editor import motion
+
+    assert client.get("/api/cloud-video/cost?duration=8&resolution=1440p").json()["usd"] == 1.28
+    assert client.post("/api/cloud-video", json={"prompt": "a lighthouse"}).status_code == 409  # no key yet
+    client.post("/api/motion/settings", json={"fal_key": "abc123:secretvalue"})
+
+    def fake(key, prompt, dest, **kw):
+        dest.write_bytes(b"x")
+        raise motion.MotionError("fal.ai did not accept the key")
+
+    monkeypatch.setattr(motion, "run_video", fake)
+    j = wait(client, client.post("/api/cloud-video", json={"prompt": "a lighthouse"}).json())
+    assert j["status"] == "error" and "did not accept" in j["error"]
+    img = upload(client, media["image"])
+    assert client.post("/api/cloud-video", json={"prompt": "abc", "start_asset_id": img["id"], "duration": 7}).status_code == 422
+
+
+def test_saving_a_refused_key_is_explained(client, monkeypatch):
+    from ltxps.editor import motion
+
+    monkeypatch.setattr(motion, "check_key", lambda key, client=None: "fal.ai says this key is not valid")
+    r = client.post("/api/motion/settings", json={"fal_key": "abc123:secretvalue"})
+    assert r.status_code == 422 and "not valid" in r.json()["detail"]
+
+
+def test_finished_videos_are_sharpened_by_default(client):
+    client.put("/api/settings", json={"sharpen_output": True})
+    j = wait(client, client.post("/api/generate", json={"prompt": "a lighthouse at dawn", "width": 384, "height": 256, "frames": 25, "seed": 5}).json())
+    a = next(x for x in client.get("/api/assets").json() if x["id"] == j["result"]["asset_id"])
+    assert a["width"] == 768 and a["meta"]["finish"]["sharpened"] is True

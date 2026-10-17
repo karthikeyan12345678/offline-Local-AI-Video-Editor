@@ -19,7 +19,8 @@ from ..editor import ai, audiofx, chat as editor_chat, effects, fonts, inpaint, 
 from ..editor.media import FfmpegError, run_ffmpeg
 from ..editor.project import TEXT_ANIM_IN, TEXT_ANIM_OUT, ExportOptions, Project
 from ..editor.render import AssetRef, PlanError, build_plan
-from .. import updates
+from .. import finish, updates
+from ..system import ffmpeg_path
 from ..engine.base import GenRequest
 from ..jobs import JobContext, UserFacingError
 from ..assistant import llm, service as assistant_service
@@ -87,6 +88,7 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
         output_fps: int | None = Field(None, ge=8, le=60)
         time_limit_min: int | None = Field(None, ge=0, le=720)
         tour_done: bool | None = None
+        sharpen_output: bool | None = None
 
     @router.put("/settings")
     def put_settings(patch: SettingsPatch) -> dict[str, Any]:
@@ -306,6 +308,11 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
                 if watchdog:
                     watchdog.cancel()
             engine_warnings = list(info.pop("warnings", []))
+            if state.settings.get().sharpen_output and not ctx.cancel.is_set():
+                ctx.update(0.93, "Sharpening the video")
+                fin = finish.sharpen(out, ffmpeg_path())
+                if fin.get("sharpened"):
+                    info["finish"] = fin
             sound_info = None
             if sound is not None:
                 ctx.update(0.95, "Adding sound and voice")
@@ -673,7 +680,7 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
     @router.post("/motion/settings")
     def motion_set(body: MotionSettingsBody) -> dict[str, Any]:
         try:
-            motion_settings.update(body.fal_key, body.mode)
+            motion_settings.update(body.fal_key, body.mode, verify=motion.check_key)
         except motion.MotionError as exc:
             raise HTTPException(422, str(exc)) from exc
         return motion_settings.public()
@@ -706,12 +713,63 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
 
         return ai_job("ai", f"Motion control: {img.name}", run)
 
+    class CloudVideoBody(BaseModel):
+        prompt: str = Field(min_length=3, max_length=2000)
+        start_asset_id: str | None = None
+        end_asset_id: str | None = None
+        duration: Literal[6, 8, 10] = 6
+        resolution: Literal["1080p", "1440p", "2160p"] = "1080p"
+        aspect_ratio: Literal["16:9", "9:16"] = "16:9"
+        audio: bool = True
+
+    @router.get("/cloud-video/cost")
+    def cloud_video_cost(duration: int = 6, resolution: str = "1080p") -> dict[str, Any]:
+        return {"usd": motion.video_cost(duration, resolution), "per_second": motion.PRICE_PER_SECOND.get(resolution, 0.08)}
+
+    @router.post("/cloud-video")
+    def cloud_video(body: CloudVideoBody) -> dict[str, Any]:
+        start = asset_or_404(body.start_asset_id) if body.start_asset_id else None
+        end = asset_or_404(body.end_asset_id) if body.end_asset_id else None
+        for a in (start, end):
+            if a is not None and a.kind != "image":
+                raise HTTPException(422, "Start and end must be pictures.")
+        key = str(motion_settings.get().get("fal_key", ""))
+        if not key:
+            raise HTTPException(409, "Add your fal.ai key first (Motion control page → Connect).")
+
+        def run(ctx: JobContext) -> dict[str, Any]:
+            dest = state.paths.renders / f"{new_id()}_cloud.mp4"
+            r = motion.run_video(key, body.prompt, dest, image=Path(start.path) if start else None, end_image=Path(end.path) if end else None, duration=body.duration,
+                                 resolution=body.resolution, aspect_ratio=body.aspect_ratio, audio=body.audio, on_progress=lambda p, m: ctx.update(p, m), cancel=ctx.cancel)
+            made = state.library.register(dest, "generated", "Cloud video · " + body.prompt[:40], {"tool": "cloud_video", "model": r["model"], "prompt": body.prompt})
+            return {"asset_id": made.id, **r}
+
+        return ai_job("ai", "Sharp cloud video", run)
+
     class LocalMotionBody(BaseModel):
         image_asset_id: str
         video_asset_id: str
+        engine: Literal["mediapipe", "tensorflow"] = "mediapipe"
 
-    def make_detector() -> Any:  # a seam the tests replace
-        return localmotion.mediapipe_detector(localmotion.ensure_model(state.paths.root / "models" / "pose"))
+    def make_detector(engine: str = "mediapipe") -> Any:  # a seam the tests replace
+        folder = state.paths.root / "models" / "pose"
+        if engine == "tensorflow":
+            return localmotion.tensorflow_detector(localmotion.ensure_movenet(folder))
+        return localmotion.mediapipe_detector(localmotion.ensure_model(folder))
+
+    @router.get("/motion/local/status")
+    def motion_local_status() -> dict[str, Any]:
+        import importlib.util
+
+        return {"mediapipe": importlib.util.find_spec("mediapipe") is not None, "tensorflow": localmotion.tensorflow_available()}
+
+    @router.post("/motion/local/install-tensorflow")
+    def motion_install_tensorflow() -> dict[str, Any]:
+        def go(ctx: JobContext, on_line) -> dict[str, Any]:
+            updates.pip_install(["tensorflow>=2.16,<3"], on_line, ctx.cancel)
+            return {"restart": True}
+
+        return install_job("Install TensorFlow", go)
 
     @router.post("/motion/local")
     def motion_local(body: LocalMotionBody) -> dict[str, Any]:
@@ -723,7 +781,7 @@ def make_router(state: AppState, assistant: Any = None) -> APIRouter:
 
         def run(ctx: JobContext) -> dict[str, Any]:
             ctx.update(0.02, "Loading the body finder")
-            detect = make_detector()
+            detect = make_detector(body.engine)
             dest = state.paths.renders / f"{new_id()}_localmotion.mp4"
             r = localmotion.run(Path(img.path), Path(vid.path), dest, detect, on_progress=lambda p, m: ctx.update(p, m), cancel=ctx.cancel)
             made = state.library.register(dest, "edit", f"Quick motion preview · {img.name}", {"tool": "motion_local", "image": img.id, "video": vid.id})

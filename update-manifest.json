@@ -1,6 +1,6 @@
 {
-  "app_version": "1.2.12",
-  "notes": "1.2.12: device fix, fal key check, free local motion preview (MediaPipe)",
+  "app_version": "1.2.13",
+  "notes": "1.2.13: sharper videos, sharp cloud video (LTX-2.3), better local motion, TensorFlow option",
   "download_url": "https://github.com/karthikeyan12345678/offline-Local-AI-Video-Editor/releases/latest",
   "modules": [
     {
